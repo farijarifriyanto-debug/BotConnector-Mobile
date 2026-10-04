@@ -7,7 +7,8 @@ import type {SearchProvider, PageContent} from '../search/types';
 export interface SearchAccess {
   getActiveProvider(): SearchProvider;
   /**
-   * True only when the user has consented AND the active provider has a key.
+   * True only when the user has consented AND either the active BotConnector
+   * connection can search or the selected BYOK search provider has a key.
    * Consent is enforced here, not just in the Settings UI.
    */
   canSearch(): boolean;

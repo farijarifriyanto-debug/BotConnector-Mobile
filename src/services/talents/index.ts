@@ -8,6 +8,10 @@ import type {SearchAccess} from './searchAccess';
 import type {ToolDefinition, SystemPromptContext} from './types';
 import {searchProviderStore} from '../../store/SearchProviderStore';
 import {createSearchProvider, readWithDefaultReader} from '../search';
+import {BotConnectorSearchProvider} from '../search/providers/botconnector';
+import {modelStore} from '../../store/ModelStore';
+import {serverStore} from '../../store/ServerStore';
+import {isBotConnectorApiUrl} from '../../config/botconnector';
 
 export {TalentRegistry, talentRegistry} from './TalentRegistry';
 export {TalentUIRegistry, talentUIRegistry} from './TalentUIRegistry';
@@ -33,13 +37,41 @@ export type {
  * The single place that imports the store, so the search engines stay
  * store-free and pure.
  */
-function createSearchAccess(): SearchAccess {
+function activeBotConnectorBinding() {
+  const binding = modelStore.activeRemoteBinding;
+  return binding && isBotConnectorApiUrl(binding.url) ? binding : undefined;
+}
+
+function createConfiguredSearchProvider() {
+  const id = searchProviderStore.activeProviderId;
+  return createSearchProvider(id, () => searchProviderStore.getKey(id));
+}
+
+export function createSearchAccess(): SearchAccess {
   return {
     getActiveProvider: () => {
-      const id = searchProviderStore.activeProviderId;
-      return createSearchProvider(id, () => searchProviderStore.getKey(id));
+      const binding = activeBotConnectorBinding();
+      const configuredFallback = searchProviderStore.isProviderConfigured
+        ? createConfiguredSearchProvider()
+        : undefined;
+
+      if (!binding) {
+        return createConfiguredSearchProvider();
+      }
+
+      return new BotConnectorSearchProvider({
+        getConnection: async () => ({
+          baseUrl: binding.url,
+          apiKey: await serverStore.getApiKey(binding.serverId),
+        }),
+        getFallback: () => configuredFallback,
+        readFallback: readWithDefaultReader,
+      });
     },
-    canSearch: () => searchProviderStore.canSearch,
+    canSearch: () =>
+      searchProviderStore.hasConsentedToSearch &&
+      (!!activeBotConnectorBinding() ||
+        searchProviderStore.isProviderConfigured),
     getResultCount: () => searchProviderStore.resultCount,
     readWithDefaultReader,
   };
