@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "Jenis Cache Nilai Draf",
     "speculativeDraftNGpuLayers": "Lapisan GPU Draf",
     "speculativeDraftNGpuLayersDescription": "Bilangan lapisan model draf yang dimuatkan ke GPU.",
-    "speculativeDraftCacheTypeInactiveDescription": "Digunakan sebaik sahaja penyahkodan spekulatif berjalan."
+    "speculativeDraftCacheTypeInactiveDescription": "Digunakan sebaik sahaja penyahkodan spekulatif berjalan.",
+    "connectBotConnector": "Sambungkan BotConnector",
+    "connectBotConnectorDescription": "API BotConnector telah diprakonfigurasi. Tampal kunci API anda untuk memuatkan model yang tersedia bagi kunci tersebut.",
+    "connectBotConnectorLocal": "Sambungkan BotConnector Local",
+    "connectBotConnectorLocalDescription": "Sambung terus ke BotConnector Local pada komputer riba anda. Pada komputer riba, mulakan Local API Server dengan hos 0.0.0.0, port 1337 dan satu kunci API; kemudian masukkan alamat LAN tempatan komputer riba. Jika anda memang sudah menggunakan Tailscale, anda juga boleh menggunakan alamat Tailscale komputer riba.",
+    "localDeviceUrl": "Alamat komputer riba",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Kunci pasangan",
+    "localPairingKeyPlaceholder": "Kunci API Local API Server",
+    "localPairingKeyDescription": "Disimpan dengan selamat pada peranti ini dan digunakan semula secara automatik apabila menyambung semula.",
+    "botConnectorApiKeyPlaceholder": "Tampal kunci API bc_live_..."
   },
   "memory": {
     "shortWarning": "Amaran Memori",

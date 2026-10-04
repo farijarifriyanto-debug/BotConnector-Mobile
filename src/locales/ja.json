@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "ドラフトの値キャッシュタイプ",
     "speculativeDraftNGpuLayers": "ドラフトのGPUレイヤー",
     "speculativeDraftNGpuLayersDescription": "GPUにオフロードするドラフトモデルのレイヤー数。",
-    "speculativeDraftCacheTypeInactiveDescription": "投機的デコードが実行されると適用されます。"
+    "speculativeDraftCacheTypeInactiveDescription": "投機的デコードが実行されると適用されます。",
+    "connectBotConnector": "BotConnectorに接続",
+    "connectBotConnectorDescription": "BotConnector API は事前設定済みです。APIキーを貼り付けると、そのキーで利用可能なモデルが読み込まれます。",
+    "connectBotConnectorLocal": "BotConnector Localに接続",
+    "connectBotConnectorLocalDescription": "ノートPC上のBotConnector Localへ直接接続します。ノートPCでホストを0.0.0.0、ポートを1337に設定し、APIキーを指定してLocal API Serverを起動してください。その後、ノートPCのローカルLANアドレスを入力します。すでにTailscaleを利用している場合は、代わりにノートPCのTailscaleアドレスも使用できます。",
+    "localDeviceUrl": "ノートPCのアドレス",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "ペアリングキー",
+    "localPairingKeyPlaceholder": "Local API ServerのAPIキー",
+    "localPairingKeyDescription": "このデバイスに安全に保存され、再接続時に自動的に再利用されます。",
+    "botConnectorApiKeyPlaceholder": "bc_live_... APIキーを貼り付け"
   },
   "memory": {
     "shortWarning": "メモリ警告",

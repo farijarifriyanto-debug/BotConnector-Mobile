@@ -123,7 +123,17 @@
     "useHfTokenLabel": "Выкарыстоўваць токен HF",
     "orConnectNewServer": "або падключыцеся да новага сервера",
     "apiKeyDescription": "Захоўваецца бяспечна на прыладзе.",
-    "remotePrivacyNotice": "Паведамленні, якія адпраўляюцца на аддаленыя серверы, выходзяць за межы вашай прылады. Падключайцеся толькі да тых сервераў, якім вы давяраеце."
+    "remotePrivacyNotice": "Паведамленні, якія адпраўляюцца на аддаленыя серверы, выходзяць за межы вашай прылады. Падключайцеся толькі да тых сервераў, якім вы давяраеце.",
+    "connectBotConnector": "Падключыць BotConnector",
+    "connectBotConnectorDescription": "API BotConnector ужо наладжаны. Устаўце API-ключ, каб загрузіць мадэлі, даступныя для гэтага ключа.",
+    "connectBotConnectorLocal": "Падключыць BotConnector Local",
+    "connectBotConnectorLocalDescription": "Падключыцеся непасрэдна да BotConnector Local на ноўтбуку. На ноўтбуку запусціце Local API Server з хостам 0.0.0.0, портам 1337 і API-ключом; затым увядзіце лакальны LAN-адрас ноўтбука. Калі вы ўжо карыстаецеся Tailscale, замест яго можна выкарыстаць Tailscale-адрас ноўтбука.",
+    "localDeviceUrl": "Адрас ноўтбука",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Ключ спалучэння",
+    "localPairingKeyPlaceholder": "API-ключ Local API Server",
+    "localPairingKeyDescription": "Надзейна захоўваецца на гэтай прыладзе і аўтаматычна выкарыстоўваецца пры паўторным падключэнні.",
+    "botConnectorApiKeyPlaceholder": "Устаўце API-ключ bc_live_..."
   },
   "benchmark": {
     "benchmarkResultCard": {

@@ -10,5 +10,17 @@
     "error": "Viga",
     "export": "Ekspordi",
     "networkError": "Võrguühenduse viga. Palun proovi uuesti."
+  },
+  "settings": {
+    "connectBotConnector": "Ühenda BotConnector",
+    "connectBotConnectorDescription": "BotConnectori API on eelseadistatud. Kleebi oma API-võti, et laadida selle võtmega saadaolevad mudelid.",
+    "connectBotConnectorLocal": "Ühenda BotConnector Local",
+    "connectBotConnectorLocalDescription": "Ühenda otse sülearvutis töötava BotConnector Localiga. Käivita sülearvutis Local API Server hostiga 0.0.0.0, pordiga 1337 ja API-võtmega; seejärel sisesta sülearvuti kohaliku LAN-i aadress. Kui kasutad juba Tailscale'i, võid selle asemel kasutada sülearvuti Tailscale'i aadressi.",
+    "localDeviceUrl": "Sülearvuti aadress",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Sidumisvõti",
+    "localPairingKeyPlaceholder": "Local API Serveri API-võti",
+    "localPairingKeyDescription": "Salvestatakse selles seadmes turvaliselt ja kasutatakse uuesti ühendamisel automaatselt.",
+    "botConnectorApiKeyPlaceholder": "Kleebi API-võti bc_live_..."
   }
 }

@@ -60,6 +60,16 @@
     "effectiveLabel": "efficace",
     "physicalBatchSize": "Dimensione fisica del batch",
     "physicalBatchSizeDescription": "Dimensione fisica del batch: {{physicalBatchSize}}{{effectivePhysicalBatch}}",
-    "cpuThreads": "Thread CPU"
+    "cpuThreads": "Thread CPU",
+    "connectBotConnector": "Connetti BotConnector",
+    "connectBotConnectorDescription": "L’API di BotConnector è già configurata. Incolla la tua chiave API per caricare i modelli disponibili per quella chiave.",
+    "connectBotConnectorLocal": "Connetti BotConnector Local",
+    "connectBotConnectorLocalDescription": "Connettiti direttamente a BotConnector Local sul tuo portatile. Sul portatile, avvia Local API Server con host 0.0.0.0, porta 1337 e una chiave API; quindi inserisci l’indirizzo LAN locale del portatile. Se usi già Tailscale, puoi usare in alternativa l’indirizzo Tailscale del portatile.",
+    "localDeviceUrl": "Indirizzo del portatile",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Chiave di associazione",
+    "localPairingKeyPlaceholder": "Chiave API di Local API Server",
+    "localPairingKeyDescription": "Viene salvata in modo sicuro su questo dispositivo e riutilizzata automaticamente alla riconnessione.",
+    "botConnectorApiKeyPlaceholder": "Incolla la chiave API bc_live_..."
   }
 }
