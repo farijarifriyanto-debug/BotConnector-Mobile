@@ -47,6 +47,8 @@ export interface ServerProfile {
   ): Record<string, unknown>;
   /** `GET /props` exists and is worth probing. */
   hasProps: boolean;
+  /** This profile denotes a desktop/local runtime rather than a public cloud API. */
+  isLocalRuntime: boolean;
   /** Absent = `/v1/models` rows carry no caps worth reading. Pure. */
   readListRow?(row: RemoteModelInfo | undefined): ListDerivedCaps;
 }
@@ -256,32 +258,38 @@ export const SERVER_PROFILES = {
     sendNames: LLAMA_CPP_SEND_NAMES,
     reasoningExtras: llamaCppReasoningExtras,
     hasProps: true,
+    isLocalRuntime: true,
     readListRow: readLlamaCppListRow,
   },
   'LM Studio': {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: lmStudioReasoningExtras,
     hasProps: false,
+    isLocalRuntime: true,
   },
   Ollama: {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: ollamaReasoningExtras,
     hasProps: false,
+    isLocalRuntime: true,
   },
   OpenAI: {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: openaiReasoningExtras,
     hasProps: false,
+    isLocalRuntime: false,
   },
   vLLM: {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: vllmReasoningExtras,
     hasProps: false,
+    isLocalRuntime: false,
   },
   unknown: {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: noReasoningExtras,
     hasProps: false,
+    isLocalRuntime: false,
   },
 } satisfies Record<ServerType, ServerProfile>;
 

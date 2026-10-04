@@ -382,8 +382,37 @@ describe('useChatSession', () => {
     expect(JSON.stringify(arg)).toContain(l10n.en.chat.multimodalNotEnabled);
   });
 
-  it('sends an image on a remote model whose probe reported vision', async () => {
+  it('sends an image on paid BotConnector when the model reports vision', async () => {
     runInAction(() => {
+      serverStore.servers = [
+        {
+          id: 'srv-1',
+          name: 'BotConnector',
+          url: 'https://api.botconnector.id',
+          serverType: 'OpenAI',
+        },
+      ];
+      serverStore.botConnectorAccess = {
+        'srv-1': {
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          access: 'full',
+          paid: true,
+          entitlement_sources: {
+            subscription: true,
+            payg: false,
+            family: false,
+          },
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+          },
+        },
+      };
       modelStore.models = [
         {
           id: 'srv-1/gemma-4-e2b',
@@ -430,6 +459,69 @@ describe('useChatSession', () => {
 
     runInAction(() => {
       serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess = {};
+      serverStore.servers = [];
+      modelStore.activeModelId = undefined;
+    });
+  });
+
+  it('keeps a vision-capable external cloud provider text-only', async () => {
+    runInAction(() => {
+      serverStore.servers = [
+        {
+          id: 'external-1',
+          name: 'External Cloud',
+          url: 'https://api.external.example',
+          serverType: 'OpenAI',
+        },
+      ];
+      serverStore.botConnectorAccess = {};
+      modelStore.models = [
+        {
+          id: 'external-1/vision-model',
+          origin: ModelOrigin.REMOTE,
+          serverId: 'external-1',
+          remoteModelId: 'vision-model',
+        } as any,
+      ];
+      modelStore.activeModelId = 'external-1/vision-model';
+      serverStore.remoteCaps = {
+        'external-1/vision-model': {supportsVision: true},
+      };
+    });
+    if (modelStore.context) {
+      modelStore.context.completion = jest
+        .fn()
+        .mockResolvedValue({text: 'ok', content: 'ok', timings: {}});
+    }
+
+    const {result} = renderHook(() =>
+      useChatSession({current: null}, textMessage.author, mockAssistant),
+    );
+    await act(async () => {
+      await result.current.handleSendPress({
+        text: 'look at this',
+        type: 'text',
+        imageUris: ['file:///photo.jpg'],
+      });
+    });
+
+    const sent = (modelStore.engine!.completion as jest.Mock).mock
+      .calls[0][0] as {messages: Array<{role: string; content: any}>};
+    const lastUser = [...sent.messages].reverse().find(m => m.role === 'user')!;
+    expect(lastUser.content).toBe('look at this');
+
+    const warnings = (uiStore.setChatWarning as jest.Mock).mock.calls;
+    expect(
+      warnings.some(call =>
+        JSON.stringify(call[0]).includes(l10n.en.chat.multimodalNotEnabled),
+      ),
+    ).toBe(true);
+
+    runInAction(() => {
+      serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess = {};
+      serverStore.servers = [];
       modelStore.activeModelId = undefined;
     });
   });
