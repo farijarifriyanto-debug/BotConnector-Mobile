@@ -39,6 +39,11 @@ import {detectServerType} from '../../api/servers/detect';
 import {deriveListCaps} from '../../api/servers';
 import {profileFor} from '../../api/servers';
 import {t} from '../../locales';
+import {
+  BOTCONNECTOR_API_BASE_URL,
+  BOTCONNECTOR_NAME,
+  isBotConnectorApiUrl,
+} from '../../config/botconnector';
 
 import {createStyles} from './styles';
 import {ChatIcon, EyeIcon, EyeOffIcon} from '../../assets/icons';
@@ -61,6 +66,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     const [apiKey, setApiKey] = useState('');
     const [timeoutSeconds, setTimeoutSeconds] = useState('');
     const [serverType, setServerType] = useState<ServerType>('unknown');
+    const [isBotConnectorPreset, setIsBotConnectorPreset] = useState(false);
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
     // Auto-probe
@@ -107,6 +113,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
         setTimeoutSeconds('');
         timeoutSecondsRef.current = '';
         setServerType('unknown');
+        setIsBotConnectorPreset(false);
         setSecureTextEntry(true);
         setIsProbing(false);
         setProbeResult(null);
@@ -181,13 +188,16 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
 
     // Trigger probe on url change (only when not using a known server chip)
     useEffect(() => {
-      if (!selectedServerId) {
+      if (
+        !selectedServerId &&
+        !(isBotConnectorPreset && !apiKeyRef.current.trim())
+      ) {
         debouncedProbe(url);
       }
       return () => {
         debouncedProbe.cancel();
       };
-    }, [url, debouncedProbe, selectedServerId]);
+    }, [url, debouncedProbe, selectedServerId, isBotConnectorPreset]);
 
     // Re-probe on apiKey blur
     const handleApiKeyBlur = useCallback(() => {
@@ -218,6 +228,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setSelectedServerId(server.id);
       setServerName(server.name);
       setUrl(server.url);
+      setIsBotConnectorPreset(isBotConnectorApiUrl(server.url));
       setIsProbing(true);
       setProbeResult(null);
       setAvailableModels([]);
@@ -253,12 +264,35 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setUrl('');
       setServerName('');
       setApiKey('');
+      setIsBotConnectorPreset(false);
       apiKeyRef.current = '';
       setProbeResult(null);
       setAvailableModels([]);
       setSelectedModelId(null);
       setUrlError('');
     }, []);
+
+    const handleBotConnectorPreset = useCallback(() => {
+      const existing = serverStore.servers.find(server =>
+        isBotConnectorApiUrl(server.url),
+      );
+      if (existing) {
+        handleServerChipPress(existing);
+        return;
+      }
+
+      setSelectedServerId(null);
+      setUrl(BOTCONNECTOR_API_BASE_URL);
+      setServerName(BOTCONNECTOR_NAME);
+      setServerType('OpenAI');
+      setApiKey('');
+      apiKeyRef.current = '';
+      setIsBotConnectorPreset(true);
+      setProbeResult(null);
+      setAvailableModels([]);
+      setSelectedModelId(null);
+      setUrlError('');
+    }, [handleServerChipPress]);
 
     // Save / add model
     const handleAddModel = useCallback(async () => {
@@ -314,7 +348,8 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     // Show API key + server name fields when probe attempted (success OR auth failure)
     // This lets users enter an API key after a 401, then retry
     const showServerFields =
-      probeResult !== null && !isProbing && !selectedServerId;
+      isBotConnectorPreset ||
+      (probeResult !== null && !isProbing && !selectedServerId);
 
     return (
       <Sheet
@@ -346,6 +381,19 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               </TouchableOpacity>
             </View>
           )}
+
+          <View style={styles.inputSpacing}>
+            <Button
+              testID="botconnector-preset-button"
+              mode={isBotConnectorPreset ? 'contained-tonal' : 'outlined'}
+              icon="cloud-outline"
+              onPress={handleBotConnectorPreset}>
+              {l10n.settings.connectBotConnector}
+            </Button>
+            <Text style={styles.apiKeyDescription}>
+              {l10n.settings.connectBotConnectorDescription}
+            </Text>
+          </View>
 
           {/* Known Server Chips */}
           {serverStore.servers.length > 0 && (
@@ -423,7 +471,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                 <TextInput
                   testID="remote-url-input"
                   label={l10n.settings.serverUrl}
-                  defaultValue={url}
+                  value={url}
                   onChangeText={text => {
                     setUrl(text);
                     if (urlError) {
@@ -434,6 +482,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
+                  editable={!isBotConnectorPreset}
                   error={!!urlError}
                 />
                 {urlError ? (
@@ -499,15 +548,17 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               so user can enter API key after 401 and retry */}
           {showServerFields && (
             <>
-              <View style={styles.inputSpacing}>
-                <TextInput
-                  testID="remote-name-input"
-                  label={l10n.settings.serverName}
-                  value={serverName}
-                  onChangeText={setServerName}
-                  autoCapitalize="none"
-                />
-              </View>
+              {!isBotConnectorPreset && (
+                <View style={styles.inputSpacing}>
+                  <TextInput
+                    testID="remote-name-input"
+                    label={l10n.settings.serverName}
+                    value={serverName}
+                    onChangeText={setServerName}
+                    autoCapitalize="none"
+                  />
+                </View>
+              )}
 
               <View style={styles.inputSpacing}>
                 <TextInput
@@ -515,7 +566,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                   label={l10n.settings.apiKey}
                   value={apiKey}
                   onChangeText={setApiKey}
-                  placeholder={l10n.settings.apiKeyPlaceholder}
+                  placeholder={
+                    isBotConnectorPreset
+                      ? l10n.settings.botConnectorApiKeyPlaceholder
+                      : l10n.settings.apiKeyPlaceholder
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   spellCheck={false}
@@ -554,18 +609,20 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                 </Text>
               </View>
 
-              <View style={styles.inputSpacing}>
-                <Text>{l10n.settings.serverType}</Text>
-                <Dropdown
-                  testID="server-type-dropdown"
-                  value={serverType}
-                  options={SERVER_TYPE_DROPDOWN_OPTIONS}
-                  onChange={value => setServerType(toServerType(value))}
-                />
-                <Text style={styles.apiKeyDescription}>
-                  {l10n.settings.serverTypeHelp}
-                </Text>
-              </View>
+              {!isBotConnectorPreset && (
+                <View style={styles.inputSpacing}>
+                  <Text>{l10n.settings.serverType}</Text>
+                  <Dropdown
+                    testID="server-type-dropdown"
+                    value={serverType}
+                    options={SERVER_TYPE_DROPDOWN_OPTIONS}
+                    onChange={value => setServerType(toServerType(value))}
+                  />
+                  <Text style={styles.apiKeyDescription}>
+                    {l10n.settings.serverTypeHelp}
+                  </Text>
+                </View>
+              )}
             </>
           )}
 

@@ -167,7 +167,6 @@
     "serverTypeHelp": "已自动检测；如有误请手动更改。",
     "internetSearch": {
       "title": "联网搜索",
-      "description": "让 Pal 用自己的工具搜索网络。需自备 API 密钥——BotConnector 绝不保存您的密钥，也不会转发您的查询。",
       "providerLabel": "搜索服务供应商",
       "providerGated": "即将推出",
       "keyLabel": "API 密钥",
@@ -183,7 +182,6 @@
       "resultCountLabel": "每次搜索的结果数",
       "resultCountDescription": "结果越少，模型的上下文就能保留更多空间。",
       "consentTitle": "搜索会离开您的设备",
-      "consentDescription": "当 Pal 搜索网络时，您的查询会通过互联网发送给所选服务商。当 Pal 读取网页时，如果所选服务商没有自带的阅读器，网址和网页内容可能会改为发送给默认阅读服务（r.jina.ai）。密钥和查询绝不会发送给 BotConnector。",
       "consentAccept": "我已了解",
       "consentRequired": "同意以上声明后，可设置密钥并启用搜索。",
       "consentGivenTitle": "联网搜索已启用",

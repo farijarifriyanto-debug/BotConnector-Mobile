@@ -1198,7 +1198,6 @@
     "serverTypeHelp": "자동으로 감지된 설정입니다. 틀린 부분이 있다면 변경해 주세요.",
     "internetSearch": {
       "title": "인터넷 검색",
-      "description": "Pal이 자체 도구로 웹을 검색할 수 있도록 해보세요. 본인의 API 키만 가져오시면 됩니다 — BotConnector은 사용자의 키를 저장하거나 쿼리를 라우팅하지 않습니다.",
       "providerLabel": "검색 제공자",
       "providerGated": "출시 예정",
       "keyLabel": "API 키",
@@ -1214,7 +1213,6 @@
       "resultCountLabel": "검색당 결과 수",
       "resultCountDescription": "결과가 적을수록 모델의 컨텍스트에 더 많은 공간이 유지됩니다.",
       "consentTitle": "검색어는 기기 외부로 전송됩니다",
-      "consentDescription": "Pal이 웹을 검색하면 여러분의 검색어가 인터넷을 통해 선택한 제공자로 전송돼요. Pal이 페이지를 읽을 때, 선택한 제공자에 자체 리더가 없으면 URL과 페이지 내용이 대신 기본 리더 서비스(r.jina.ai)로 전송될 수 있어요. 키와 검색어는 절대 BotConnector로 전송되지 않아요.",
       "consentAccept": "확인했습니다",
       "consentRequired": "키를 설정하고 검색을 활성화하려면 위 고지에 동의해 주세요.",
       "consentGivenTitle": "웹 검색이 활성화됨",

@@ -35,6 +35,10 @@ export const createSearchProvider = (
       return new ExaProvider(getKey);
     case 'parallel':
       return new ParallelProvider(getKey);
+    case 'botconnector':
+      throw new Error(
+        'BotConnector search is created from the active BotConnector connection',
+      );
   }
 };
 

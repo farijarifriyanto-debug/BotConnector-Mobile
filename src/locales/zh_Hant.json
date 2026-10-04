@@ -1198,7 +1198,6 @@
     "serverTypeHelp": "自動偵測；若有誤請修改。",
     "internetSearch": {
       "title": "網路搜尋",
-      "description": "讓 Pals 用自己的工具搜尋網路。請自備 API 金鑰 — BotConnector 絕不會保存你的金鑰，也不會轉送你的查詢。",
       "providerLabel": "搜尋服務供應商",
       "providerGated": "即將推出",
       "keyLabel": "API 金鑰",
@@ -1214,7 +1213,6 @@
       "resultCountLabel": "每次搜尋的結果數",
       "resultCountDescription": "結果越少，模型的上下文就能保留更多空間。",
       "consentTitle": "搜尋會離開你的裝置",
-      "consentDescription": "當 Pal 搜尋網路時，你的查詢會透過網際網路傳送給所選的供應商。當 Pal 讀取網頁時，若所選供應商沒有內建的閱讀器，網址與頁面內容可能會改為傳送給預設的閱讀器服務（r.jina.ai）。金鑰與查詢絕不會傳送給 BotConnector。",
       "consentAccept": "我了解",
       "consentRequired": "請接受上方的說明，以設定金鑰並啟用搜尋。",
       "consentGivenTitle": "網路搜尋已啟用",

@@ -169,7 +169,6 @@
     "languageSearchPlaceholder": "Wyszukaj języki",
     "internetSearch": {
       "title": "Wyszukiwanie w internecie",
-      "description": "Pozwól Kumplom przeszukiwać internet za pomocą własnych narzędzi. Użyj własnego klucza API — BotConnector nigdy nie przechowuje Twoich kluczy ani nie przekazuje Twoich zapytań.",
       "providerLabel": "Dostawca wyszukiwania",
       "providerGated": "Wkrótce",
       "keyLabel": "Klucz API",
@@ -185,7 +184,6 @@
       "resultCountLabel": "Liczba wyników na wyszukiwanie",
       "resultCountDescription": "Mniej wyników zostawia więcej miejsca w kontekście modelu.",
       "consentTitle": "Wyszukiwania opuszczają Twoje urządzenie",
-      "consentDescription": "Gdy Kumpel przeszukuje internet, Twoje zapytanie jest wysyłane przez internet do wybranego dostawcy. Gdy Kumpel odczytuje stronę, jej adres URL i zawartość mogą zostać wysłane do domyślnej usługi odczytu (r.jina.ai), jeśli wybrany dostawca nie ma własnego mechanizmu odczytu. Klucze i zapytania nigdy nie są wysyłane do BotConnector.",
       "consentAccept": "Rozumiem",
       "consentRequired": "Zaakceptuj powyższą informację, aby ustawić klucz i włączyć wyszukiwanie.",
       "consentGivenTitle": "Wyszukiwanie w internecie jest włączone",

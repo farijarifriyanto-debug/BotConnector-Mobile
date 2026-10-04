@@ -53,7 +53,11 @@ export function seedServerType(
     return detected;
   }
   try {
-    if (new URL(url).hostname.endsWith('api.openai.com')) {
+    const hostname = new URL(url).hostname;
+    if (
+      hostname.endsWith('api.openai.com') ||
+      hostname === 'api.botconnector.id'
+    ) {
       return 'OpenAI';
     }
   } catch {

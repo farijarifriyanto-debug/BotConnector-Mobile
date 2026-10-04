@@ -167,7 +167,6 @@
     "serverTypeHelp": "Dikesan secara automatik; tukar jika salah.",
     "internetSearch": {
       "title": "Carian Internet",
-      "description": "Biarkan Pals mencari di web dengan alat mereka sendiri. Bawa kunci API anda sendiri — BotConnector tidak sekali-kali menyimpan kunci atau menghalakan pertanyaan anda.",
       "providerLabel": "Penyedia carian",
       "providerGated": "Akan datang",
       "keyLabel": "Kunci API",
@@ -183,7 +182,6 @@
       "resultCountLabel": "Bilangan hasil setiap carian",
       "resultCountDescription": "Lebih sedikit hasil mengekalkan lebih banyak ruang dalam konteks model.",
       "consentTitle": "Carian meninggalkan peranti anda",
-      "consentDescription": "Apabila Pal mencari di web, pertanyaan anda dihantar ke penyedia yang dipilih melalui internet. Apabila Pal membaca sesuatu halaman, URL dan kandungan halaman mungkin dihantar ke perkhidmatan pembaca lalai (r.jina.ai) sebaliknya jika penyedia yang dipilih tiada pembaca natif. Kunci dan pertanyaan tidak sekali-kali dihantar ke BotConnector.",
       "consentAccept": "Saya faham",
       "consentRequired": "Terima pendedahan di atas untuk menetapkan kunci dan mendayakan carian.",
       "consentGivenTitle": "Carian web telah didayakan",
