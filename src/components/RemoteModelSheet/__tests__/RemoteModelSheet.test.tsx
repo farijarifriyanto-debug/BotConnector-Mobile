@@ -557,4 +557,147 @@ describe('RemoteModelSheet', () => {
       });
     });
   });
+
+  describe('BotConnector Local preset', () => {
+    beforeEach(() => {
+      serverStore.servers = [];
+      mockedFetchModelsWithHeaders.mockResolvedValue({
+        models: [],
+        headers: {},
+      });
+    });
+
+    it('asks for a laptop address and pairing key without probing early', () => {
+      const {getByTestId, queryByTestId} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      fireEvent.press(getByTestId('botconnector-local-preset-button'));
+
+      const urlInput = getByTestId('remote-url-input');
+      expect(urlInput.props.editable).not.toBe(false);
+      expect(getByTestId('remote-apikey-input')).toBeTruthy();
+      expect(queryByTestId('remote-name-input')).toBeNull();
+      expect(queryByTestId('server-type-dropdown')).toBeNull();
+      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
+    });
+
+    it('loads laptop models after address and pairing key are entered', async () => {
+      mockedFetchModelsWithHeaders.mockResolvedValue({
+        models: [
+          {
+            id: 'local-model-1',
+            object: 'model',
+            owned_by: 'BotConnector Local',
+          },
+        ],
+        headers: {},
+      });
+
+      const {getByTestId, getByText} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      fireEvent.press(getByTestId('botconnector-local-preset-button'));
+      fireEvent.changeText(
+        getByTestId('remote-url-input'),
+        'http://192.168.1.50:1337',
+      );
+      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
+
+      fireEvent.changeText(
+        getByTestId('remote-apikey-input'),
+        'local_pair_key',
+      );
+      fireEvent(getByTestId('remote-apikey-input'), 'blur');
+
+      await waitFor(() => {
+        expect(mockedFetchModelsWithHeaders).toHaveBeenCalledWith(
+          'http://192.168.1.50:1337',
+          'local_pair_key',
+          undefined,
+        );
+        expect(getByText('local-model-1')).toBeTruthy();
+      });
+    });
+
+    it('persists the laptop and pairing key for reconnect', async () => {
+      mockedFetchModelsWithHeaders.mockResolvedValue({
+        models: [
+          {
+            id: 'local-model-1',
+            object: 'model',
+            owned_by: 'BotConnector Local',
+          },
+        ],
+        headers: {},
+      });
+
+      const {getByTestId, getByText} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      fireEvent.press(getByTestId('botconnector-local-preset-button'));
+      fireEvent.changeText(
+        getByTestId('remote-url-input'),
+        'http://192.168.1.50:1337',
+      );
+      fireEvent.changeText(
+        getByTestId('remote-apikey-input'),
+        'local_pair_key',
+      );
+      fireEvent(getByTestId('remote-apikey-input'), 'blur');
+
+      await waitFor(() => {
+        expect(getByText('local-model-1')).toBeTruthy();
+      });
+
+      fireEvent.press(getByTestId('add-model-button'));
+
+      await waitFor(() => {
+        expect(serverStore.addServer).toHaveBeenCalledWith(
+          expect.objectContaining({
+            name: 'BotConnector Local · 192.168.1.50',
+            url: 'http://192.168.1.50:1337',
+            serverType: 'OpenAI',
+          }),
+        );
+        expect(serverStore.setApiKey).toHaveBeenCalledWith(
+          expect.anything(),
+          'local_pair_key',
+        );
+      });
+    });
+
+    it('reconnects a saved laptop with the stored Keychain credential', async () => {
+      serverStore.servers = [
+        {
+          id: 'local-server-1',
+          name: 'BotConnector Local · laptop',
+          url: 'http://100.100.1.20:1337',
+          serverType: 'OpenAI',
+        },
+      ];
+      (serverStore.getApiKey as jest.Mock).mockResolvedValue('stored_pair_key');
+      mockedFetchModels.mockResolvedValue([
+        {id: 'local-model-2', object: 'model', owned_by: 'BotConnector Local'},
+      ]);
+
+      const {getByTestId, getByText} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      fireEvent.press(getByTestId('server-chip-local-server-1'));
+
+      await waitFor(() => {
+        expect(serverStore.getApiKey).toHaveBeenCalledWith('local-server-1');
+        expect(mockedFetchModels).toHaveBeenCalledWith(
+          'http://100.100.1.20:1337',
+          'stored_pair_key',
+          undefined,
+        );
+        expect(getByText('local-model-2')).toBeTruthy();
+      });
+    });
+  });
 });
