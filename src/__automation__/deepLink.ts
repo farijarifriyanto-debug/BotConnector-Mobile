@@ -3,12 +3,12 @@
  * in src/hooks/useDeepLinking.ts, so this module is DCE-stripped in prod.
  *
  * Supported protocols in v1:
- *   pocketpal://memory?cmd=snap::<label>
- *   pocketpal://memory?cmd=clear::snapshots
- *   pocketpal://tts?cmd=download::<engine>
- *   pocketpal://tts?cmd=synthesize::<engine>
- *   pocketpal://tts?cmd=release
- *   pocketpal://e2e/benchmark   (Android: cold-launch path lives in
+ *   botconnector://memory?cmd=snap::<label>
+ *   botconnector://memory?cmd=clear::snapshots
+ *   botconnector://tts?cmd=download::<engine>
+ *   botconnector://tts?cmd=synthesize::<engine>
+ *   botconnector://tts?cmd=release
+ *   botconnector://e2e/benchmark   (Android: cold-launch path lives in
  *                                useDeepLinking.ts since RN's Android side
  *                                doesn't deliver the URL via DeepLinkService)
  */
@@ -44,7 +44,7 @@ export async function dispatchAutomationDeepLink(
     await runTtsCommand(params.queryParams.cmd);
     return true;
   }
-  // pocketpal://e2e/benchmark — bench host. Match against the raw URL via
+  // botconnector://e2e/benchmark — bench host. Match against the raw URL via
   // the shared helper so both deep-link sites (this dispatcher and the
   // useDeepLinking cold/warm-launch effect) accept the exact same shape.
   if (isBenchmarkRunnerUrl(params.url)) {

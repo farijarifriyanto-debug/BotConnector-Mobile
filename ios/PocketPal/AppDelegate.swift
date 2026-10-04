@@ -48,7 +48,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     options: [UIApplication.OpenURLOptionsKey : Any] = [:]
   ) -> Bool {
     // Handle deep links from Shortcuts
-    if url.scheme == "pocketpal" {
+    if url.scheme == "botconnector" {
       NotificationCenter.default.post(
         name: NSNotification.Name("RCTOpenURLNotification"),
         object: nil,

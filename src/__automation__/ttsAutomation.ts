@@ -20,7 +20,7 @@ type NeuralEngineId = Exclude<EngineId, 'system'>;
 const STATUS_FILENAME = 'tts-command-status.json';
 
 const SAMPLE_TEXT =
-  'PocketPal runs language models on your phone, fully offline.';
+  'BotConnector runs language models on your phone, fully offline.';
 
 interface TtsStatus {
   cmd: string;
@@ -95,7 +95,7 @@ async function synthesize(engineId: NeuralEngineId): Promise<void> {
 }
 
 /**
- * Dispatch a `pocketpal://tts?cmd=...` command. Supported:
+ * Dispatch a `botconnector://tts?cmd=...` command. Supported:
  *   download::<engine>   synthesize::<engine>   release
  * Writes a status file the spec polls for completion.
  */

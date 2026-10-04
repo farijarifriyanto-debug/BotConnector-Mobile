@@ -48,7 +48,7 @@ platform :ios do
       clean: true,
       export_options: {
         provisioningProfiles: {
-          "ai.pocketpal" => "match AppStore ai.pocketpal"
+          "id.botconnector.app" => "match AppStore id.botconnector.app"
         },
         signingStyle: "manual"
       }
@@ -128,11 +128,11 @@ platform :ios do
       scheme: "PocketPal",
       export_method: "development",
       output_directory: "./build",
-      output_name: "PocketPal.ipa",
+      output_name: "BotConnector.ipa",
       clean: true,
       export_options: {
         provisioningProfiles: {
-          "ai.pocketpal" => "match Development ai.pocketpal"
+          "id.botconnector.app" => "match Development id.botconnector.app"
         },
         signingStyle: "manual"
       }

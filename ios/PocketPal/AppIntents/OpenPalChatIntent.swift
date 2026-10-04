@@ -11,7 +11,7 @@ import AppIntents
 @available(iOS 16.0, *)
 struct OpenPalChatIntent: AppIntent {
     static var title: LocalizedStringResource = "Open Pal Chat"
-    static var description = IntentDescription("Open PocketPal and start chatting with a specific Pal")
+    static var description = IntentDescription("Open BotConnector and start chatting with a specific Pal")
     
     static var openAppWhenRun: Bool = true // Open the app
     
@@ -31,7 +31,7 @@ struct OpenPalChatIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         // Build deep link URL
         var urlComponents = URLComponents()
-        urlComponents.scheme = "pocketpal"
+        urlComponents.scheme = "botconnector"
         urlComponents.host = "chat"
         
         var queryItems: [URLQueryItem] = [

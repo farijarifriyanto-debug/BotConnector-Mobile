@@ -188,7 +188,7 @@ describe('CheckoutFlowStore', () => {
     expect(checkoutFlowStore.status).toBe('browser_open');
 
     // The OLD session now resolves a cancel callback; it must be ignored.
-    resolveOld('pocketpal://checkout/cancel');
+    resolveOld('botconnector://checkout/cancel');
     await flushMicrotasks();
     expect(checkoutFlowStore.status).toBe('browser_open');
   });
@@ -265,7 +265,7 @@ describe('CheckoutFlowStore', () => {
     it("'launched' without a token -> opens the tab; later owned does not report", async () => {
       prepareExternalLink.mockResolvedValue({outcome: 'launched'});
       checkPalOwnership.mockResolvedValueOnce({owned: true});
-      openAuth.mockResolvedValueOnce('pocketpal://checkout/success');
+      openAuth.mockResolvedValueOnce('botconnector://checkout/success');
       await checkoutFlowStore.start('pal-1');
       await flushMicrotasks();
       await jest.advanceTimersByTimeAsync(1000);
@@ -369,7 +369,7 @@ describe('CheckoutFlowStore', () => {
 
   it('openAuth resolves a success callback -> reconcile -> owned', async () => {
     openAuth.mockResolvedValue(
-      'pocketpal://checkout/success?purchase_id=pur_1',
+      'botconnector://checkout/success?purchase_id=pur_1',
     );
     checkPalOwnership.mockResolvedValueOnce({owned: true});
     await checkoutFlowStore.start('pal-1');
@@ -380,7 +380,7 @@ describe('CheckoutFlowStore', () => {
   });
 
   it('openAuth resolves a cancel callback -> cancelled, silent', async () => {
-    openAuth.mockResolvedValue('pocketpal://checkout/cancel');
+    openAuth.mockResolvedValue('botconnector://checkout/cancel');
     await checkoutFlowStore.start('pal-1');
     await flushMicrotasks();
     expect(checkoutFlowStore.status).toBe('cancelled');
@@ -423,7 +423,7 @@ describe('CheckoutFlowStore', () => {
   it('openAuth resolves an unexpected path -> cancelled, silent', async () => {
     // Well-formed URL whose trailing segment is neither success nor cancel
     // falls through to the cancel default — no reconcile, no error.
-    openAuth.mockResolvedValue('pocketpal://checkout/unexpected');
+    openAuth.mockResolvedValue('botconnector://checkout/unexpected');
     await checkoutFlowStore.start('pal-1');
     await flushMicrotasks();
     expect(checkoutFlowStore.status).toBe('cancelled');

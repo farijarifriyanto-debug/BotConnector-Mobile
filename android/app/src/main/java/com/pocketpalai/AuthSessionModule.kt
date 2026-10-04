@@ -66,7 +66,7 @@ class AuthSessionModule(reactContext: ReactApplicationContext) :
   /**
    * Forwarded by MainActivity.onNewIntent for the warm-launch callback intent.
    * Consumes only the checkout return (matching scheme + host=checkout) for the
-   * in-flight promise; any other pocketpal:// intent (e.g. host=hub) falls
+   * in-flight promise; any other botconnector:// intent (e.g. host=hub) falls
    * through so MainActivity routes it to RN Linking / DeepLinkService. Returns
    * true when consumed.
    */
@@ -116,8 +116,8 @@ class AuthSessionModule(reactContext: ReactApplicationContext) :
   }
 
   private companion object {
-    // Host segment of the checkout callback (pocketpal://checkout/*). Other
-    // pocketpal:// hosts (e.g. hub) are not the checkout return.
+    // Host segment of the checkout callback (botconnector://checkout/*). Other
+    // botconnector:// hosts (e.g. hub) are not the checkout return.
     const val CALLBACK_HOST = "checkout"
   }
 }

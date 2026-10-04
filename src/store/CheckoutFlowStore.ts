@@ -31,7 +31,7 @@ export type CheckoutStatus =
 export type CheckoutErrorKind = '401' | '404' | '500' | 'network';
 
 // Host segment of the custom-scheme callback the auth session captures, namespacing
-// the checkout return under the shared pocketpal:// scheme.
+// the checkout return under the shared botconnector:// scheme.
 const CALLBACK_HOST = 'checkout';
 
 const CALLBACK_SCHEME = 'pocketpal';
@@ -206,7 +206,7 @@ class CheckoutFlowStore {
 
   // Open the checkout page in the native auth session (ASWebAuthenticationSession
   // on iOS, Chrome Custom Tab on Android) and consume the captured
-  // pocketpal://checkout/{success|cancel} callback. A reject (user-dismiss /
+  // botconnector://checkout/{success|cancel} callback. A reject (user-dismiss /
   // session error) is a silent cancel (matches a cancel callback).
   private async openAuthAndHandle(
     authSession: NonNullable<typeof NativeAuthSession>,

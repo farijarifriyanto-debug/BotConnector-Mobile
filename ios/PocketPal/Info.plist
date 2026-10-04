@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>PocketPal</string>
+	<string>BotConnector</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -34,10 +34,10 @@
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>CFBundleURLName</key>
-			<string>com.pocketpalai.deeplink</string>
+			<string>id.botconnector.app.deeplink</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>pocketpal</string>
+				<string>botconnector</string>
 			</array>
 		</dict>
 	</array>
@@ -57,15 +57,15 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>PocketPal uses your camera to capture images and video for local AI analysis only. All processing happens on your device and no images are transmitted to external servers.</string>
+	<string>BotConnector uses your camera to capture images and video for local AI analysis only. All processing happens on your device and no images are transmitted to external servers.</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>PocketPal connects to AI servers you run on your own network (like Ollama or llama.cpp) when you add them as remote endpoints.</string>
+	<string>BotConnector connects to AI servers you run on your own network (like Ollama or llama.cpp) when you add them as remote endpoints.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PocketPal never requests or collects your location. A bundled camera library references the system location API to offer optional photo geotagging, which PocketPal leaves turned off.</string>
+	<string>BotConnector never requests or collects your location. A bundled camera library references the system location API to offer optional photo geotagging, which BotConnector leaves turned off.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>PocketPal accesses your photo library to select images for local AI analysis only. Selected images are processed entirely on your device and are never transmitted to external servers.</string>
+	<string>BotConnector accesses your photo library to select images for local AI analysis only. Selected images are processed entirely on your device and are never transmitted to external servers.</string>
 	<key>NSSiriUsageDescription</key>
-	<string>PocketPal uses Siri to let you ask questions to your AI Pals using voice commands.</string>
+	<string>BotConnector uses Siri to let you ask questions to your AI Pals using voice commands.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>

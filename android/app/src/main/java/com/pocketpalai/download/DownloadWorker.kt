@@ -77,7 +77,7 @@ class DownloadWorker(
             
             val request = Request.Builder()
                 .url(download.url)
-                .addHeader("User-Agent", "PocketPal/${BuildConfig.VERSION_NAME} (ai.pocketpal)")
+                .addHeader("User-Agent", "BotConnector/${BuildConfig.VERSION_NAME} (id.botconnector.app)")
                 .apply {
                     if (file.exists() && file.length() > 0) {
                         val range = "bytes=${file.length()}-"

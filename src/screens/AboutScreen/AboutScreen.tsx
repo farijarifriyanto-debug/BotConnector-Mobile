@@ -98,7 +98,7 @@ export const AboutScreen: React.FC = () => {
           <View style={styles.header}>
             <View style={styles.headerContent}>
               <Text variant="titleLarge" style={styles.title}>
-                PocketPal AI
+                BotConnector
               </Text>
               <Text variant="bodyMedium" style={styles.description}>
                 {l10n.about.description}
@@ -132,7 +132,9 @@ export const AboutScreen: React.FC = () => {
             <Button
               mode="outlined"
               onPress={() =>
-                Linking.openURL('https://github.com/a-ghorbani/pocketpal-ai')
+                Linking.openURL(
+                  'https://github.com/farijarifriyanto-debug/BotConnector-Mobile',
+                )
               }
               style={styles.actionButton}
               icon={GithubButtonIcon}>
@@ -167,14 +169,14 @@ export const AboutScreen: React.FC = () => {
             <Text
               style={styles.legalLink}
               onPress={() =>
-                Linking.openURL('https://pocketpal.dev/privacy-policy')
+                Linking.openURL('https://botconnector.id/privacy')
               }>
               {l10n.about.privacyPolicy}
             </Text>
             <Text style={styles.legalSeparator}>·</Text>
             <Text
               style={styles.legalLink}
-              onPress={() => Linking.openURL('https://pocketpal.dev/terms')}>
+              onPress={() => Linking.openURL('https://botconnector.id/terms')}>
               {l10n.about.termsOfService}
             </Text>
           </View>

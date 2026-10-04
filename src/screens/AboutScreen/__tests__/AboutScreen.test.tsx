@@ -42,7 +42,7 @@ describe('AboutScreen', () => {
   it('renders correctly', () => {
     const {getByText} = render(<AboutScreen />);
 
-    expect(getByText('PocketPal AI')).toBeTruthy();
+    expect(getByText('BotConnector')).toBeTruthy();
     expect(getByText('v1.0.0 (100)')).toBeTruthy();
     expect(getByText(l10n.en.about.supportProject)).toBeTruthy();
     expect(getByText(l10n.en.about.githubButton)).toBeTruthy();
@@ -65,7 +65,7 @@ describe('AboutScreen', () => {
     fireEvent.press(getByText('Star on GitHub'));
 
     expect(Linking.openURL).toHaveBeenCalledWith(
-      'https://github.com/a-ghorbani/pocketpal-ai',
+      'https://github.com/farijarifriyanto-debug/BotConnector-Mobile',
     );
   });
 
