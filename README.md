@@ -11,7 +11,8 @@ The current pass is intentionally branding-only. PocketPal application behavior 
 
 - App name: BotConnector
 - Android application ID: id.botconnector.app
-- iOS bundle ID: id.botconnector.app
+- iOS App Store bundle ID: id.botconnector.app
+- iOS free-device Debug bundle ID: id.botconnector.app.dev
 - Deep link scheme: botconnector://
 - Website: https://botconnector.id
 
@@ -26,3 +27,7 @@ The internal React Native/Xcode target remains named PocketPal for compatibility
 PocketPal AI is Copyright (c) 2024 Asghar Ghorbani and is licensed under the MIT License. The original license remains in LICENSE.
 
 BotConnector-specific branding and modifications are maintained in this fork.
+
+## Free iPhone testing
+
+For installing a Debug build on your own iPhone with an Apple Personal Team, see [docs/ios-personal-team-testing.md](docs/ios-personal-team-testing.md). The free-test bundle ID is separate from the App Store bundle ID.
