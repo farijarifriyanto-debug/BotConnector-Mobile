@@ -133,7 +133,7 @@
     "connectBotConnector": "Hubungkan BotConnector",
     "connectBotConnectorDescription": "API BotConnector sudah diatur otomatis. Tempel API key untuk memuat model yang tersedia untuk key tersebut.",
     "connectBotConnectorLocal": "Hubungkan BotConnector Local",
-    "connectBotConnectorLocalDescription": "Hubungkan langsung ke BotConnector Local di laptop. Di laptop, jalankan Local API Server dengan host 0.0.0.0, port 1337, dan API key; lalu masukkan alamat LAN atau Tailscale di sini.",
+    "connectBotConnectorLocalDescription": "Hubungkan langsung ke BotConnector Local di laptop. Di laptop, jalankan Local API Server dengan host 0.0.0.0, port 1337, dan API key; lalu masukkan alamat LAN lokal laptop di sini. Jika Anda memang memakai Tailscale, alamat Tailscale laptop juga bisa digunakan.",
     "localDeviceUrl": "Alamat laptop",
     "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
     "localPairingKey": "Kunci pairing",
