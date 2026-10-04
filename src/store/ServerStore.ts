@@ -5,6 +5,12 @@ import {makePersistable} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
 
 import {fetchModels, testConnection} from '../api/openai';
+import {
+  BotConnectorClientCapabilities,
+  chatOnlyBotConnectorCapabilities,
+  fetchBotConnectorClientCapabilities,
+} from '../api/botconnectorAccess';
+import {isBotConnectorApiUrl} from '../config/botconnector';
 import {fetchServerProps, PROPS_TIMEOUT_MS} from '../api/llamaServer/props';
 import {
   ListDerivedCaps,
@@ -75,6 +81,9 @@ class ServerStore {
   // answers per model on a multi-model server, so caps cannot live per server.
   remoteCaps: Record<string, RemoteModelCaps> = {};
   serverModels: Map<string, RemoteModelInfo[]> = observable.map();
+  // Account-level mobile capability returned only by the official BotConnector API.
+  // Not persisted: every launch/foreground refresh revalidates entitlement.
+  botConnectorAccess: Record<string, BotConnectorClientCapabilities> = {};
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   isLoading = false;
   error: string | null = null;
@@ -162,6 +171,9 @@ class ServerStore {
     if (invalidatesDiscovery) {
       this.remoteCaps = dropServerEntries(this.remoteCaps, id);
       this.serverModels.delete(id);
+      this.botConnectorAccess = Object.fromEntries(
+        Object.entries(this.botConnectorAccess).filter(([key]) => key !== id),
+      );
     }
     return invalidatesDiscovery;
   }
@@ -169,6 +181,9 @@ class ServerStore {
   removeServer(id: string): void {
     this.servers = this.servers.filter(s => s.id !== id);
     this.serverModels.delete(id);
+    this.botConnectorAccess = Object.fromEntries(
+      Object.entries(this.botConnectorAccess).filter(([key]) => key !== id),
+    );
     // Remove all user-selected models for this server
     this.userSelectedModels = this.userSelectedModels.filter(
       m => m.serverId !== id,
@@ -259,6 +274,11 @@ class ServerStore {
       await Keychain.setGenericPassword('apiKey', apiKey, {
         service: `${KEYCHAIN_SERVICE_PREFIX}${serverId}`,
       });
+      this.botConnectorAccess = Object.fromEntries(
+        Object.entries(this.botConnectorAccess).filter(
+          ([key]) => key !== serverId,
+        ),
+      );
     } catch (error) {
       console.error('Failed to save API key:', error);
     }
@@ -284,8 +304,58 @@ class ServerStore {
       await Keychain.resetGenericPassword({
         service: `${KEYCHAIN_SERVICE_PREFIX}${serverId}`,
       });
+      this.botConnectorAccess = Object.fromEntries(
+        Object.entries(this.botConnectorAccess).filter(
+          ([key]) => key !== serverId,
+        ),
+      );
     } catch (error) {
       console.error('Failed to remove API key:', error);
+    }
+  }
+
+  async refreshBotConnectorAccess(
+    serverId: string,
+    resolvedApiKey?: string,
+  ): Promise<BotConnectorClientCapabilities | undefined> {
+    const server = this.servers.find(s => s.id === serverId);
+    if (!server || !isBotConnectorApiUrl(server.url)) {
+      return undefined;
+    }
+
+    const url = server.url;
+    // Fail closed before the network response lands. A stale paid state must
+    // never carry across a key/plan change or a transient auth failure.
+    runInAction(() => {
+      this.botConnectorAccess = {
+        ...this.botConnectorAccess,
+        [serverId]: chatOnlyBotConnectorCapabilities(),
+      };
+    });
+
+    const apiKey = resolvedApiKey ?? (await this.getApiKey(serverId));
+    if (!apiKey) {
+      return this.botConnectorAccess[serverId];
+    }
+
+    try {
+      const access = await fetchBotConnectorClientCapabilities(
+        url,
+        apiKey,
+        server.requestTimeoutMs,
+      );
+      runInAction(() => {
+        const current = this.servers.find(s => s.id === serverId);
+        if (current?.url === url) {
+          this.botConnectorAccess = {
+            ...this.botConnectorAccess,
+            [serverId]: access,
+          };
+        }
+      });
+      return access;
+    } catch {
+      return this.botConnectorAccess[serverId];
     }
   }
 
@@ -304,7 +374,10 @@ class ServerStore {
     const {url} = server;
     try {
       const apiKey = await this.getApiKey(serverId);
-      const models = await fetchModels(url, apiKey, server.requestTimeoutMs);
+      const [models] = await Promise.all([
+        fetchModels(url, apiKey, server.requestTimeoutMs),
+        this.refreshBotConnectorAccess(serverId, apiKey),
+      ]);
 
       runInAction(() => {
         const current = this.servers.find(s => s.id === serverId);

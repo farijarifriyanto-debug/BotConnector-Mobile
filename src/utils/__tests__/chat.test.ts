@@ -314,6 +314,40 @@ describe('convertToChatMessages — AssistantTurn', () => {
     ]);
   });
 
+  it('chat-only projection removes tool roles and preserves visible assistant text', () => {
+    const turn = makeAssistantTurn([
+      {
+        content: 'Let me calculate',
+        toolCalls: [
+          {
+            id: 'c0',
+            function: {name: 'calculate', arguments: '{"expr":"2+2"}'},
+          },
+        ],
+        toolOutcomes: [
+          {
+            callId: 'c0',
+            toolName: 'calculate',
+            result: {type: 'text', summary: '4'},
+            responseContent: '4',
+          },
+        ],
+      },
+      {content: 'The answer is 4'},
+    ]);
+
+    const result = convertToChatMessages([turn], false, false);
+
+    expect(result).toEqual([
+      {
+        role: 'assistant',
+        content: 'Let me calculate\n\nThe answer is 4',
+      },
+    ]);
+    expect(result.some(message => message.role === 'tool')).toBe(false);
+    expect(result.some(message => message.tool_calls?.length)).toBe(false);
+  });
+
   it('#3 step with empty content but tool_calls → assistant message with empty content + tool_calls + sentinel "aborted" tool response (orphan-pair guard)', () => {
     // A persisted step with toolCalls and no toolOutcomes is the
     // abort/crash recovery shape. The orphan-pair guard in

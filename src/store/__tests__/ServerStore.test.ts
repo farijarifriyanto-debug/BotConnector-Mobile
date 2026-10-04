@@ -4,6 +4,7 @@ import {runInAction} from 'mobx';
 import * as Keychain from 'react-native-keychain';
 
 import * as openaiModule from '../../api/openai';
+import * as botConnectorAccessModule from '../../api/botconnectorAccess';
 import * as propsModule from '../../api/llamaServer/props';
 
 // Mock dependencies before importing the store
@@ -15,6 +16,14 @@ jest.mock('../../api/openai', () => ({
   fetchModels: jest.fn(),
   testConnection: jest.fn(),
 }));
+
+jest.mock('../../api/botconnectorAccess', () => {
+  const actual = jest.requireActual('../../api/botconnectorAccess');
+  return {
+    ...actual,
+    fetchBotConnectorClientCapabilities: jest.fn(),
+  };
+});
 
 jest.mock('../../api/llamaServer/props', () => ({
   fetchServerProps: jest.fn(),
@@ -42,6 +51,8 @@ const persistedProperties: string[] = (
 /** A probe result that resolves the capability tier and nothing else. */
 
 const mockedFetchModels = openaiModule.fetchModels as jest.Mock;
+const mockedFetchBotConnectorAccess =
+  botConnectorAccessModule.fetchBotConnectorClientCapabilities as jest.Mock;
 const mockedFetchServerProps = propsModule.fetchServerProps as jest.Mock;
 const mockedTestConnection = openaiModule.testConnection as jest.Mock;
 const {PROPS_TIMEOUT_MS} = propsModule;
@@ -60,6 +71,7 @@ describe('ServerStore', () => {
       serverStore.privacyNoticeAcknowledged = false;
       serverStore.remoteReasoning = {};
       serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess = {};
     });
   });
 
@@ -801,6 +813,95 @@ describe('ServerStore', () => {
       expect(serverStore.serverModels.get(id)).toEqual(mockModels);
       expect(serverStore.isLoading).toBe(false);
       expect(serverStore.error).toBeNull();
+    });
+
+    it('loads official BotConnector account access alongside the model list', async () => {
+      const id = serverStore.addServer({
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        username: 'apiKey',
+        password: 'bc_live_test',
+      });
+      mockedFetchBotConnectorAccess.mockResolvedValueOnce({
+        object: 'botconnector.client_capabilities',
+        plan: 'plus',
+        access: 'full',
+        paid: true,
+        entitlement_sources: {
+          subscription: true,
+          payg: false,
+          family: false,
+        },
+        capabilities: {
+          chat: true,
+          web_search: true,
+          read_url: true,
+          tools: true,
+          vision: true,
+          media: true,
+        },
+      });
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(mockedFetchBotConnectorAccess).toHaveBeenCalledWith(
+        'https://api.botconnector.id',
+        'bc_live_test',
+        undefined,
+      );
+      expect(serverStore.botConnectorAccess[id]?.access).toBe('full');
+    });
+
+    it('fails closed when BotConnector entitlement lookup is unavailable', async () => {
+      const id = serverStore.addServer({
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        username: 'apiKey',
+        password: 'bc_live_test',
+      });
+      mockedFetchBotConnectorAccess.mockRejectedValueOnce(
+        new Error('capability endpoint unavailable'),
+      );
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(serverStore.botConnectorAccess[id]).toMatchObject({
+        access: 'chat_only',
+        paid: false,
+      });
+      expect(serverStore.error).toBeNull();
+    });
+
+    it('does not request BotConnector entitlement for another cloud provider', async () => {
+      const id = serverStore.addServer({
+        name: 'OpenAI',
+        url: 'https://api.openai.com',
+        serverType: 'OpenAI',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        username: 'apiKey',
+        password: 'sk-test',
+      });
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(mockedFetchBotConnectorAccess).not.toHaveBeenCalled();
+      expect(serverStore.botConnectorAccess[id]).toBeUndefined();
     });
 
     it('sets error on failure', async () => {

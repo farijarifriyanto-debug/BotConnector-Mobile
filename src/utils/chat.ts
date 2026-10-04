@@ -113,6 +113,7 @@ function stepToApiMessages(step: AgentStep): ChatMessage[] {
 export function convertToChatMessages(
   messages: MessageType.Any[],
   isMultimodalEnabled: boolean = true,
+  includeTools: boolean = true,
 ): ChatMessage[] {
   const groups: ChatMessage[][] = messages
     .filter(message => {
@@ -133,6 +134,12 @@ export function convertToChatMessages(
     .map(message => {
       if (message.type === 'assistant_turn') {
         const turn = message as MessageType.AssistantTurn;
+        if (!includeTools) {
+          const visibleText = derivedText(turn);
+          return visibleText.trim()
+            ? [{role: 'assistant', content: visibleText} as ChatMessage]
+            : [];
+        }
         // Each step → assistant message (+ tool messages). All steps for
         // one turn are emitted as one inner group so the OUTER reverse
         // keeps them adjacent in chronological order.

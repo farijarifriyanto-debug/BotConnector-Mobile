@@ -26,6 +26,7 @@ import {hasVideoCapability} from '../../utils/pal-capabilities';
 
 import {L10nContext} from '../../utils';
 import {resolveReasoningCapability} from '../../utils/reasoningCapability';
+import {richFeaturesAllowed} from '../../utils/mobileFeatureAccess';
 import {MessageType} from '../../utils/types';
 import {ErrorState} from '../../utils/errors';
 import {user, assistant} from '../../utils/chat';
@@ -104,7 +105,13 @@ export const ChatScreen: React.FC = observer(() => {
     setErrorToReport(null);
   }, []);
 
-  const visionEnabled = modelStore.activeModelCaps.visionActive;
+  const richFeaturesEnabled = richFeaturesAllowed(
+    modelStore.activeModel,
+    serverStore.servers,
+    serverStore.botConnectorAccess,
+  );
+  const visionEnabled =
+    richFeaturesEnabled && modelStore.activeModelCaps.visionActive;
 
   // Resolver is the single source of truth for reasoning capability.
   // Pill is reachable whenever the model is not known to be non-reasoning
@@ -249,7 +256,7 @@ export const ChatScreen: React.FC = observer(() => {
   };
 
   // If the active pal is a video pal, show the video pal screen
-  if (isVideoPal) {
+  if (isVideoPal && richFeaturesEnabled) {
     return <VideoPalScreen activePal={activePal} />;
   }
 
@@ -267,7 +274,7 @@ export const ChatScreen: React.FC = observer(() => {
         isStopVisible={modelStore.inferencing}
         isStreaming={modelStore.isStreaming}
         sendButtonVisibilityMode="always"
-        showImageUpload={true}
+        showImageUpload={richFeaturesEnabled}
         isVisionEnabled={visionEnabled}
         initialInputText={pendingMessage || undefined}
         onInitialTextConsumed={clearPendingMessage}

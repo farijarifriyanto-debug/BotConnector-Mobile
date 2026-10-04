@@ -17,6 +17,7 @@ import {
 } from '../store';
 import type {PersistedTurnTimings} from '../utils/completionTypes';
 import {resolveReasoningCapability} from '../utils/reasoningCapability';
+import {richFeaturesAllowed} from '../utils/mobileFeatureAccess';
 
 import {MessageType, ModelOrigin, User} from '../utils/types';
 import {createMultimodalWarning} from '../utils/errors';
@@ -73,9 +74,21 @@ const prepareCompletion = async ({
   l10n: any;
   currentMessages: MessageType.Any[];
 }) => {
-  const sessionCompletionSettings =
+  let sessionCompletionSettings =
     await chatSessionStore.getCurrentCompletionSettings();
   const stopWords = toJS(modelStore.activeModel?.stopWords);
+  const allowRichFeatures = richFeaturesAllowed(
+    modelStore.activeModel,
+    serverStore.servers,
+    serverStore.botConnectorAccess,
+  );
+  if (!allowRichFeatures && sessionCompletionSettings.tools) {
+    sessionCompletionSettings = {
+      ...sessionCompletionSettings,
+      tools: undefined,
+    };
+  }
+  const effectiveMultimodalEnabled = isMultimodalEnabled && allowRichFeatures;
 
   // Check if we have images and if multimodal is enabled
   const hasImages = imageUris && imageUris.length > 0;
@@ -84,7 +97,7 @@ const prepareCompletion = async ({
   // string for text-only.
   let userMessageContent: any;
 
-  if (hasImages && isMultimodalEnabled) {
+  if (hasImages && effectiveMultimodalEnabled) {
     userMessageContent = [
       {
         type: 'text',
@@ -98,7 +111,7 @@ const prepareCompletion = async ({
   } else {
     userMessageContent = message.text;
 
-    if (hasImages && !isMultimodalEnabled) {
+    if (hasImages && !effectiveMultimodalEnabled) {
       uiStore.setChatWarning(
         createMultimodalWarning(l10n.chat.multimodalNotEnabled),
       );
@@ -112,7 +125,8 @@ const prepareCompletion = async ({
   // which expands each step into assistant + tool API messages.
   let chatMessages = convertToChatMessages(
     currentMessages.filter(msg => msg.type !== 'image'),
-    isMultimodalEnabled,
+    effectiveMultimodalEnabled,
+    allowRichFeatures,
   );
 
   // Strip thinking parts from assistant context if the user opted out.

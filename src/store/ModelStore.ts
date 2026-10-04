@@ -2703,6 +2703,10 @@ class ModelStore {
 
     const serverType = toServerType(server.serverType);
 
+    // Official BotConnector Cloud access is account-scoped. Revalidate before
+    // activating the model so a stale paid state can never open rich features.
+    await serverStore.refreshBotConnectorAccess(model.serverId, apiKey);
+
     runInAction(() => {
       this.engine = new OpenAICompletionEngine({
         url: server.url,
