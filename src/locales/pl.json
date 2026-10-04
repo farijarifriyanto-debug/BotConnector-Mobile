@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "Typ pamięci podręcznej wartości modelu roboczego",
     "speculativeDraftNGpuLayers": "Warstwy GPU modelu roboczego",
     "speculativeDraftNGpuLayersDescription": "Liczba warstw modelu roboczego przenoszonych do GPU.",
-    "speculativeDraftCacheTypeInactiveDescription": "Zacznie obowiązywać po uruchomieniu dekodowania spekulatywnego."
+    "speculativeDraftCacheTypeInactiveDescription": "Zacznie obowiązywać po uruchomieniu dekodowania spekulatywnego.",
+    "connectBotConnector": "Połącz z BotConnector",
+    "connectBotConnectorDescription": "Interfejs API BotConnector jest wstępnie skonfigurowany. Wklej klucz API, aby wczytać modele dostępne dla tego klucza.",
+    "connectBotConnectorLocal": "Połącz z BotConnector Local",
+    "connectBotConnectorLocalDescription": "Połącz się bezpośrednio z BotConnector Local na laptopie. Na laptopie uruchom Local API Server z hostem 0.0.0.0, portem 1337 i kluczem API, a następnie wpisz lokalny adres LAN laptopa. Jeśli już korzystasz z Tailscale, możesz zamiast tego użyć adresu Tailscale laptopa.",
+    "localDeviceUrl": "Adres laptopa",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Klucz parowania",
+    "localPairingKeyPlaceholder": "Klucz API Local API Server",
+    "localPairingKeyDescription": "Jest bezpiecznie przechowywany na tym urządzeniu i automatycznie używany ponownie przy kolejnym połączeniu.",
+    "botConnectorApiKeyPlaceholder": "Wklej klucz API bc_live_..."
   },
   "models": {
     "labels": {

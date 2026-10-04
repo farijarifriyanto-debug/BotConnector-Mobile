@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "Тип кешу значень чернетки",
     "speculativeDraftNGpuLayers": "Шари GPU для чернетки",
     "speculativeDraftNGpuLayersDescription": "Кількість шарів моделі-чернетки, які буде вивантажено на GPU.",
-    "speculativeDraftCacheTypeInactiveDescription": "Застосовується, щойно запрацює спекулятивне декодування."
+    "speculativeDraftCacheTypeInactiveDescription": "Застосовується, щойно запрацює спекулятивне декодування.",
+    "connectBotConnector": "Підключити BotConnector",
+    "connectBotConnectorDescription": "API BotConnector уже налаштовано. Вставте API-ключ, щоб завантажити моделі, доступні для цього ключа.",
+    "connectBotConnectorLocal": "Підключити BotConnector Local",
+    "connectBotConnectorLocalDescription": "Підключіться безпосередньо до BotConnector Local на ноутбуці. На ноутбуці запустіть Local API Server із хостом 0.0.0.0, портом 1337 та API-ключем, а потім введіть локальну LAN-адресу ноутбука. Якщо ви вже користуєтеся Tailscale, замість неї можна використати Tailscale-адресу ноутбука.",
+    "localDeviceUrl": "Адреса ноутбука",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Ключ сполучення",
+    "localPairingKeyPlaceholder": "API-ключ Local API Server",
+    "localPairingKeyDescription": "Надійно зберігається на цьому пристрої та автоматично використовується повторно під час перепідключення.",
+    "botConnectorApiKeyPlaceholder": "Вставте API-ключ bc_live_..."
   },
   "memory": {
     "shortWarning": "Попередження про пам'ять",

@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "Tipo de Cache de Valor do Rascunho",
     "speculativeDraftNGpuLayers": "Camadas de GPU do Rascunho",
     "speculativeDraftNGpuLayersDescription": "Número de camadas do modelo de rascunho a descarregar para a GPU.",
-    "speculativeDraftCacheTypeInactiveDescription": "Aplica-se assim que a descodificação especulativa estiver a funcionar."
+    "speculativeDraftCacheTypeInactiveDescription": "Aplica-se assim que a descodificação especulativa estiver a funcionar.",
+    "connectBotConnector": "Ligar ao BotConnector",
+    "connectBotConnectorDescription": "A API do BotConnector já está pré-configurada. Cole a sua chave API para carregar os modelos disponíveis para essa chave.",
+    "connectBotConnectorLocal": "Ligar ao BotConnector Local",
+    "connectBotConnectorLocalDescription": "Ligue-se diretamente ao BotConnector Local no seu portátil. No portátil, inicie o Local API Server com o anfitrião 0.0.0.0, a porta 1337 e uma chave API; depois introduza o endereço LAN local do portátil. Se já utiliza Tailscale, pode usar em alternativa o endereço Tailscale do portátil.",
+    "localDeviceUrl": "Endereço do portátil",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Chave de emparelhamento",
+    "localPairingKeyPlaceholder": "Chave API do Local API Server",
+    "localPairingKeyDescription": "É guardada de forma segura neste dispositivo e reutilizada automaticamente ao voltar a ligar.",
+    "botConnectorApiKeyPlaceholder": "Cole a chave API bc_live_..."
   },
   "memory": {
     "shortWarning": "Aviso de Memória",

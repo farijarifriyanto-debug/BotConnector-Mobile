@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "نوع کش Value پیش‌نویس",
     "speculativeDraftNGpuLayers": "لایه‌های GPU پیش‌نویس",
     "speculativeDraftNGpuLayersDescription": "تعداد لایه‌های مدل پیش‌نویس که روی GPU بارگذاری می‌شوند.",
-    "speculativeDraftCacheTypeInactiveDescription": "به‌محض اجرای رمزگشایی گمانه‌زنانه اعمال می‌شود."
+    "speculativeDraftCacheTypeInactiveDescription": "به‌محض اجرای رمزگشایی گمانه‌زنانه اعمال می‌شود.",
+    "connectBotConnector": "اتصال به BotConnector",
+    "connectBotConnectorDescription": "API بوت‌کانکتور از قبل تنظیم شده است. کلید API خود را وارد کنید تا مدل‌های در دسترس برای آن کلید بارگذاری شوند.",
+    "connectBotConnectorLocal": "اتصال به BotConnector Local",
+    "connectBotConnectorLocalDescription": "مستقیماً به BotConnector Local روی لپ‌تاپ خود متصل شوید. روی لپ‌تاپ، Local API Server را با میزبان 0.0.0.0، پورت 1337 و یک کلید API اجرا کنید؛ سپس آدرس LAN محلی لپ‌تاپ را اینجا وارد کنید. اگر از قبل از Tailscale استفاده می‌کنید، می‌توانید به‌جای آن از آدرس Tailscale لپ‌تاپ استفاده کنید.",
+    "localDeviceUrl": "آدرس لپ‌تاپ",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "کلید جفت‌سازی",
+    "localPairingKeyPlaceholder": "کلید API سرور Local API",
+    "localPairingKeyDescription": "به‌صورت امن روی این دستگاه ذخیره می‌شود و هنگام اتصال مجدد به‌طور خودکار استفاده می‌شود.",
+    "botConnectorApiKeyPlaceholder": "کلید API با قالب bc_live_... را وارد کنید"
   },
   "memory": {
     "shortWarning": "هشدار حافظه",

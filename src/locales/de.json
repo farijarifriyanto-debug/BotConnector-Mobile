@@ -154,7 +154,17 @@
     "removeRemoteModel": "Entferne {{modelName}} {{serverName}}?",
     "retryConnection": "Wiederholen",
     "enterUrlManually": "URL manuell eingeben",
-    "manageServers": "Server verwalten"
+    "manageServers": "Server verwalten",
+    "connectBotConnector": "BotConnector verbinden",
+    "connectBotConnectorDescription": "Die BotConnector-API ist vorkonfiguriert. Fügen Sie Ihren API-Schlüssel ein, um die für diesen Schlüssel verfügbaren Modelle zu laden.",
+    "connectBotConnectorLocal": "BotConnector Local verbinden",
+    "connectBotConnectorLocalDescription": "Stellen Sie eine direkte Verbindung zu BotConnector Local auf Ihrem Laptop her. Starten Sie auf dem Laptop den Local API Server mit Host 0.0.0.0, Port 1337 und einem API-Schlüssel; geben Sie anschließend die lokale LAN-Adresse des Laptops ein. Wenn Sie Tailscale bereits verwenden, können Sie stattdessen die Tailscale-Adresse des Laptops nutzen.",
+    "localDeviceUrl": "Laptop-Adresse",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Kopplungsschlüssel",
+    "localPairingKeyPlaceholder": "API-Schlüssel des Local API Server",
+    "localPairingKeyDescription": "Wird sicher auf diesem Gerät gespeichert und bei der erneuten Verbindung automatisch wiederverwendet.",
+    "botConnectorApiKeyPlaceholder": "API-Schlüssel bc_live_... einfügen"
   },
   "memory": {
     "shortWarning": "Speicherwarnung",

@@ -2,5 +2,17 @@
   "common": {
     "cancel": "Avbryt",
     "delete": "Ta bort"
+  },
+  "settings": {
+    "connectBotConnector": "Anslut BotConnector",
+    "connectBotConnectorDescription": "BotConnector-API:t är förkonfigurerat. Klistra in din API-nyckel för att läsa in modellerna som är tillgängliga för nyckeln.",
+    "connectBotConnectorLocal": "Anslut BotConnector Local",
+    "connectBotConnectorLocalDescription": "Anslut direkt till BotConnector Local på din bärbara dator. Starta Local API Server på datorn med värden 0.0.0.0, port 1337 och en API-nyckel och ange sedan datorns lokala LAN-adress. Om du redan använder Tailscale kan du använda datorns Tailscale-adress i stället.",
+    "localDeviceUrl": "Datorns adress",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Parkopplingsnyckel",
+    "localPairingKeyPlaceholder": "API-nyckel för Local API Server",
+    "localPairingKeyDescription": "Sparas säkert på den här enheten och återanvänds automatiskt vid återanslutning.",
+    "botConnectorApiKeyPlaceholder": "Klistra in API-nyckeln bc_live_..."
   }
 }

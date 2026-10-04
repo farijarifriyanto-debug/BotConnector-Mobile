@@ -89,7 +89,17 @@
     "openCL": "OpenCL (expérimental)",
     "openCLDescription": "Acceleration GPU pour Adreno GPUs. prompt plus rapide, generation ne sera pas toujours plus rapide.",
     "openCLNotAvailable": "OpenCL n'es pas disponible sur cet appareil. Nécessite un GPU adreno avec i8mm et dotprod CPU.",
-    "deviceSelection": "Choix de l'appareil"
+    "deviceSelection": "Choix de l'appareil",
+    "connectBotConnector": "Connecter BotConnector",
+    "connectBotConnectorDescription": "L’API BotConnector est préconfigurée. Collez votre clé API pour charger les modèles accessibles avec cette clé.",
+    "connectBotConnectorLocal": "Connecter BotConnector Local",
+    "connectBotConnectorLocalDescription": "Connectez-vous directement à BotConnector Local sur votre ordinateur portable. Sur l’ordinateur, démarrez Local API Server avec l’hôte 0.0.0.0, le port 1337 et une clé API, puis saisissez l’adresse LAN locale de l’ordinateur. Si vous utilisez déjà Tailscale, vous pouvez utiliser à la place l’adresse Tailscale de l’ordinateur.",
+    "localDeviceUrl": "Adresse de l’ordinateur",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Clé d’appairage",
+    "localPairingKeyPlaceholder": "Clé API de Local API Server",
+    "localPairingKeyDescription": "Stockée de manière sécurisée sur cet appareil et réutilisée automatiquement lors des reconnexions.",
+    "botConnectorApiKeyPlaceholder": "Collez la clé API bc_live_..."
   },
   "memory": {
     "shortWarning": "Alerte mémoire"

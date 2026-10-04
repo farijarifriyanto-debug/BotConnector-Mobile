@@ -203,7 +203,17 @@
     "apiKeyDescription": "Se almacena de forma segura en el dispositivo.",
     "remoteModel": "Remoto",
     "remotePrivacyNotice": "Los mensajes enviados a servidores remotos salen de tu dispositivo. Conéctate solo a servidores de confianza.",
-    "remoteIndicator": "Remoto"
+    "remoteIndicator": "Remoto",
+    "connectBotConnector": "Conectar BotConnector",
+    "connectBotConnectorDescription": "La API de BotConnector ya está preconfigurada. Pega tu clave de API para cargar los modelos disponibles para esa clave.",
+    "connectBotConnectorLocal": "Conectar BotConnector Local",
+    "connectBotConnectorLocalDescription": "Conéctate directamente a BotConnector Local en tu portátil. En el portátil, inicia Local API Server con el host 0.0.0.0, el puerto 1337 y una clave de API; después introduce la dirección LAN local del portátil. Si ya utilizas Tailscale, también puedes usar la dirección Tailscale del portátil.",
+    "localDeviceUrl": "Dirección del portátil",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "Clave de vinculación",
+    "localPairingKeyPlaceholder": "Clave de API de Local API Server",
+    "localPairingKeyDescription": "Se almacena de forma segura en este dispositivo y se reutiliza automáticamente al volver a conectar.",
+    "botConnectorApiKeyPlaceholder": "Pega la clave de API bc_live_..."
   },
   "memory": {
     "shortWarning": "Advertencia de memoria",

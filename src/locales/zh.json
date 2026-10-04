@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "草稿模型值缓存类型",
     "speculativeDraftNGpuLayers": "草稿模型 GPU 层数",
     "speculativeDraftNGpuLayersDescription": "卸载到 GPU 的草稿模型层数。",
-    "speculativeDraftCacheTypeInactiveDescription": "推测解码运行后即生效。"
+    "speculativeDraftCacheTypeInactiveDescription": "推测解码运行后即生效。",
+    "connectBotConnector": "连接 BotConnector",
+    "connectBotConnectorDescription": "BotConnector API 已预先配置。粘贴您的 API 密钥即可加载该密钥可用的模型。",
+    "connectBotConnectorLocal": "连接 BotConnector Local",
+    "connectBotConnectorLocalDescription": "直接连接到笔记本电脑上的 BotConnector Local。在笔记本电脑上启动 Local API Server，主机设为 0.0.0.0、端口设为 1337，并设置 API 密钥；然后输入笔记本电脑的本地 LAN 地址。如果您已经在使用 Tailscale，也可以改用笔记本电脑的 Tailscale 地址。",
+    "localDeviceUrl": "笔记本电脑地址",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "配对密钥",
+    "localPairingKeyPlaceholder": "Local API Server API 密钥",
+    "localPairingKeyDescription": "安全存储在此设备上，并在重新连接时自动重复使用。",
+    "botConnectorApiKeyPlaceholder": "粘贴 bc_live_... API 密钥"
   },
   "memory": {
     "shortWarning": "内存警告",

@@ -44,6 +44,11 @@ import {
   BOTCONNECTOR_NAME,
   isBotConnectorApiUrl,
 } from '../../config/botconnector';
+import {
+  BOTCONNECTOR_LOCAL_NAME,
+  botConnectorLocalServerName,
+  isBotConnectorLocalServerName,
+} from '../../config/botconnectorLocal';
 
 import {createStyles} from './styles';
 import {ChatIcon, EyeIcon, EyeOffIcon} from '../../assets/icons';
@@ -67,6 +72,8 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     const [timeoutSeconds, setTimeoutSeconds] = useState('');
     const [serverType, setServerType] = useState<ServerType>('unknown');
     const [isBotConnectorPreset, setIsBotConnectorPreset] = useState(false);
+    const [isBotConnectorLocalPreset, setIsBotConnectorLocalPreset] =
+      useState(false);
     const [secureTextEntry, setSecureTextEntry] = useState(true);
 
     // Auto-probe
@@ -114,6 +121,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
         timeoutSecondsRef.current = '';
         setServerType('unknown');
         setIsBotConnectorPreset(false);
+        setIsBotConnectorLocalPreset(false);
         setSecureTextEntry(true);
         setIsProbing(false);
         setProbeResult(null);
@@ -158,7 +166,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             setSelectedModelId(models[0].id);
           }
           const detected = await detectServerType(trimmedUrl, models, headers);
-          setServerType(seedServerType(detected, trimmedUrl));
+          setServerType(
+            isBotConnectorLocalPreset
+              ? 'OpenAI'
+              : seedServerType(detected, trimmedUrl),
+          );
           setServerName(prev => {
             if (prev) {
               return prev;
@@ -178,7 +190,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
           setIsProbing(false);
         }
       },
-      [l10n],
+      [l10n, isBotConnectorLocalPreset],
     );
 
     const debouncedProbe = useMemo(
@@ -188,16 +200,22 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
 
     // Trigger probe on url change (only when not using a known server chip)
     useEffect(() => {
-      if (
-        !selectedServerId &&
-        !(isBotConnectorPreset && !apiKeyRef.current.trim())
-      ) {
+      const presetNeedsKey =
+        (isBotConnectorPreset || isBotConnectorLocalPreset) &&
+        !apiKeyRef.current.trim();
+      if (!selectedServerId && !presetNeedsKey) {
         debouncedProbe(url);
       }
       return () => {
         debouncedProbe.cancel();
       };
-    }, [url, debouncedProbe, selectedServerId, isBotConnectorPreset]);
+    }, [
+      url,
+      debouncedProbe,
+      selectedServerId,
+      isBotConnectorPreset,
+      isBotConnectorLocalPreset,
+    ]);
 
     // Re-probe on apiKey blur
     const handleApiKeyBlur = useCallback(() => {
@@ -228,7 +246,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setSelectedServerId(server.id);
       setServerName(server.name);
       setUrl(server.url);
-      setIsBotConnectorPreset(isBotConnectorApiUrl(server.url));
+      const isCloudBotConnector = isBotConnectorApiUrl(server.url);
+      setIsBotConnectorPreset(isCloudBotConnector);
+      setIsBotConnectorLocalPreset(
+        !isCloudBotConnector && isBotConnectorLocalServerName(server.name),
+      );
       setIsProbing(true);
       setProbeResult(null);
       setAvailableModels([]);
@@ -265,6 +287,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setServerName('');
       setApiKey('');
       setIsBotConnectorPreset(false);
+      setIsBotConnectorLocalPreset(false);
       apiKeyRef.current = '';
       setProbeResult(null);
       setAvailableModels([]);
@@ -288,11 +311,27 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setApiKey('');
       apiKeyRef.current = '';
       setIsBotConnectorPreset(true);
+      setIsBotConnectorLocalPreset(false);
       setProbeResult(null);
       setAvailableModels([]);
       setSelectedModelId(null);
       setUrlError('');
     }, [handleServerChipPress]);
+
+    const handleBotConnectorLocalPreset = useCallback(() => {
+      setSelectedServerId(null);
+      setUrl('');
+      setServerName(BOTCONNECTOR_LOCAL_NAME);
+      setServerType('OpenAI');
+      setApiKey('');
+      apiKeyRef.current = '';
+      setIsBotConnectorPreset(false);
+      setIsBotConnectorLocalPreset(true);
+      setProbeResult(null);
+      setAvailableModels([]);
+      setSelectedModelId(null);
+      setUrlError('');
+    }, []);
 
     // Save / add model
     const handleAddModel = useCallback(async () => {
@@ -305,7 +344,9 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
         if (!serverId) {
           // Create new server
           serverId = serverStore.addServer({
-            name: serverName.trim(),
+            name: isBotConnectorLocalPreset
+              ? botConnectorLocalServerName(url.trim())
+              : serverName.trim(),
             url: url.trim(),
             requestTimeoutMs: parseTimeoutMs(timeoutSeconds),
             serverType,
@@ -329,6 +370,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       serverName,
       url,
       apiKey,
+      isBotConnectorLocalPreset,
       timeoutSeconds,
       serverType,
       onModelAdded,
@@ -349,6 +391,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     // This lets users enter an API key after a 401, then retry
     const showServerFields =
       isBotConnectorPreset ||
+      isBotConnectorLocalPreset ||
       (probeResult !== null && !isProbing && !selectedServerId);
 
     return (
@@ -392,6 +435,19 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             </Button>
             <Text style={styles.apiKeyDescription}>
               {l10n.settings.connectBotConnectorDescription}
+            </Text>
+          </View>
+
+          <View style={styles.inputSpacing}>
+            <Button
+              testID="botconnector-local-preset-button"
+              mode={isBotConnectorLocalPreset ? 'contained-tonal' : 'outlined'}
+              icon="laptop"
+              onPress={handleBotConnectorLocalPreset}>
+              {l10n.settings.connectBotConnectorLocal}
+            </Button>
+            <Text style={styles.apiKeyDescription}>
+              {l10n.settings.connectBotConnectorLocalDescription}
             </Text>
           </View>
 
@@ -470,7 +526,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               <View style={styles.inputSpacing}>
                 <TextInput
                   testID="remote-url-input"
-                  label={l10n.settings.serverUrl}
+                  label={
+                    isBotConnectorLocalPreset
+                      ? l10n.settings.localDeviceUrl
+                      : l10n.settings.serverUrl
+                  }
                   value={url}
                   onChangeText={text => {
                     setUrl(text);
@@ -478,7 +538,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                       setUrlError('');
                     }
                   }}
-                  placeholder={l10n.settings.serverUrlPlaceholder}
+                  placeholder={
+                    isBotConnectorLocalPreset
+                      ? l10n.settings.localDeviceUrlPlaceholder
+                      : l10n.settings.serverUrlPlaceholder
+                  }
                   autoCapitalize="none"
                   autoCorrect={false}
                   keyboardType="url"
@@ -548,7 +612,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               so user can enter API key after 401 and retry */}
           {showServerFields && (
             <>
-              {!isBotConnectorPreset && (
+              {!isBotConnectorPreset && !isBotConnectorLocalPreset && (
                 <View style={styles.inputSpacing}>
                   <TextInput
                     testID="remote-name-input"
@@ -563,13 +627,19 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               <View style={styles.inputSpacing}>
                 <TextInput
                   testID="remote-apikey-input"
-                  label={l10n.settings.apiKey}
+                  label={
+                    isBotConnectorLocalPreset
+                      ? l10n.settings.localPairingKey
+                      : l10n.settings.apiKey
+                  }
                   value={apiKey}
                   onChangeText={setApiKey}
                   placeholder={
                     isBotConnectorPreset
                       ? l10n.settings.botConnectorApiKeyPlaceholder
-                      : l10n.settings.apiKeyPlaceholder
+                      : isBotConnectorLocalPreset
+                        ? l10n.settings.localPairingKeyPlaceholder
+                        : l10n.settings.apiKeyPlaceholder
                   }
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -591,7 +661,9 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                   }
                 />
                 <Text style={styles.apiKeyDescription}>
-                  {l10n.settings.apiKeyDescription}
+                  {isBotConnectorLocalPreset
+                    ? l10n.settings.localPairingKeyDescription
+                    : l10n.settings.apiKeyDescription}
                 </Text>
               </View>
 
@@ -609,7 +681,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                 </Text>
               </View>
 
-              {!isBotConnectorPreset && (
+              {!isBotConnectorPreset && !isBotConnectorLocalPreset && (
                 <View style={styles.inputSpacing}>
                   <Text>{l10n.settings.serverType}</Text>
                   <Dropdown

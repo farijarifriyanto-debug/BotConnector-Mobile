@@ -203,7 +203,17 @@
     "speculativeDraftValueCacheType": "סוג מטמון ערך לטיוטה",
     "speculativeDraftNGpuLayers": "שכבות GPU לטיוטה",
     "speculativeDraftNGpuLayersDescription": "כמות השכבות של מודל הטיוטה שיועברו ל-GPU.",
-    "speculativeDraftCacheTypeInactiveDescription": "ייכנס לתוקף ברגע שפענוח ספקולטיבי יפעל."
+    "speculativeDraftCacheTypeInactiveDescription": "ייכנס לתוקף ברגע שפענוח ספקולטיבי יפעל.",
+    "connectBotConnector": "חיבור ל-BotConnector",
+    "connectBotConnectorDescription": "ה-API של BotConnector מוגדר מראש. הדבק את מפתח ה-API שלך כדי לטעון את המודלים הזמינים למפתח זה.",
+    "connectBotConnectorLocal": "חיבור ל-BotConnector Local",
+    "connectBotConnectorLocalDescription": "התחבר ישירות ל-BotConnector Local במחשב הנייד שלך. במחשב הנייד, הפעל את Local API Server עם המארח 0.0.0.0, פורט 1337 ומפתח API; לאחר מכן הזן את כתובת ה-LAN המקומית של המחשב. אם אתה כבר משתמש ב-Tailscale, אפשר להשתמש במקום זאת בכתובת ה-Tailscale של המחשב.",
+    "localDeviceUrl": "כתובת המחשב הנייד",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "מפתח צימוד",
+    "localPairingKeyPlaceholder": "מפתח API של Local API Server",
+    "localPairingKeyDescription": "נשמר באופן מאובטח במכשיר זה ונעשה בו שימוש אוטומטי בחיבור מחדש.",
+    "botConnectorApiKeyPlaceholder": "הדבק מפתח API מסוג bc_live_..."
   },
   "memory": {
     "shortWarning": "אזהרת זיכרון",

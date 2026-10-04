@@ -1234,7 +1234,17 @@
     "speculativeDraftValueCacheType": "草稿值快取類型",
     "speculativeDraftNGpuLayers": "草稿 GPU 層數",
     "speculativeDraftNGpuLayersDescription": "要卸載到 GPU 的草稿模型層數。",
-    "speculativeDraftCacheTypeInactiveDescription": "推測解碼啟動後即會套用。"
+    "speculativeDraftCacheTypeInactiveDescription": "推測解碼啟動後即會套用。",
+    "connectBotConnector": "連接 BotConnector",
+    "connectBotConnectorDescription": "BotConnector API 已預先設定。貼上您的 API 金鑰即可載入該金鑰可用的模型。",
+    "connectBotConnectorLocal": "連接 BotConnector Local",
+    "connectBotConnectorLocalDescription": "直接連接到筆記型電腦上的 BotConnector Local。在筆記型電腦上啟動 Local API Server，主機設為 0.0.0.0、連接埠設為 1337，並設定 API 金鑰；接著輸入筆記型電腦的本機 LAN 位址。如果您已經使用 Tailscale，也可以改用筆記型電腦的 Tailscale 位址。",
+    "localDeviceUrl": "筆記型電腦位址",
+    "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
+    "localPairingKey": "配對金鑰",
+    "localPairingKeyPlaceholder": "Local API Server API 金鑰",
+    "localPairingKeyDescription": "安全儲存在此裝置上，重新連線時會自動重複使用。",
+    "botConnectorApiKeyPlaceholder": "貼上 bc_live_... API 金鑰"
   },
   "storage": {
     "checkFailed": "無法檢查存儲",
