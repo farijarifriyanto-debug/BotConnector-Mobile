@@ -465,6 +465,146 @@ describe('useChatSession', () => {
     });
   });
 
+  it('sends stable file ids only for paid official BotConnector Cloud', async () => {
+    runInAction(() => {
+      serverStore.servers = [
+        {
+          id: 'bc-files',
+          name: 'BotConnector',
+          url: 'https://api.botconnector.id',
+          serverType: 'OpenAI',
+        },
+      ];
+      serverStore.botConnectorAccess = {
+        'bc-files': {
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          access: 'full',
+          paid: true,
+          entitlement_sources: {
+            subscription: true,
+            payg: false,
+            family: false,
+          },
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+          },
+        },
+      };
+      modelStore.models = [
+        {
+          id: 'bc-files/text-model',
+          origin: ModelOrigin.REMOTE,
+          serverId: 'bc-files',
+          remoteModelId: 'text-model',
+        } as any,
+      ];
+      modelStore.activeModelId = 'bc-files/text-model';
+    });
+
+    let captured: any;
+    if (modelStore.context) {
+      modelStore.context.completion = jest
+        .fn()
+        .mockImplementation(params => {
+          captured = params;
+          return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
+        });
+    }
+
+    const {result} = renderHook(() =>
+      useChatSession({current: null}, textMessage.author, mockAssistant),
+    );
+    await act(async () => {
+      await result.current.handleSendPress({
+        text: 'summarize this',
+        type: 'text',
+        botConnectorFiles: [
+          {
+            id: 'file_bc_11111111-1111-1111-1111-111111111111',
+            name: 'report.pdf',
+            size: 1234,
+            mediaType: 'application/pdf',
+            route: 'retrieval',
+          },
+        ],
+      });
+    });
+
+    expect(captured.botconnector_file_ids).toEqual([
+      'file_bc_11111111-1111-1111-1111-111111111111',
+    ]);
+
+    runInAction(() => {
+      serverStore.botConnectorAccess = {};
+      serverStore.servers = [];
+      modelStore.activeModelId = undefined;
+    });
+  });
+
+  it('does not leak BotConnector file ids to an external cloud server', async () => {
+    runInAction(() => {
+      serverStore.servers = [
+        {
+          id: 'external-files',
+          name: 'External Cloud',
+          url: 'https://api.external.example',
+          serverType: 'OpenAI',
+        },
+      ];
+      serverStore.botConnectorAccess = {};
+      modelStore.models = [
+        {
+          id: 'external-files/text-model',
+          origin: ModelOrigin.REMOTE,
+          serverId: 'external-files',
+          remoteModelId: 'text-model',
+        } as any,
+      ];
+      modelStore.activeModelId = 'external-files/text-model';
+    });
+
+    let captured: any;
+    if (modelStore.context) {
+      modelStore.context.completion = jest
+        .fn()
+        .mockImplementation(params => {
+          captured = params;
+          return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
+        });
+    }
+
+    const {result} = renderHook(() =>
+      useChatSession({current: null}, textMessage.author, mockAssistant),
+    );
+    await act(async () => {
+      await result.current.handleSendPress({
+        text: 'hello',
+        type: 'text',
+        botConnectorFiles: [
+          {
+            id: 'file_bc_11111111-1111-1111-1111-111111111111',
+            name: 'report.pdf',
+            size: 1234,
+            mediaType: 'application/pdf',
+          },
+        ],
+      });
+    });
+
+    expect(captured.botconnector_file_ids).toBeUndefined();
+
+    runInAction(() => {
+      serverStore.servers = [];
+      modelStore.activeModelId = undefined;
+    });
+  });
+
   it('keeps a vision-capable external cloud provider text-only', async () => {
     runInAction(() => {
       serverStore.servers = [
