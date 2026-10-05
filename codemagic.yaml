@@ -170,6 +170,9 @@ workflows:
 
       - name: Build signed IPA
         script: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          export EXTRA_PACKAGER_ARGS="--max-workers 2"
+          node -e 'console.log("Node heap limit configured:", process.env.NODE_OPTIONS)'
           xcode-project build-ipa \
             --workspace "$XCODE_WORKSPACE" \
             --scheme "$XCODE_SCHEME"
