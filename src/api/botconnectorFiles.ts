@@ -40,7 +40,7 @@ interface BotConnectorFileResponse {
   bytes: number;
   filename: string;
   media_type?: string;
-  status: Exclude<BotConnectorFileStatus, 'uploading' | 'failed'>;
+  status: Exclude<BotConnectorFileStatus, 'uploading'>;
   route?: BotConnectorFileRoute;
   parser?: string | null;
 }
