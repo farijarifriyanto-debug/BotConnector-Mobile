@@ -178,12 +178,22 @@ export namespace MessageType {
     type: 'image';
   }
 
+  export interface BotConnectorFileAttachment {
+    id: string;
+    name: string;
+    size: number;
+    mediaType: string;
+    route?: string;
+  }
+
   export interface PartialText {
     metadata?: Record<string, any>;
     previewData?: PreviewData;
     text: string;
     type: 'text';
     imageUris?: string[]; // Optional array of image URIs for multimodal messages
+    /** Uploaded BotConnector Cloud files referenced by stable file_id. */
+    botConnectorFiles?: BotConnectorFileAttachment[];
   }
 
   export interface Text extends Base, PartialText {
