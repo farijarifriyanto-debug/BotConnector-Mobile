@@ -14,6 +14,8 @@ export interface ReasoningIntent {
 
 export type ApiCompletionParams = LlamaRNCompletionParams & {
   reasoning?: ReasoningIntent;
+  /** BotConnector-owned files attached to this run. Official Cloud only. */
+  botconnector_file_ids?: string[];
 };
 
 // Stripped before the params reach llama.rn.
