@@ -96,7 +96,12 @@ const prepareCompletion = async ({
     : undefined;
   const officialBotConnectorFiles =
     allowRichFeatures &&
-    Boolean(activeServer && isBotConnectorApiUrl(activeServer.url));
+    Boolean(
+      activeServer &&
+        isBotConnectorApiUrl(activeServer.url) &&
+        serverStore.botConnectorAccess[activeServer.id]?.capabilities.files ===
+          true,
+    );
 
   const historicalFileIds = currentMessages.flatMap(current => {
     const attachments = current.metadata?.botconnectorFiles;
