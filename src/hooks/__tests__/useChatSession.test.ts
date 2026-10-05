@@ -493,6 +493,7 @@ describe('useChatSession', () => {
             tools: true,
             vision: true,
             media: true,
+            files: true,
           },
         },
       };
