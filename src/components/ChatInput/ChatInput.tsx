@@ -10,11 +10,17 @@ import {
   Image,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {
+  errorCodes,
+  isErrorWithCode,
+  pick,
+  types,
+} from '@react-native-documents/picker';
 import {useCameraPermission} from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import {observer} from 'mobx-react';
-import {IconButton, Text} from 'react-native-paper';
+import {IconButton, ProgressBar, Text} from 'react-native-paper';
 
 import {hasVideoCapability} from '../../utils/pal-capabilities';
 
@@ -29,11 +35,26 @@ import {useTheme} from '../../hooks';
 
 import {createStyles} from './styles';
 
-import {chatSessionStore, modelStore, palStore, uiStore} from '../../store';
+import {
+  chatSessionStore,
+  modelStore,
+  palStore,
+  serverStore,
+  uiStore,
+} from '../../store';
 
 import {MessageType} from '../../utils/types';
 import {L10nContext, UserContext} from '../../utils';
 import {t} from '../../locales';
+import {isBotConnectorApiUrl} from '../../config/botconnector';
+import {
+  BOTCONNECTOR_FILE_MAX_COUNT,
+  BOTCONNECTOR_FILE_MAX_TOTAL_BYTES,
+  BotConnectorFile,
+  getBotConnectorFile,
+  isBotConnectorFileReady,
+  uploadBotConnectorFile,
+} from '../../api/botconnectorFiles';
 
 import {SendButton, StopButton, Menu, VoiceChip} from '..';
 
@@ -157,6 +178,16 @@ export const ChatInput = observer(
     const {hasPermission, requestPermission} = useCameraPermission();
 
     const hasActiveModel = !!modelStore.activeModelId;
+    const activeServer = modelStore.activeModel?.serverId
+      ? serverStore.servers.find(
+          server => server.id === modelStore.activeModel?.serverId,
+        )
+      : undefined;
+    const botConnectorFilesEnabled = Boolean(
+      activeServer &&
+        isBotConnectorApiUrl(activeServer.url) &&
+        serverStore.botConnectorAccess[activeServer.id]?.access === 'full',
+    );
 
     // Use `defaultValue` if provided
     const [text, setText] = React.useState(textInputProps?.defaultValue ?? '');
@@ -167,6 +198,9 @@ export const ChatInput = observer(
     const selectedImages = defaultImages ?? internalSelectedImages;
     const setSelectedImages =
       onDefaultImagesChange ?? setInternalSelectedImages;
+    const [selectedFiles, setSelectedFiles] = React.useState<
+      BotConnectorFile[]
+    >([]);
     // State for image upload menu
     const [showImageUploadMenu, setShowImageUploadMenu] = React.useState(false);
     // State for showing "model not loaded" helper text
@@ -220,32 +254,45 @@ export const ChatInput = observer(
       }
     };
 
+    const readyFiles = selectedFiles.filter(isBotConnectorFileReady);
+    const hasPendingFiles = selectedFiles.some(
+      file =>
+        file.status !== 'ready' &&
+        file.status !== 'failed',
+    );
+
     const handleSend = () => {
       const trimmedValue = value.trim();
-      if (trimmedValue) {
+      if ((trimmedValue || readyFiles.length > 0) && !hasPendingFiles) {
         // Check if model is loaded before sending
         if (!hasActiveModel) {
-          // Trigger haptic feedback to indicate the action is blocked
           ReactNativeHapticFeedback.trigger(
             'notificationWarning',
             hapticOptions,
           );
-          // Show warning helper text
           setShowModelWarning(true);
-          // Auto-hide after 3 seconds
           setTimeout(() => setShowModelWarning(false), 3000);
           return;
         }
 
-        // Include imageUris in the message object
         onSendPress({
           text: trimmedValue,
           type: 'text',
           imageUris: selectedImages.length > 0 ? selectedImages : undefined,
+          botConnectorFiles:
+            readyFiles.length > 0
+              ? readyFiles.map(file => ({
+                  id: file.id!,
+                  name: file.name,
+                  size: file.size,
+                  mediaType: file.mediaType,
+                  route: file.route,
+                }))
+              : undefined,
         });
         setText('');
-        // Clear selected images after sending
         setSelectedImages([]);
+        setSelectedFiles([]);
       }
     };
 
@@ -344,6 +391,179 @@ export const ChatInput = observer(
       }
     };
 
+    const updateSelectedFile = (
+      localKey: string,
+      patch: Partial<BotConnectorFile>,
+    ) => {
+      setSelectedFiles(current =>
+        current.map(file =>
+          file.uri === localKey ? {...file, ...patch} : file,
+        ),
+      );
+    };
+
+    const pollFileStatus = async (
+      localKey: string,
+      serverUrl: string,
+      apiKey: string,
+      fileId: string,
+    ) => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+          const latest = await getBotConnectorFile({
+            serverUrl,
+            apiKey,
+            fileId,
+          });
+          updateSelectedFile(localKey, {
+            id: latest.id,
+            name: latest.filename,
+            size: latest.bytes,
+            mediaType: latest.media_type || 'application/octet-stream',
+            status: latest.status,
+            route: latest.route,
+            parser: latest.parser,
+            progress: 1,
+          });
+          if (latest.status === 'ready') {
+            return;
+          }
+        } catch (error) {
+          updateSelectedFile(localKey, {
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'File processing failed',
+          });
+          return;
+        }
+      }
+    };
+
+    const handleSelectFiles = async () => {
+      if (!activeServer || !botConnectorFilesEnabled) {
+        return;
+      }
+      try {
+        const picked = await pick({
+          type: [types.allFiles],
+          allowMultiSelection: true,
+        });
+        const remaining = Math.max(
+          0,
+          BOTCONNECTOR_FILE_MAX_COUNT - selectedFiles.length,
+        );
+        const candidates = picked.slice(0, remaining);
+        const existingBytes = selectedFiles.reduce(
+          (sum, file) => sum + file.size,
+          0,
+        );
+        let acceptedBytes = existingBytes;
+        const accepted: BotConnectorFile[] = [];
+        for (const item of candidates) {
+          const size = Number(item.size || 0);
+          if (
+            size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
+            acceptedBytes + size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES
+          ) {
+            Alert.alert(
+              'File too large',
+              'Maximum total attachment size is 512 MB per message.',
+            );
+            continue;
+          }
+          acceptedBytes += size;
+          accepted.push({
+            uri: item.uri,
+            name: item.name || 'file',
+            size,
+            mediaType: item.type || 'application/octet-stream',
+            status: 'uploading',
+            progress: 0,
+          });
+        }
+        if (accepted.length === 0) {
+          setShowImageUploadMenu(false);
+          return;
+        }
+        setSelectedFiles(current => [...current, ...accepted]);
+        setShowImageUploadMenu(false);
+
+        const apiKey = await serverStore.getApiKey(activeServer.id);
+        if (!apiKey) {
+          throw new Error('BotConnector API key is required');
+        }
+
+        // Upload sequentially to avoid multiplying 512 MB transfers on mobile.
+        // Processing polling is detached so the next file can start uploading.
+        for (const file of accepted) {
+          try {
+            const uploaded = await uploadBotConnectorFile({
+              serverUrl: activeServer.url,
+              apiKey,
+              file,
+              onProgress: progress =>
+                updateSelectedFile(file.uri, {progress}),
+            });
+            updateSelectedFile(file.uri, {
+              id: uploaded.id,
+              name: uploaded.filename,
+              size: uploaded.bytes,
+              mediaType:
+                uploaded.media_type || file.mediaType,
+              status: uploaded.status,
+              route: uploaded.route,
+              parser: uploaded.parser,
+              progress: 1,
+            });
+            if (uploaded.status !== 'ready') {
+              void pollFileStatus(
+                file.uri,
+                activeServer.url,
+                apiKey,
+                uploaded.id,
+              );
+            }
+          } catch (error) {
+            updateSelectedFile(file.uri, {
+              status: 'failed',
+              error:
+                error instanceof Error
+                  ? error.message
+                  : 'File upload failed',
+            });
+          }
+        }
+      } catch (error) {
+        if (
+          isErrorWithCode(error) &&
+          error.code === errorCodes.OPERATION_CANCELED
+        ) {
+          return;
+        }
+        Alert.alert(
+          'File upload failed',
+          error instanceof Error ? error.message : 'Unable to upload file.',
+        );
+      }
+    };
+
+    const handleRemoveFile = (uri: string) => {
+      setSelectedFiles(current => current.filter(file => file.uri !== uri));
+    };
+
+    const fileStatusLabel = (file: BotConnectorFile) => {
+      if (file.status === 'uploading') {
+        return `Uploading ${Math.round(file.progress * 100)}%`;
+      }
+      if (file.status === 'ready') {
+        return 'Ready';
+      }
+      if (file.status === 'failed') {
+        return file.error || 'Upload failed';
+      }
+      return 'Processing…';
+    };
+
     // Remove an image from the selection
     const handleRemoveImage = (index: number) => {
       const newImages = [...selectedImages];
@@ -356,13 +576,16 @@ export const ChatInput = observer(
       onCancelEdit?.();
     };
 
+    const hasSendableContent =
+      value.trim().length > 0 || readyFiles.length > 0;
     const isSendButtonVisible =
       !isStreaming &&
       !isStopVisible &&
       user &&
-      !isVideoCapable && // Hide send button for video-capable pals
-      (sendButtonVisibilityMode === 'always' || value.trim());
-    const isSendButtonEnabled = value.trim().length > 0 && hasActiveModel;
+      !isVideoCapable &&
+      (sendButtonVisibilityMode === 'always' || hasSendableContent);
+    const isSendButtonEnabled =
+      hasActiveModel && hasSendableContent && !hasPendingFiles;
     const sendButtonOpacity = isSendButtonEnabled ? 1 : 0.4;
 
     const rotateInterpolate = iconRotation.interpolate({
@@ -373,7 +596,8 @@ export const ChatInput = observer(
     const onSurfaceColor = currentActivePal?.color?.[0] || theme.colors.text;
     const onSurfaceColorVariant = onSurfaceColor + '55'; // for disabled state or placeholder text
     // // Plus button state
-    const isPlusButtonEnabled = !isStreaming && isVisionEnabled;
+    const isPlusButtonEnabled =
+      !isStreaming && (isVisionEnabled || botConnectorFilesEnabled);
     const plusColor = isPlusButtonEnabled
       ? onSurfaceColor
       : onSurfaceColorVariant;
@@ -409,6 +633,49 @@ export const ChatInput = observer(
                 iconColor={theme.colors.onSurfaceVariant}
               />
             </Animated.View>
+          )}
+
+          {selectedFiles.length > 0 && (
+            <View style={styles.filePreviewContainer}>
+              {selectedFiles.map(file => (
+                <View key={file.uri} style={styles.filePreviewRow}>
+                  <IconButton
+                    icon="file-document-outline"
+                    size={20}
+                    style={styles.filePreviewIcon}
+                  />
+                  <View style={styles.filePreviewText}>
+                    <Text
+                      numberOfLines={1}
+                      style={styles.filePreviewName}>
+                      {file.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.filePreviewStatus,
+                        file.status === 'failed' && {
+                          color: theme.colors.error,
+                        },
+                      ]}>
+                      {fileStatusLabel(file)}
+                    </Text>
+                    {file.status === 'uploading' && (
+                      <ProgressBar
+                        progress={file.progress}
+                        style={styles.fileProgress}
+                      />
+                    )}
+                  </View>
+                  <IconButton
+                    icon="close"
+                    size={18}
+                    onPress={() => handleRemoveFile(file.uri)}
+                    accessibilityLabel={`Remove ${file.name}`}
+                  />
+                </View>
+              ))}
+            </View>
           )}
 
           {/* Image Preview Section */}
@@ -515,7 +782,7 @@ export const ChatInput = observer(
                       onPress={
                         isPlusButtonEnabled ? handlePlusButtonPress : () => {}
                       }
-                      accessibilityLabel="Add image"
+                      accessibilityLabel="Add attachment"
                       accessibilityRole="button">
                       <PlusIcon width={20} height={20} stroke={plusColor} />
                     </TouchableOpacity>
@@ -523,13 +790,22 @@ export const ChatInput = observer(
                   <Menu.Item
                     label={l10n.camera?.takePhoto || 'Camera'}
                     icon="camera"
+                    disabled={!isVisionEnabled}
                     onPress={handleTakePhoto}
                   />
                   <Menu.Item
                     label={l10n.common?.gallery || 'Gallery'}
                     icon="image"
+                    disabled={!isVisionEnabled}
                     onPress={handleSelectImages}
                   />
+                  {botConnectorFilesEnabled && (
+                    <Menu.Item
+                      label="File"
+                      icon="file-document-outline"
+                      onPress={handleSelectFiles}
+                    />
+                  )}
                 </Menu>
               )}
 
