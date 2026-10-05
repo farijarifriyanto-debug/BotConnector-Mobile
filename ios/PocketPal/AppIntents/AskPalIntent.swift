@@ -10,12 +10,12 @@ import AppIntents
 
 @available(iOS 16.0, *)
 struct AskPalIntent: AppIntent {
-    static var title: LocalizedStringResource = "Ask Pal"
-    static var description = IntentDescription("Ask a question to a specific Pal and get an AI response")
+    static var title: LocalizedStringResource = "Ask BotConnector"
+    static var description = IntentDescription("Ask a question using a local AI assistant in BotConnector")
     
     static var openAppWhenRun: Bool = false // Run in background
     
-    @Parameter(title: "Pal", description: "The Pal to ask")
+    @Parameter(title: "Assistant", description: "The local AI assistant to ask")
     var pal: PalEntity
     
     @Parameter(title: "Message", description: "Your question or message")
@@ -109,7 +109,7 @@ enum AskPalError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .emptyMessage:
-            return "Please provide a message to send to the Pal"
+            return "Please provide a message to send to the assistant"
         case .noModelAvailable:
             return "No AI model is available. Please download a model in the BotConnector app first."
         case .inferenceFailed(let details):

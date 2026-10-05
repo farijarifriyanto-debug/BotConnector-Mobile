@@ -27,6 +27,10 @@ import {
   getPremiumInfoText,
 } from '../../../utils/palshub-display';
 
+// External digital-goods checkout is disabled in store builds until a
+// store-compliant purchase flow is implemented for BotConnector.
+const EXTERNAL_PALSHUB_CHECKOUT_ENABLED = false;
+
 interface PalDetailSheetProps {
   pal: PalsHubPal | null;
   isVisible: boolean;
@@ -401,7 +405,8 @@ export const PalDetailSheet: React.FC<PalDetailSheetProps> = observer(
             )}
 
           {/* Show buy button (eligible) or informational text (ineligible) for premium pals */}
-          {palLabel.type === 'premium' &&
+          {EXTERNAL_PALSHUB_CHECKOUT_ENABLED &&
+            palLabel.type === 'premium' &&
             !displayPal.is_owned &&
             (palStore.isCheckoutEligible ? (
               <View style={styles.buyActionColumn}>

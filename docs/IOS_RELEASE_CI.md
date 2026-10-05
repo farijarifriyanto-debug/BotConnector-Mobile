@@ -1,50 +1,46 @@
 # BotConnector iOS release via Codemagic
 
-The source repository can be built without a local Mac by using the root `codemagic.yaml`.
+The repository can be built and distributed without a local Mac by using the root `codemagic.yaml`.
 
 ## App identity
 
 - Display name: BotConnector
 - Bundle ID: `id.botconnector.app`
+- Public release version: `1.0`
 - Xcode workspace: `ios/PocketPal.xcworkspace`
 - Xcode scheme: `PocketPal`
+- Apple Team ID: `7DD999P944`
 
-The workspace/scheme keep the upstream internal name. This is intentional and does not affect the App Store identity. The iOS product name is `BotConnector`, so generated app artifacts use `BotConnector.app`.
+The workspace/scheme keep the upstream internal name intentionally. Public artifacts use `BotConnector.app`.
 
-## Codemagic environment group
+## Apple signing
 
-Create an encrypted environment group named `botconnector_ios` with:
+Codemagic uses the **BotConnector Codemagic** App Store Connect integration plus the App Store provisioning profile for `id.botconnector.app`. Do not commit Apple private keys, provisioning profiles, certificates, or generated signing files.
 
-- `APP_STORE_CONNECT_ISSUER_ID`
-- `APP_STORE_CONNECT_KEY_IDENTIFIER`
-- `APP_STORE_CONNECT_PRIVATE_KEY`
-- `GOOGLE_SERVICES_PLIST_B64`
-- `GOOGLE_WEB_CLIENT_ID`
+## Google/Firebase
 
-Generate `GOOGLE_SERVICES_PLIST_B64` locally from the production iOS Firebase plist:
+Firebase/PalsHub integrations are optional for the first BotConnector release.
 
-```bash
-base64 < GoogleService-Info.plist | tr -d '\n'
-```
+- If `GOOGLE_SERVICES_PLIST_B64` and `GOOGLE_WEB_CLIENT_ID` are supplied in Codemagic, the production Google configuration is bundled.
+- If they are absent, CI creates a placeholder plist only so native build settings remain valid. `AppDelegate` detects `PROJECT_ID=botconnector-ci` and deliberately skips Firebase initialization.
+- Never commit `ios/GoogleService-Info.plist` or `ios/Config/Env.xcconfig`.
 
-Do not commit the plist, API private key, certificates, or generated `ios/Config/Env.xcconfig`.
+## Simulator smoke
 
-## First build without Apple signing
+Use workflow **BotConnector iOS Simulator Smoke** when only a compile smoke test is needed. It is unsigned and uses CI placeholders.
 
-1. Connect the GitHub repository in Codemagic.
-2. Select branch `feature/mobile-media-voice-branding`.
-3. Select workflow **BotConnector iOS Simulator Smoke**.
-4. Run the workflow.
+## TestFlight / App Store Connect
 
-This workflow does not require Apple Developer signing credentials. It creates CI-only placeholder Firebase/Xcode environment files, builds an unsigned iOS Simulator app, and proves that the native iOS project can compile on a real macOS runner.
+Use workflow **BotConnector iOS TestFlight** for signed builds. It:
 
-## TestFlight build
+1. runs `scripts/release-preflight.sh`;
+2. installs JS/Ruby/CocoaPods dependencies;
+3. creates optional Google/Firebase environment files;
+4. applies App Store signing;
+5. assigns the Codemagic build number;
+6. builds `BotConnector.ipa`;
+7. uploads the IPA to App Store Connect.
 
-After Apple Developer / App Store Connect credentials are ready:
+The workflow intentionally does **not** auto-submit to external TestFlight beta review. Uploading is enough for App Store Connect/TestFlight processing and internal testing. External beta review should be submitted only after Beta App Information and Beta App Review contact fields are complete.
 
-1. Add the encrypted `botconnector_ios` environment group described above.
-2. Select workflow **BotConnector iOS TestFlight**.
-3. Run the workflow.
-4. The workflow fetches/creates App Store signing files for `id.botconnector.app`, builds a signed IPA, and uploads it to TestFlight.
-
-Before each build, `scripts/release-preflight.sh` verifies the public app identity and that secret iOS files are not tracked.
+The release preflight also guards version 1.0, export-compliance declaration, store-facing branding, AppIcon completeness, and hidden external PalsHub checkout.

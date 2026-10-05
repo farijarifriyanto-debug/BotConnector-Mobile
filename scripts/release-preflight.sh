@@ -64,6 +64,54 @@ if git ls-files --error-unmatch ios/Config/Env.xcconfig >/dev/null 2>&1; then
   fail "ios/Config/Env.xcconfig must not be tracked"
 fi
 
+grep -q 'MARKETING_VERSION = 1.0;' ios/PocketPal.xcodeproj/project.pbxproj \
+  || fail "iOS marketing version is not aligned with App Store version 1.0"
+
+grep -q '<key>ITSAppUsesNonExemptEncryption</key>' ios/PocketPal/Info.plist \
+  || fail "iOS export compliance declaration missing"
+
+python3 - <<'PY' || exit 1
+import plistlib
+from pathlib import Path
+p = Path("ios/PocketPal/Info.plist")
+info = plistlib.loads(p.read_bytes())
+if info.get("ITSAppUsesNonExemptEncryption") is not False:
+    raise SystemExit("release-preflight: ITSAppUsesNonExemptEncryption must be false")
+PY
+
+if grep -q 'LLM Ventures' ios/PocketPal/LaunchScreen.storyboard; then
+  fail "stale upstream launch-screen branding remains"
+fi
+
+grep -q 'text="botconnector.id"' ios/PocketPal/LaunchScreen.storyboard \
+  || fail "BotConnector launch-screen footer missing"
+
+if grep -q 'navigate(ROUTES.PALS)' src/components/SidebarContent/SidebarContent.tsx; then
+  fail "PalsHub marketplace is still exposed in the main sidebar"
+fi
+
+grep -q 'EXTERNAL_PALSHUB_CHECKOUT_ENABLED = false' src/components/PalsHub/PalDetailSheet/PalDetailSheet.tsx \
+  || fail "external PalsHub checkout must stay disabled for store release"
+
+if grep -Rq --include='*.swift' -E '"Ask Pal"|"Open Pal Chat"' ios/PocketPal/AppIntents; then
+  fail "stale Siri/App Shortcuts branding remains"
+fi
+
+python3 - <<'PY' || exit 1
+import json
+from pathlib import Path
+root = Path("ios/PocketPal/Images.xcassets/AppIcon.appiconset")
+data = json.loads((root / "Contents.json").read_text())
+missing = [
+    entry for entry in data.get("images", [])
+    if not entry.get("filename") or not (root / entry["filename"]).is_file()
+]
+if missing:
+    raise SystemExit(f"release-preflight: AppIcon catalog has missing files: {missing}")
+if not (root / "App_store_1024_1x.png").is_file():
+    raise SystemExit("release-preflight: 1024x1024 App Store icon missing")
+PY
+
 echo "release-preflight: PASS"
 echo "  app: BotConnector"
 echo "  bundle id: id.botconnector.app"

@@ -16,11 +16,22 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    // Initialize Firebase
-    // This is used exclusively for sending model benchmarks (with user consent) to Firebase.
-    // Firebase is used for App Check functionality, allowing unauthenticated users to submit their benchmark data securely.
-    RNFBAppCheckModule.sharedInstance() 
-    FirebaseApp.configure()
+    // Firebase is optional for the BotConnector first release. It is only
+    // initialized when a real production GoogleService-Info.plist is bundled.
+    // CI placeholder configuration intentionally keeps upstream benchmark/PalsHub
+    // Firebase integrations disabled instead of talking to a dummy project.
+    if let configPath = Bundle.main.path(
+      forResource: "GoogleService-Info",
+      ofType: "plist"
+    ),
+      let config = NSDictionary(contentsOfFile: configPath),
+      let projectID = config["PROJECT_ID"] as? String,
+      !projectID.isEmpty,
+      projectID != "botconnector-ci"
+    {
+      RNFBAppCheckModule.sharedInstance()
+      FirebaseApp.configure()
+    }
 
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)

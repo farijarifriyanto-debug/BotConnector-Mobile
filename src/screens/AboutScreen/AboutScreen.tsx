@@ -25,6 +25,10 @@ const ChevronRightButtonIcon = ({color}: {color: string}) => (
   <ChevronRightIcon stroke={color} />
 );
 
+// Upstream Firebase feedback remains disabled until BotConnector has a
+// production feedback backend. Do not expose a button that cannot succeed.
+const FEEDBACK_ENABLED = false;
+
 export const AboutScreen: React.FC = () => {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
@@ -140,15 +144,19 @@ export const AboutScreen: React.FC = () => {
               icon={GithubButtonIcon}>
               {l10n.about.githubButton}
             </Button>
-            <Text style={styles.orText}>{l10n.about.orBy}</Text>
-            <Button
-              mode="outlined"
-              style={styles.actionButton}
-              contentStyle={styles.feedbackButtonContent}
-              icon={ChevronRightButtonIcon}
-              onPress={() => setShowFeedback(true)}>
-              {l10n.feedback.shareThoughtsButton}
-            </Button>
+            {FEEDBACK_ENABLED && (
+              <>
+                <Text style={styles.orText}>{l10n.about.orBy}</Text>
+                <Button
+                  mode="outlined"
+                  style={styles.actionButton}
+                  contentStyle={styles.feedbackButtonContent}
+                  icon={ChevronRightButtonIcon}
+                  onPress={() => setShowFeedback(true)}>
+                  {l10n.feedback.shareThoughtsButton}
+                </Button>
+              </>
+            )}
           </View>
 
           <View style={styles.section}>

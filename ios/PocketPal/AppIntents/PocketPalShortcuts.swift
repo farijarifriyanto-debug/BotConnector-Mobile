@@ -15,10 +15,10 @@ struct PocketPalShortcuts: AppShortcutsProvider {
             intent: AskPalIntent(),
             phrases: [
                 "Ask \(.applicationName)",
-                "Ask my \(.applicationName) pal",
+                "Ask my AI assistant with \(.applicationName)",
                 "Question for \(.applicationName)",
             ],
-            shortTitle: "Ask Pal",
+            shortTitle: "Ask BotConnector",
             systemImageName: "message.fill"
         )
         
@@ -26,7 +26,7 @@ struct PocketPalShortcuts: AppShortcutsProvider {
             intent: OpenPalChatIntent(),
             phrases: [
                 "Open \(.applicationName) chat",
-                "Chat with my pal in \(.applicationName)",
+                "Chat with my AI assistant in \(.applicationName)",
                 "Start \(.applicationName) conversation",
             ],
             shortTitle: "Open Chat",

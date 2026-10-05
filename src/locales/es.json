@@ -1143,7 +1143,7 @@
   },
   "camera": {
     "permissionTitle": "Permiso de cámara requerido",
-    "permissionMessage": "Pocket Pal necesita acceso a la cámara para analizar imágenes",
+    "permissionMessage": "BotConnector necesita acceso a la cámara para analizar imágenes",
     "requestingPermission": "Solicitando permiso de cámara...",
     "noDevice": "No se encontró ningún dispositivo de cámara",
     "errorTitle": "Error de cámara",
