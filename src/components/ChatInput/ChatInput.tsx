@@ -254,12 +254,16 @@ export const ChatInput = observer(
       }
     };
 
-    const readyFiles = selectedFiles.filter(isBotConnectorFileReady);
-    const hasPendingFiles = selectedFiles.some(
-      file =>
-        file.status !== 'ready' &&
-        file.status !== 'failed',
-    );
+    const readyFiles = botConnectorFilesEnabled
+      ? selectedFiles.filter(isBotConnectorFileReady)
+      : [];
+    const hasPendingFiles =
+      botConnectorFilesEnabled &&
+      selectedFiles.some(
+        file =>
+          file.status !== 'ready' &&
+          file.status !== 'failed',
+      );
 
     const handleSend = () => {
       const trimmedValue = value.trim();
