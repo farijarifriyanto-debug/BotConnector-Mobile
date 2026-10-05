@@ -18,6 +18,7 @@ import {
 import type {PersistedTurnTimings} from '../utils/completionTypes';
 import {resolveReasoningCapability} from '../utils/reasoningCapability';
 import {richFeaturesAllowed} from '../utils/mobileFeatureAccess';
+import {isBotConnectorApiUrl} from '../config/botconnector';
 
 import {MessageType, ModelOrigin, User} from '../utils/types';
 import {createMultimodalWarning} from '../utils/errors';
@@ -88,6 +89,31 @@ const prepareCompletion = async ({
       tools: undefined,
     };
   }
+  const activeServer = modelStore.activeModel?.serverId
+    ? serverStore.servers.find(
+        server => server.id === modelStore.activeModel?.serverId,
+      )
+    : undefined;
+  const officialBotConnectorFiles =
+    allowRichFeatures &&
+    Boolean(activeServer && isBotConnectorApiUrl(activeServer.url));
+
+  const historicalFileIds = currentMessages.flatMap(current => {
+    const attachments = current.metadata?.botconnectorFiles;
+    if (!Array.isArray(attachments)) {
+      return [];
+    }
+    return attachments
+      .map(item => (typeof item?.id === 'string' ? item.id : ''))
+      .filter((id): id is string => id.startsWith('file_bc_'));
+  });
+  const currentFileIds = (message.botConnectorFiles ?? [])
+    .map(file => file.id)
+    .filter(id => id.startsWith('file_bc_'));
+  const botConnectorFileIds = officialBotConnectorFiles
+    ? [...new Set([...historicalFileIds, ...currentFileIds])].slice(0, 10)
+    : [];
+
   const effectiveMultimodalEnabled = isMultimodalEnabled && allowRichFeatures;
 
   // Check if we have images and if multimodal is enabled
@@ -109,7 +135,11 @@ const prepareCompletion = async ({
       })),
     ];
   } else {
-    userMessageContent = message.text;
+    userMessageContent =
+      message.text ||
+      (botConnectorFileIds.length > 0
+        ? 'Please analyze the attached file(s).'
+        : '');
 
     if (hasImages && !effectiveMultimodalEnabled) {
       uiStore.setChatWarning(
@@ -168,6 +198,9 @@ const prepareCompletion = async ({
     ...sessionCompletionSettings,
     messages,
     stop: stopWords,
+    ...(botConnectorFileIds.length > 0
+      ? {botconnector_file_ids: botConnectorFileIds}
+      : {}),
   };
 
   const cleanCompletionParams = toApiCompletionParams(
@@ -565,6 +598,9 @@ export const useChatSession = (
         conversationId: conversationIdRef.current,
         copyable: true,
         multimodal: hasImages,
+        ...(message.botConnectorFiles?.length
+          ? {botconnectorFiles: message.botConnectorFiles}
+          : {}),
       },
     };
     await addMessage(textMessage);
