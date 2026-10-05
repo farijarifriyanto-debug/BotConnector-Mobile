@@ -99,6 +99,23 @@ target 'PocketPal' do
           Pod::UI.puts 'Applied Mac Catalyst slider bool compatibility patch'.green
         end
       end
+
+      screens_emitter = File.expand_path(
+        '../node_modules/react-native-screens/ios/bottom-tabs/host/RNSBottomTabsHostEventEmitter.mm',
+        __dir__,
+      )
+      if File.exist?(screens_emitter)
+        source = File.read(screens_emitter)
+        before = '.repeatedSelectionHandledBySpecialEffect = payload.repeatedSelectionHandledBySpecialEffect'
+        after = '.repeatedSelectionHandledBySpecialEffect = static_cast<bool>(payload.repeatedSelectionHandledBySpecialEffect)'
+        patched = source.gsub(before, after)
+        if patched == source
+          Pod::UI.warn 'Mac Catalyst react-native-screens bool narrowing patch was not applied; source signature changed.'
+        else
+          File.write(screens_emitter, patched)
+          Pod::UI.puts 'Applied Mac Catalyst react-native-screens bool narrowing patch'.green
+        end
+      end
     end
 
     # Workaround: pin the fmt pod to C++17 so it skips the consteval code path
