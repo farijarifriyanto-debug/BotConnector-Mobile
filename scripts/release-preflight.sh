@@ -23,6 +23,17 @@ grep -q '<string>BotConnector</string>' ios/PocketPal/Info.plist   || fail "CFBu
 grep -q 'PRODUCT_BUNDLE_IDENTIFIER = id.botconnector.app;' ios/PocketPal.xcodeproj/project.pbxproj \
   || fail "iOS bundle identifier is not id.botconnector.app"
 
+grep -q '7DD999P944' ios/PocketPal.xcodeproj/project.pbxproj \
+  || fail "iOS Apple Team ID is not configured"
+
+if grep -q 'MYXGXY23Y6' ios/PocketPal.xcodeproj/project.pbxproj; then
+  fail "stale upstream Apple Team ID remains in Xcode project"
+fi
+
+if grep -q 'PROVISIONING_PROFILE_SPECIFIER.*match ' ios/PocketPal.xcodeproj/project.pbxproj; then
+  fail "stale Fastlane match provisioning profile remains in Xcode project"
+fi
+
 grep -q 'PRODUCT_NAME = BotConnector;' ios/PocketPal.xcodeproj/project.pbxproj \
   || fail "iOS product name is not BotConnector"
 
