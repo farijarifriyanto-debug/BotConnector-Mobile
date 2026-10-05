@@ -607,6 +607,7 @@ describe('input', () => {
               tools: true,
               vision: true,
               media: true,
+              files: true,
             },
           },
         };
