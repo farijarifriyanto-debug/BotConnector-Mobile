@@ -24,6 +24,8 @@ export interface BotConnectorClientCapabilities {
     tools: boolean;
     vision: boolean;
     media: boolean;
+    /** Present only when the BotConnector Files backend is available. */
+    files?: boolean;
   };
 }
 
@@ -47,6 +49,7 @@ export function chatOnlyBotConnectorCapabilities(
       tools: false,
       vision: false,
       media: false,
+      files: false,
     },
   };
 }
