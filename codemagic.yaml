@@ -124,28 +124,28 @@ workflows:
           if [ -n "${GOOGLE_SERVICES_PLIST_B64:-}" ]; then
             printf '%s' "$GOOGLE_SERVICES_PLIST_B64" | base64 --decode > ios/GoogleService-Info.plist
           else
-            cat > ios/GoogleService-Info.plist <<'PLIST'
-            <?xml version="1.0" encoding="UTF-8"?>
-            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-            <plist version="1.0"><dict>
-            <key>CLIENT_ID</key><string>ci-placeholder.apps.googleusercontent.com</string>
-            <key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.ci-placeholder</string>
-            <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000</string>
-            <key>GCM_SENDER_ID</key><string>000000000000</string>
-            <key>API_KEY</key><string>ci-placeholder</string>
-            <key>PROJECT_ID</key><string>botconnector-ci</string>
-            <key>BUNDLE_ID</key><string>id.botconnector.app</string>
-            </dict></plist>
-            PLIST
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0"><dict>' \
+              '<key>CLIENT_ID</key><string>ci-placeholder.apps.googleusercontent.com</string>' \
+              '<key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.ci-placeholder</string>' \
+              '<key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000</string>' \
+              '<key>GCM_SENDER_ID</key><string>000000000000</string>' \
+              '<key>API_KEY</key><string>ci-placeholder</string>' \
+              '<key>PROJECT_ID</key><string>botconnector-ci</string>' \
+              '<key>BUNDLE_ID</key><string>id.botconnector.app</string>' \
+              '</dict></plist>' \
+              > ios/GoogleService-Info.plist
           fi
 
           REVERSED_GOOGLE_IOS_CLIENT_ID=$(/usr/libexec/PlistBuddy -c "Print :REVERSED_CLIENT_ID" ios/GoogleService-Info.plist)
           GOOGLE_WEB_CLIENT_ID_VALUE="${GOOGLE_WEB_CLIENT_ID:-ci-placeholder.apps.googleusercontent.com}"
 
-          cat > ios/Config/Env.xcconfig <<EOF
-          GOOGLE_WEB_CLIENT_ID = $GOOGLE_WEB_CLIENT_ID_VALUE
-          REVERSED_GOOGLE_IOS_CLIENT_ID = $REVERSED_GOOGLE_IOS_CLIENT_ID
-          EOF
+          printf '%s\n' \
+            "GOOGLE_WEB_CLIENT_ID = $GOOGLE_WEB_CLIENT_ID_VALUE" \
+            "REVERSED_GOOGLE_IOS_CLIENT_ID = $REVERSED_GOOGLE_IOS_CLIENT_ID" \
+            > ios/Config/Env.xcconfig
 
       - name: Set up App Store code signing
         script: |
