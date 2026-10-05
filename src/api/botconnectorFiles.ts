@@ -16,10 +16,7 @@ export type BotConnectorFileStatus =
   | 'ready'
   | 'failed';
 
-export type BotConnectorFileRoute =
-  | 'retrieval'
-  | 'data_analysis'
-  | 'vision';
+export type BotConnectorFileRoute = 'retrieval' | 'data_analysis' | 'vision';
 
 export interface BotConnectorFile {
   id?: string;
@@ -31,6 +28,8 @@ export interface BotConnectorFile {
   route?: BotConnectorFileRoute;
   parser?: string | null;
   progress: number;
+  /** True when uri points at an app-cache copy created from the document picker. */
+  temporary?: boolean;
   error?: string;
 }
 
@@ -61,6 +60,9 @@ export async function uploadBotConnectorFile({
 }): Promise<BotConnectorFileResponse> {
   if (!apiKey.trim()) {
     throw new Error('BotConnector API key is required');
+  }
+  if (!(file.size > 0)) {
+    throw new Error('File size could not be determined');
   }
   if (file.size > BOTCONNECTOR_FILE_MAX_BYTES) {
     throw new Error('File exceeds the 512 MB limit');

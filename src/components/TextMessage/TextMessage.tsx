@@ -112,7 +112,8 @@ export const TextMessage = ({
   const hasImages = imageUris && imageUris.length > 0;
   const botConnectorFiles =
     !step && Array.isArray(message.metadata?.botconnectorFiles)
-      ? (message.metadata!.botconnectorFiles as MessageType.BotConnectorFileAttachment[])
+      ? (message.metadata!
+          .botconnectorFiles as MessageType.BotConnectorFileAttachment[])
       : [];
 
   const handleEmailPress = (email: string) => {

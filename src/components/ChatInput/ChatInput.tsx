@@ -13,9 +13,11 @@ import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
   errorCodes,
   isErrorWithCode,
+  keepLocalCopy,
   pick,
   types,
 } from '@react-native-documents/picker';
+import * as RNFS from '@dr.pogodin/react-native-fs';
 import {useCameraPermission} from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
@@ -262,9 +264,7 @@ export const ChatInput = observer(
     const hasPendingFiles =
       botConnectorFilesEnabled &&
       selectedFiles.some(
-        file =>
-          file.status !== 'ready' &&
-          file.status !== 'failed',
+        file => file.status !== 'ready' && file.status !== 'failed',
       );
 
     const handleSend = () => {
@@ -298,6 +298,7 @@ export const ChatInput = observer(
         });
         setText('');
         setSelectedImages([]);
+        selectedFiles.forEach(cleanupTemporaryFile);
         setSelectedFiles([]);
       }
     };
@@ -397,6 +398,16 @@ export const ChatInput = observer(
       }
     };
 
+    const localFilePath = (uri: string) =>
+      uri.startsWith('file://') ? decodeURIComponent(uri.slice(7)) : uri;
+
+    const cleanupTemporaryFile = (file: BotConnectorFile) => {
+      if (!file.temporary || !file.uri.startsWith('file://')) {
+        return;
+      }
+      RNFS.unlink(localFilePath(file.uri)).catch(() => undefined);
+    };
+
     const updateSelectedFile = (
       localKey: string,
       patch: Partial<BotConnectorFile>,
@@ -432,16 +443,14 @@ export const ChatInput = observer(
             parser: latest.parser,
             progress: 1,
           });
-          if (
-            latest.status === 'ready' ||
-            latest.status === 'failed'
-          ) {
+          if (latest.status === 'ready' || latest.status === 'failed') {
             return;
           }
         } catch (error) {
           updateSelectedFile(localKey, {
             status: 'failed',
-            error: error instanceof Error ? error.message : 'File processing failed',
+            error:
+              error instanceof Error ? error.message : 'File processing failed',
           });
           return;
         }
@@ -469,11 +478,8 @@ export const ChatInput = observer(
           status: 'processing',
           error: undefined,
         });
-        void pollFileStatus(
-          file.uri,
-          activeServer.url,
-          apiKey,
-          file.id,
+        pollFileStatus(file.uri, activeServer.url, apiKey, file.id).catch(
+          () => undefined,
         );
         return;
       }
@@ -487,8 +493,7 @@ export const ChatInput = observer(
           serverUrl: activeServer.url,
           apiKey,
           file,
-          onProgress: progress =>
-            updateSelectedFile(file.uri, {progress}),
+          onProgress: progress => updateSelectedFile(file.uri, {progress}),
         });
         updateSelectedFile(file.uri, {
           id: uploaded.id,
@@ -501,20 +506,14 @@ export const ChatInput = observer(
           progress: 1,
         });
         if (uploaded.status !== 'ready') {
-          void pollFileStatus(
-            file.uri,
-            activeServer.url,
-            apiKey,
-            uploaded.id,
+          pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id).catch(
+            () => undefined,
           );
         }
       } catch (error) {
         updateSelectedFile(file.uri, {
           status: 'failed',
-          error:
-            error instanceof Error
-              ? error.message
-              : 'File upload failed',
+          error: error instanceof Error ? error.message : 'File upload failed',
         });
       }
     };
@@ -523,55 +522,98 @@ export const ChatInput = observer(
       if (!activeServer || !botConnectorFilesEnabled) {
         return;
       }
+
+      const apiKey = await serverStore.getApiKey(activeServer.id);
+      if (!apiKey) {
+        Alert.alert('File upload failed', 'BotConnector API key is required');
+        return;
+      }
+
       try {
         const picked = await pick({
           type: [types.allFiles],
           allowMultiSelection: true,
+          allowVirtualFiles: false,
+          mode: 'import',
         });
         const remaining = Math.max(
           0,
           BOTCONNECTOR_FILE_MAX_COUNT - selectedFiles.length,
         );
         const candidates = picked.slice(0, remaining);
-        const existingBytes = selectedFiles.reduce(
+        let acceptedBytes = selectedFiles.reduce(
           (sum, file) => sum + file.size,
           0,
         );
-        let acceptedBytes = existingBytes;
         const accepted: BotConnectorFile[] = [];
+
         for (const item of candidates) {
-          const size = Number(item.size || 0);
+          const name = item.name || 'file';
+          const copies = await keepLocalCopy({
+            files: [{uri: item.uri, fileName: name}],
+            destination: 'cachesDirectory',
+          });
+          const copy = copies[0];
+          if (!copy || copy.status !== 'success') {
+            Alert.alert(
+              'File upload failed',
+              copy?.status === 'error'
+                ? copy.copyError
+                : `Unable to prepare ${name} for upload.`,
+            );
+            continue;
+          }
+
+          const localUri = copy.localUri;
+          let size = Number(item.size || 0);
+          try {
+            const stat = await RNFS.stat(localFilePath(localUri));
+            const actualSize = Number(stat.size || 0);
+            if (actualSize > 0) {
+              size = actualSize;
+            }
+          } catch {
+            // The strict size check below rejects unknown-size files.
+          }
+
+          if (!(size > 0)) {
+            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
+            Alert.alert(
+              'File upload failed',
+              `Unable to determine the size of ${name}.`,
+            );
+            continue;
+          }
           if (
             size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
             acceptedBytes + size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES
           ) {
+            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
             Alert.alert(
               'File too large',
               'Maximum total attachment size is 512 MB per message.',
             );
             continue;
           }
+
           acceptedBytes += size;
           accepted.push({
-            uri: item.uri,
-            name: item.name || 'file',
+            uri: localUri,
+            name,
             size,
             mediaType: item.type || 'application/octet-stream',
             status: 'uploading',
             progress: 0,
+            temporary: true,
           });
         }
+
         if (accepted.length === 0) {
           setShowImageUploadMenu(false);
           return;
         }
         setSelectedFiles(current => [...current, ...accepted]);
         setShowImageUploadMenu(false);
-
-        const apiKey = await serverStore.getApiKey(activeServer.id);
-        if (!apiKey) {
-          throw new Error('BotConnector API key is required');
-        }
 
         // Upload sequentially to avoid multiplying 512 MB transfers on mobile.
         // Processing polling is detached so the next file can start uploading.
@@ -581,35 +623,31 @@ export const ChatInput = observer(
               serverUrl: activeServer.url,
               apiKey,
               file,
-              onProgress: progress =>
-                updateSelectedFile(file.uri, {progress}),
+              onProgress: progress => updateSelectedFile(file.uri, {progress}),
             });
             updateSelectedFile(file.uri, {
               id: uploaded.id,
               name: uploaded.filename,
               size: uploaded.bytes,
-              mediaType:
-                uploaded.media_type || file.mediaType,
+              mediaType: uploaded.media_type || file.mediaType,
               status: uploaded.status,
               route: uploaded.route,
               parser: uploaded.parser,
               progress: 1,
             });
-            if (uploaded.status !== 'ready') {
-              void pollFileStatus(
+            if (uploaded.status !== 'ready' && uploaded.status !== 'failed') {
+              pollFileStatus(
                 file.uri,
                 activeServer.url,
                 apiKey,
                 uploaded.id,
-              );
+              ).catch(() => undefined);
             }
           } catch (error) {
             updateSelectedFile(file.uri, {
               status: 'failed',
               error:
-                error instanceof Error
-                  ? error.message
-                  : 'File upload failed',
+                error instanceof Error ? error.message : 'File upload failed',
             });
           }
         }
@@ -628,6 +666,10 @@ export const ChatInput = observer(
     };
 
     const handleRemoveFile = (uri: string) => {
+      const target = selectedFiles.find(file => file.uri === uri);
+      if (target) {
+        cleanupTemporaryFile(target);
+      }
       setSelectedFiles(current => current.filter(file => file.uri !== uri));
     };
 
@@ -656,8 +698,7 @@ export const ChatInput = observer(
       onCancelEdit?.();
     };
 
-    const hasSendableContent =
-      value.trim().length > 0 || readyFiles.length > 0;
+    const hasSendableContent = value.trim().length > 0 || readyFiles.length > 0;
     const isSendButtonVisible =
       !isStreaming &&
       !isStopVisible &&
@@ -725,9 +766,7 @@ export const ChatInput = observer(
                     style={styles.filePreviewIcon}
                   />
                   <View style={styles.filePreviewText}>
-                    <Text
-                      numberOfLines={1}
-                      style={styles.filePreviewName}>
+                    <Text numberOfLines={1} style={styles.filePreviewName}>
                       {file.name}
                     </Text>
                     <Text
@@ -751,7 +790,9 @@ export const ChatInput = observer(
                     <IconButton
                       icon="refresh"
                       size={18}
-                      onPress={() => void retrySelectedFile(file)}
+                      onPress={() =>
+                        retrySelectedFile(file).catch(() => undefined)
+                      }
                       accessibilityLabel={`Retry ${file.name}`}
                     />
                   )}
