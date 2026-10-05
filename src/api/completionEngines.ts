@@ -82,6 +82,7 @@ export class OpenAICompletionEngine implements CompletionEngine {
         response_format: (params as any).response_format,
         // Reasoning intent carried on the params; the server profile owns the wire shape.
         reasoning: params.reasoning,
+        botconnector_file_ids: params.botconnector_file_ids,
       },
       this.endpoint,
       this.abortController.signal,

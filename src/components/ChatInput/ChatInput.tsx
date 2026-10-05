@@ -10,11 +10,19 @@ import {
   Image,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {
+  errorCodes,
+  isErrorWithCode,
+  keepLocalCopy,
+  pick,
+  types,
+} from '@react-native-documents/picker';
+import * as RNFS from '@dr.pogodin/react-native-fs';
 import {useCameraPermission} from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import {observer} from 'mobx-react';
-import {IconButton, Text} from 'react-native-paper';
+import {IconButton, ProgressBar, Text} from 'react-native-paper';
 
 import {hasVideoCapability} from '../../utils/pal-capabilities';
 
@@ -29,11 +37,26 @@ import {useTheme} from '../../hooks';
 
 import {createStyles} from './styles';
 
-import {chatSessionStore, modelStore, palStore, uiStore} from '../../store';
+import {
+  chatSessionStore,
+  modelStore,
+  palStore,
+  serverStore,
+  uiStore,
+} from '../../store';
 
 import {MessageType} from '../../utils/types';
 import {L10nContext, UserContext} from '../../utils';
 import {t} from '../../locales';
+import {isBotConnectorApiUrl} from '../../config/botconnector';
+import {
+  BOTCONNECTOR_FILE_MAX_COUNT,
+  BOTCONNECTOR_FILE_MAX_TOTAL_BYTES,
+  BotConnectorFile,
+  getBotConnectorFile,
+  isBotConnectorFileReady,
+  uploadBotConnectorFile,
+} from '../../api/botconnectorFiles';
 
 import {SendButton, StopButton, Menu, VoiceChip} from '..';
 
@@ -157,6 +180,18 @@ export const ChatInput = observer(
     const {hasPermission, requestPermission} = useCameraPermission();
 
     const hasActiveModel = !!modelStore.activeModelId;
+    const activeServer = modelStore.activeModel?.serverId
+      ? serverStore.servers.find(
+          server => server.id === modelStore.activeModel?.serverId,
+        )
+      : undefined;
+    const botConnectorFilesEnabled = Boolean(
+      activeServer &&
+        isBotConnectorApiUrl(activeServer.url) &&
+        serverStore.botConnectorAccess[activeServer.id]?.access === 'full' &&
+        serverStore.botConnectorAccess[activeServer.id]?.capabilities.files ===
+          true,
+    );
 
     // Use `defaultValue` if provided
     const [text, setText] = React.useState(textInputProps?.defaultValue ?? '');
@@ -167,6 +202,9 @@ export const ChatInput = observer(
     const selectedImages = defaultImages ?? internalSelectedImages;
     const setSelectedImages =
       onDefaultImagesChange ?? setInternalSelectedImages;
+    const [selectedFiles, setSelectedFiles] = React.useState<
+      BotConnectorFile[]
+    >([]);
     // State for image upload menu
     const [showImageUploadMenu, setShowImageUploadMenu] = React.useState(false);
     // State for showing "model not loaded" helper text
@@ -220,32 +258,48 @@ export const ChatInput = observer(
       }
     };
 
+    const readyFiles = botConnectorFilesEnabled
+      ? selectedFiles.filter(isBotConnectorFileReady)
+      : [];
+    const hasPendingFiles =
+      botConnectorFilesEnabled &&
+      selectedFiles.some(
+        file => file.status !== 'ready' && file.status !== 'failed',
+      );
+
     const handleSend = () => {
       const trimmedValue = value.trim();
-      if (trimmedValue) {
+      if ((trimmedValue || readyFiles.length > 0) && !hasPendingFiles) {
         // Check if model is loaded before sending
         if (!hasActiveModel) {
-          // Trigger haptic feedback to indicate the action is blocked
           ReactNativeHapticFeedback.trigger(
             'notificationWarning',
             hapticOptions,
           );
-          // Show warning helper text
           setShowModelWarning(true);
-          // Auto-hide after 3 seconds
           setTimeout(() => setShowModelWarning(false), 3000);
           return;
         }
 
-        // Include imageUris in the message object
         onSendPress({
           text: trimmedValue,
           type: 'text',
           imageUris: selectedImages.length > 0 ? selectedImages : undefined,
+          botConnectorFiles:
+            readyFiles.length > 0
+              ? readyFiles.map(file => ({
+                  id: file.id!,
+                  name: file.name,
+                  size: file.size,
+                  mediaType: file.mediaType,
+                  route: file.route,
+                }))
+              : undefined,
         });
         setText('');
-        // Clear selected images after sending
         setSelectedImages([]);
+        selectedFiles.forEach(cleanupTemporaryFile);
+        setSelectedFiles([]);
       }
     };
 
@@ -344,6 +398,294 @@ export const ChatInput = observer(
       }
     };
 
+    const localFilePath = (uri: string) =>
+      uri.startsWith('file://') ? decodeURIComponent(uri.slice(7)) : uri;
+
+    const cleanupTemporaryFile = (file: BotConnectorFile) => {
+      if (!file.temporary || !file.uri.startsWith('file://')) {
+        return;
+      }
+      RNFS.unlink(localFilePath(file.uri)).catch(() => undefined);
+    };
+
+    const updateSelectedFile = (
+      localKey: string,
+      patch: Partial<BotConnectorFile>,
+    ) => {
+      setSelectedFiles(current =>
+        current.map(file =>
+          file.uri === localKey ? {...file, ...patch} : file,
+        ),
+      );
+    };
+
+    const pollFileStatus = async (
+      localKey: string,
+      serverUrl: string,
+      apiKey: string,
+      fileId: string,
+    ) => {
+      for (let attempt = 0; attempt < 80; attempt += 1) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        try {
+          const latest = await getBotConnectorFile({
+            serverUrl,
+            apiKey,
+            fileId,
+          });
+          updateSelectedFile(localKey, {
+            id: latest.id,
+            name: latest.filename,
+            size: latest.bytes,
+            mediaType: latest.media_type || 'application/octet-stream',
+            status: latest.status,
+            route: latest.route,
+            parser: latest.parser,
+            progress: 1,
+          });
+          if (latest.status === 'ready' || latest.status === 'failed') {
+            return;
+          }
+        } catch (error) {
+          updateSelectedFile(localKey, {
+            status: 'failed',
+            error:
+              error instanceof Error ? error.message : 'File processing failed',
+          });
+          return;
+        }
+      }
+      updateSelectedFile(localKey, {
+        status: 'failed',
+        error: 'Processing is taking longer than expected. Tap retry.',
+      });
+    };
+
+    const retrySelectedFile = async (file: BotConnectorFile) => {
+      if (!activeServer || !botConnectorFilesEnabled) {
+        return;
+      }
+      const apiKey = await serverStore.getApiKey(activeServer.id);
+      if (!apiKey) {
+        updateSelectedFile(file.uri, {
+          status: 'failed',
+          error: 'BotConnector API key is required',
+        });
+        return;
+      }
+      if (file.id) {
+        updateSelectedFile(file.uri, {
+          status: 'processing',
+          error: undefined,
+        });
+        pollFileStatus(file.uri, activeServer.url, apiKey, file.id).catch(
+          () => undefined,
+        );
+        return;
+      }
+      updateSelectedFile(file.uri, {
+        status: 'uploading',
+        progress: 0,
+        error: undefined,
+      });
+      try {
+        const uploaded = await uploadBotConnectorFile({
+          serverUrl: activeServer.url,
+          apiKey,
+          file,
+          onProgress: progress => updateSelectedFile(file.uri, {progress}),
+        });
+        updateSelectedFile(file.uri, {
+          id: uploaded.id,
+          name: uploaded.filename,
+          size: uploaded.bytes,
+          mediaType: uploaded.media_type || file.mediaType,
+          status: uploaded.status,
+          route: uploaded.route,
+          parser: uploaded.parser,
+          progress: 1,
+        });
+        if (uploaded.status !== 'ready') {
+          pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id).catch(
+            () => undefined,
+          );
+        }
+      } catch (error) {
+        updateSelectedFile(file.uri, {
+          status: 'failed',
+          error: error instanceof Error ? error.message : 'File upload failed',
+        });
+      }
+    };
+
+    const handleSelectFiles = async () => {
+      if (!activeServer || !botConnectorFilesEnabled) {
+        return;
+      }
+
+      const apiKey = await serverStore.getApiKey(activeServer.id);
+      if (!apiKey) {
+        Alert.alert('File upload failed', 'BotConnector API key is required');
+        return;
+      }
+
+      try {
+        const picked = await pick({
+          type: [types.allFiles],
+          allowMultiSelection: true,
+          allowVirtualFiles: false,
+          mode: 'import',
+        });
+        const remaining = Math.max(
+          0,
+          BOTCONNECTOR_FILE_MAX_COUNT - selectedFiles.length,
+        );
+        const candidates = picked.slice(0, remaining);
+        let acceptedBytes = selectedFiles.reduce(
+          (sum, file) => sum + file.size,
+          0,
+        );
+        const accepted: BotConnectorFile[] = [];
+
+        for (const item of candidates) {
+          const name = item.name || 'file';
+          const copies = await keepLocalCopy({
+            files: [{uri: item.uri, fileName: name}],
+            destination: 'cachesDirectory',
+          });
+          const copy = copies[0];
+          if (!copy || copy.status !== 'success') {
+            Alert.alert(
+              'File upload failed',
+              copy?.status === 'error'
+                ? copy.copyError
+                : `Unable to prepare ${name} for upload.`,
+            );
+            continue;
+          }
+
+          const localUri = copy.localUri;
+          let size = Number(item.size || 0);
+          try {
+            const stat = await RNFS.stat(localFilePath(localUri));
+            const actualSize = Number(stat.size || 0);
+            if (actualSize > 0) {
+              size = actualSize;
+            }
+          } catch {
+            // The strict size check below rejects unknown-size files.
+          }
+
+          if (!(size > 0)) {
+            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
+            Alert.alert(
+              'File upload failed',
+              `Unable to determine the size of ${name}.`,
+            );
+            continue;
+          }
+          if (
+            size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
+            acceptedBytes + size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES
+          ) {
+            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
+            Alert.alert(
+              'File too large',
+              'Maximum total attachment size is 512 MB per message.',
+            );
+            continue;
+          }
+
+          acceptedBytes += size;
+          accepted.push({
+            uri: localUri,
+            name,
+            size,
+            mediaType: item.type || 'application/octet-stream',
+            status: 'uploading',
+            progress: 0,
+            temporary: true,
+          });
+        }
+
+        if (accepted.length === 0) {
+          setShowImageUploadMenu(false);
+          return;
+        }
+        setSelectedFiles(current => [...current, ...accepted]);
+        setShowImageUploadMenu(false);
+
+        // Upload sequentially to avoid multiplying 512 MB transfers on mobile.
+        // Processing polling is detached so the next file can start uploading.
+        for (const file of accepted) {
+          try {
+            const uploaded = await uploadBotConnectorFile({
+              serverUrl: activeServer.url,
+              apiKey,
+              file,
+              onProgress: progress => updateSelectedFile(file.uri, {progress}),
+            });
+            updateSelectedFile(file.uri, {
+              id: uploaded.id,
+              name: uploaded.filename,
+              size: uploaded.bytes,
+              mediaType: uploaded.media_type || file.mediaType,
+              status: uploaded.status,
+              route: uploaded.route,
+              parser: uploaded.parser,
+              progress: 1,
+            });
+            if (uploaded.status !== 'ready' && uploaded.status !== 'failed') {
+              pollFileStatus(
+                file.uri,
+                activeServer.url,
+                apiKey,
+                uploaded.id,
+              ).catch(() => undefined);
+            }
+          } catch (error) {
+            updateSelectedFile(file.uri, {
+              status: 'failed',
+              error:
+                error instanceof Error ? error.message : 'File upload failed',
+            });
+          }
+        }
+      } catch (error) {
+        if (
+          isErrorWithCode(error) &&
+          error.code === errorCodes.OPERATION_CANCELED
+        ) {
+          return;
+        }
+        Alert.alert(
+          'File upload failed',
+          error instanceof Error ? error.message : 'Unable to upload file.',
+        );
+      }
+    };
+
+    const handleRemoveFile = (uri: string) => {
+      const target = selectedFiles.find(file => file.uri === uri);
+      if (target) {
+        cleanupTemporaryFile(target);
+      }
+      setSelectedFiles(current => current.filter(file => file.uri !== uri));
+    };
+
+    const fileStatusLabel = (file: BotConnectorFile) => {
+      if (file.status === 'uploading') {
+        return `Uploading ${Math.round(file.progress * 100)}%`;
+      }
+      if (file.status === 'ready') {
+        return 'Ready';
+      }
+      if (file.status === 'failed') {
+        return file.error || 'Upload failed';
+      }
+      return 'Processing…';
+    };
+
     // Remove an image from the selection
     const handleRemoveImage = (index: number) => {
       const newImages = [...selectedImages];
@@ -356,13 +698,15 @@ export const ChatInput = observer(
       onCancelEdit?.();
     };
 
+    const hasSendableContent = value.trim().length > 0 || readyFiles.length > 0;
     const isSendButtonVisible =
       !isStreaming &&
       !isStopVisible &&
       user &&
-      !isVideoCapable && // Hide send button for video-capable pals
-      (sendButtonVisibilityMode === 'always' || value.trim());
-    const isSendButtonEnabled = value.trim().length > 0 && hasActiveModel;
+      !isVideoCapable &&
+      (sendButtonVisibilityMode === 'always' || hasSendableContent);
+    const isSendButtonEnabled =
+      hasActiveModel && hasSendableContent && !hasPendingFiles;
     const sendButtonOpacity = isSendButtonEnabled ? 1 : 0.4;
 
     const rotateInterpolate = iconRotation.interpolate({
@@ -373,7 +717,8 @@ export const ChatInput = observer(
     const onSurfaceColor = currentActivePal?.color?.[0] || theme.colors.text;
     const onSurfaceColorVariant = onSurfaceColor + '55'; // for disabled state or placeholder text
     // // Plus button state
-    const isPlusButtonEnabled = !isStreaming && isVisionEnabled;
+    const isPlusButtonEnabled =
+      !isStreaming && (isVisionEnabled || botConnectorFilesEnabled);
     const plusColor = isPlusButtonEnabled
       ? onSurfaceColor
       : onSurfaceColorVariant;
@@ -409,6 +754,57 @@ export const ChatInput = observer(
                 iconColor={theme.colors.onSurfaceVariant}
               />
             </Animated.View>
+          )}
+
+          {selectedFiles.length > 0 && (
+            <View style={styles.filePreviewContainer}>
+              {selectedFiles.map(file => (
+                <View key={file.uri} style={styles.filePreviewRow}>
+                  <IconButton
+                    icon="file-document-outline"
+                    size={20}
+                    style={styles.filePreviewIcon}
+                  />
+                  <View style={styles.filePreviewText}>
+                    <Text numberOfLines={1} style={styles.filePreviewName}>
+                      {file.name}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={[
+                        styles.filePreviewStatus,
+                        file.status === 'failed' && {
+                          color: theme.colors.error,
+                        },
+                      ]}>
+                      {fileStatusLabel(file)}
+                    </Text>
+                    {file.status === 'uploading' && (
+                      <ProgressBar
+                        progress={file.progress}
+                        style={styles.fileProgress}
+                      />
+                    )}
+                  </View>
+                  {file.status === 'failed' && (
+                    <IconButton
+                      icon="refresh"
+                      size={18}
+                      onPress={() =>
+                        retrySelectedFile(file).catch(() => undefined)
+                      }
+                      accessibilityLabel={`Retry ${file.name}`}
+                    />
+                  )}
+                  <IconButton
+                    icon="close"
+                    size={18}
+                    onPress={() => handleRemoveFile(file.uri)}
+                    accessibilityLabel={`Remove ${file.name}`}
+                  />
+                </View>
+              ))}
+            </View>
           )}
 
           {/* Image Preview Section */}
@@ -515,7 +911,7 @@ export const ChatInput = observer(
                       onPress={
                         isPlusButtonEnabled ? handlePlusButtonPress : () => {}
                       }
-                      accessibilityLabel="Add image"
+                      accessibilityLabel="Add attachment"
                       accessibilityRole="button">
                       <PlusIcon width={20} height={20} stroke={plusColor} />
                     </TouchableOpacity>
@@ -523,13 +919,22 @@ export const ChatInput = observer(
                   <Menu.Item
                     label={l10n.camera?.takePhoto || 'Camera'}
                     icon="camera"
+                    disabled={!isVisionEnabled}
                     onPress={handleTakePhoto}
                   />
                   <Menu.Item
                     label={l10n.common?.gallery || 'Gallery'}
                     icon="image"
+                    disabled={!isVisionEnabled}
                     onPress={handleSelectImages}
                   />
+                  {botConnectorFilesEnabled && (
+                    <Menu.Item
+                      label="File"
+                      icon="file-document-outline"
+                      onPress={handleSelectFiles}
+                    />
+                  )}
                 </Menu>
               )}
 

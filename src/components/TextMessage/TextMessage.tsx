@@ -24,6 +24,7 @@ import {MarkdownView} from '../MarkdownView';
 import {AgentStep, MessageType} from '../../utils/types';
 import {
   excludeDerivedMessageProps,
+  formatBytes,
   getUserName,
   UserContext,
 } from '../../utils';
@@ -109,6 +110,11 @@ export const TextMessage = ({
   // Extract imageUris from the message if available
   const imageUris = (message as any).imageUris || [];
   const hasImages = imageUris && imageUris.length > 0;
+  const botConnectorFiles =
+    !step && Array.isArray(message.metadata?.botconnectorFiles)
+      ? (message.metadata!
+          .botconnectorFiles as MessageType.BotConnectorFileAttachment[])
+      : [];
 
   const handleEmailPress = (email: string) => {
     try {
@@ -198,6 +204,51 @@ export const TextMessage = ({
     );
   };
 
+  const renderBotConnectorFiles = () => {
+    if (botConnectorFiles.length === 0) {
+      return null;
+    }
+    return (
+      <View style={{gap: 6, marginBottom: visibleText.trim() ? 8 : 0}}>
+        {botConnectorFiles.map(file => (
+          <View
+            key={file.id}
+            style={{
+              minWidth: 190,
+              maxWidth: messageWidth,
+              flexDirection: 'row',
+              alignItems: 'center',
+              borderRadius: 10,
+              paddingHorizontal: 8,
+              paddingVertical: 6,
+              backgroundColor: theme.colors.surfaceVariant,
+            }}>
+            <IconButton
+              icon="file-document-outline"
+              size={18}
+              style={{margin: 0}}
+            />
+            <View style={{flex: 1, minWidth: 0}}>
+              <Text
+                numberOfLines={1}
+                style={{fontSize: 12, color: theme.colors.onSurface}}>
+                {file.name}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 10,
+                  color: theme.colors.onSurfaceVariant,
+                  marginTop: 1,
+                }}>
+                {formatBytes(file.size)}
+              </Text>
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  };
+
   // Render image preview modal
   const renderImagePreview = () => {
     if (selectedImageIndex === null) {
@@ -269,6 +320,8 @@ export const TextMessage = ({
               ? renderPreviewHeader(getUserName(message.author))
               : null
           }
+
+          {!step && renderBotConnectorFiles()}
 
           {/* Render images above the text — legacy Text path only. */}
           {!step && renderImages()}
