@@ -733,10 +733,19 @@ export const useChatSession = (
     }
 
     try {
+      const advertisedToolNames = Array.isArray(cleanCompletionParams.tools)
+        ? (cleanCompletionParams.tools as ToolDefinition[])
+            .map(tool => tool.function?.name)
+            .filter((name): name is string => Boolean(name))
+        : [];
+      const allowedToolNames = [
+        ...new Set([...palTalents, ...advertisedToolNames]),
+      ];
+
       const events = runAgent({
         engine,
         initialParams: cleanCompletionParams as ApiCompletionParams,
-        allowedTalentNames: palTalents,
+        allowedTalentNames: allowedToolNames,
         talentLookup: name => talentRegistry.get(name),
         triggerMarkers,
         messageId: messageInfo.id,

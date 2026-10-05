@@ -134,8 +134,8 @@ async function executeOne(
 
   if (!fnName || !allowedTalentNames.includes(fnName)) {
     const summary = fnName
-      ? `Talent "${fnName}" is not enabled for this Pal`
-      : 'Unknown talent (no function name)';
+      ? `Tool "${fnName}" is not enabled for this chat`
+      : 'Unknown tool (no function name)';
     const result: TalentResult = {
       type: 'error',
       summary,
