@@ -516,7 +516,7 @@
   },
   "about": {
     "screenTitle": "App Info",
-    "description": "An app that brings language models directly to your phone. Sits on the shoulders of llama.cpp and llama.rn.",
+    "description": "Access BotConnector Cloud AI and Local AI from one app. Switch models for each task, use multimodal features, and keep on-device processing available when you want it.",
     "supportProject": "Support the Project",
     "supportProjectDescription": "If you enjoy using BotConnector, please consider supporting the project by:",
     "githubButton": "Star on GitHub",
@@ -1476,7 +1476,7 @@
     "previewButton": "Preview",
     "stopPreviewButton": "Stop preview",
     "voicesTitle": "Voices",
-    "voicesEmptyHint": "Tap any voice to install it and use it. Or pick a system voice — those are always available.",
+    "voicesEmptyHint": "System voices need no download. Neural AI voices require a one-time download and can provide more consistent synthesis for supported languages.",
     "supertonicStepsLabel": "Quality (diffusion steps)",
     "supertonicLanguageLabel": "Language",
     "supertonicLanguageAuto": "Auto",

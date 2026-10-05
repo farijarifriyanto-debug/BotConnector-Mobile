@@ -101,7 +101,12 @@ export const AboutScreen: React.FC = () => {
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.headerContent}>
-              <Text variant="titleLarge" style={styles.title}>
+              <Text
+                variant="titleLarge"
+                style={styles.title}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.72}>
                 BotConnector
               </Text>
               <Text variant="bodyMedium" style={styles.description}>

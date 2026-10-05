@@ -57,14 +57,41 @@ type DownloadState = 'not_installed' | 'downloading' | 'ready' | 'error';
 // (180+ iOS / 470+ Android voices) is filtered to the app language + English
 // so the list stays usable; neural engines remain optional extras.
 const ENGINE_ORDER: EngineId[] = ['system', 'kitten', 'kokoro', 'supertonic'];
+const INDONESIAN_ENGINE_ORDER: EngineId[] = [
+  'system',
+  'supertonic',
+  'kitten',
+  'kokoro',
+];
 const SYSTEM_VOICE_LIMIT = 24;
 
 export const filterSystemVoices = (
   voices: Voice[],
   appLanguage: string,
 ): Voice[] => {
-  const wanted = new Set([appLanguage.toLowerCase().split(/[-_]/)[0], 'en']);
+  const normalizedApp = appLanguage.toLowerCase().replace('_', '-');
+  const appBase = normalizedApp.split('-')[0];
+  const preferredLocale = appBase === 'id' ? 'id-id' : normalizedApp;
+  const wanted = new Set([appBase, 'en']);
   const seen = new Set<string>();
+  const rank = (voice: Voice): number => {
+    const lang = String(voice.language ?? '').toLowerCase().replace('_', '-');
+    const base = lang.split('-')[0];
+    const qualityPenalty = voice.quality === 'Enhanced' ? 0 : 10;
+    if (lang === preferredLocale) {
+      return qualityPenalty;
+    }
+    if (base === appBase) {
+      return 2 + qualityPenalty;
+    }
+    if (lang === 'en-us') {
+      return 20 + qualityPenalty;
+    }
+    if (base === 'en') {
+      return 22 + qualityPenalty;
+    }
+    return 99 + qualityPenalty;
+  };
   return voices
     .filter(v => {
       const lang = String(v.language ?? '')
@@ -72,13 +99,7 @@ export const filterSystemVoices = (
         .split(/[-_]/)[0];
       return wanted.has(lang);
     })
-    .sort((a, b) => {
-      const la = String(a.language ?? '').toLowerCase();
-      const lb = String(b.language ?? '').toLowerCase();
-      const ra = la.startsWith('en') ? 1 : 0;
-      const rb = lb.startsWith('en') ? 1 : 0;
-      return ra - rb || a.name.localeCompare(b.name);
-    })
+    .sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name))
     .filter(v => {
       // Same display name in the same language is one choice for the user.
       const key = `${v.name}|${v.language}`;
@@ -294,6 +315,7 @@ export const VoicePickerView: React.FC = observer(() => {
       name: voice.name,
       engine: voice.engine,
       language: voice.language,
+      quality: voice.quality,
     });
     ttsStore.closeSetupSheet();
   };
@@ -359,6 +381,11 @@ export const VoicePickerView: React.FC = observer(() => {
               ]}>
               {voice.name}
             </Text>
+            {voice.engine === 'system' ? (
+              <Text style={styles.voiceRowMeta}>
+                {[voice.language, voice.quality].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
           </View>
           <IconButton
             icon={isPreviewing ? 'stop' : 'play'}
@@ -598,7 +625,10 @@ export const VoicePickerView: React.FC = observer(() => {
           {l10n.voiceAndSpeech.voicesEmptyHint}
         </Text>
       )}
-      {ENGINE_ORDER.map(renderEngineGroup)}
+      {(uiStore.language === 'id'
+        ? INDONESIAN_ENGINE_ORDER
+        : ENGINE_ORDER
+      ).map(renderEngineGroup)}
     </Sheet.ScrollView>
   );
 });

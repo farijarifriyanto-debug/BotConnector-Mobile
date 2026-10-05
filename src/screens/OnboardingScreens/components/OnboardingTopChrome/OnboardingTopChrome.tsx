@@ -40,7 +40,7 @@ export const OnboardingTopChrome: React.FC<{step: OnboardingChromeStep}> =
       });
     }, []);
 
-    if (step === null || step === 'splash') {
+    if (step === null || step === 'splash' || step === 1) {
       return null;
     }
 

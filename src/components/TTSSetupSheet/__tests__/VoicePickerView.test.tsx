@@ -53,6 +53,38 @@ describe('VoicePickerView', () => {
     expect(out.map(v => v.id)).toEqual(['a', 'b']);
   });
 
+  it('prefers Enhanced id-ID system voices before Default voices', () => {
+    const voices = [
+      {
+        id: 'default-id',
+        name: 'Indonesia Default',
+        engine: 'system' as const,
+        language: 'id-ID',
+        quality: 'Default' as const,
+      },
+      {
+        id: 'enhanced-id',
+        name: 'Indonesia Enhanced',
+        engine: 'system' as const,
+        language: 'id-ID',
+        quality: 'Enhanced' as const,
+      },
+      {
+        id: 'enhanced-en',
+        name: 'English Enhanced',
+        engine: 'system' as const,
+        language: 'en-US',
+        quality: 'Enhanced' as const,
+      },
+    ];
+    const out = filterSystemVoices(voices, 'id');
+    expect(out.map(v => v.id)).toEqual([
+      'enhanced-id',
+      'default-id',
+      'enhanced-en',
+    ]);
+  });
+
   it('groups start collapsed when no current voice; tap expands', () => {
     const {getByTestId, queryByTestId} = renderView();
     // Collapsed → install button not rendered yet.

@@ -12,6 +12,7 @@ import {
   modelStore,
   palStore,
   serverStore,
+  searchProviderStore,
   ttsStore,
   uiStore,
 } from '../store';
@@ -37,6 +38,7 @@ import {
 } from '../utils/completionTypes';
 import {
   collectSystemPromptFragments,
+  deriveToolSchemas,
   seedReadUrlAllowlist,
   talentRegistry,
 } from '../services/talents';
@@ -94,6 +96,40 @@ const prepareCompletion = async ({
         server => server.id === modelStore.activeModel?.serverId,
       )
     : undefined;
+
+  // BotConnector Web Search is an account capability, not a Pal-only talent.
+  // Merge it with any Persona tools after the active server is known, while
+  // preserving the explicit privacy consent gate.
+  const activeBotConnectorAccess =
+    activeServer && isBotConnectorApiUrl(activeServer.url)
+      ? serverStore.botConnectorAccess[activeServer.id]
+      : undefined;
+  if (
+    allowRichFeatures &&
+    searchProviderStore.hasConsentedToSearch &&
+    activeBotConnectorAccess?.capabilities.web_search === true
+  ) {
+    const names = ['web_search'];
+    if (activeBotConnectorAccess.capabilities.read_url === true) {
+      names.push('read_url');
+    }
+    const webTools = deriveToolSchemas(names);
+    const merged = new Map<string, ToolDefinition>();
+    const existingTools = Array.isArray(sessionCompletionSettings.tools)
+      ? (sessionCompletionSettings.tools as ToolDefinition[])
+      : [];
+    for (const tool of existingTools) {
+      merged.set(tool.function?.name ?? JSON.stringify(tool), tool);
+    }
+    for (const tool of webTools) {
+      merged.set(tool.function?.name ?? JSON.stringify(tool), tool);
+    }
+    sessionCompletionSettings = {
+      ...sessionCompletionSettings,
+      tools: [...merged.values()],
+    };
+  }
+
   const officialBotConnectorFiles =
     allowRichFeatures &&
     Boolean(

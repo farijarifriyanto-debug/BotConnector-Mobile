@@ -235,6 +235,11 @@ export const createStyles = (theme: Theme) =>
     voiceRowNameSelected: {
       fontWeight: '700',
     },
+    voiceRowMeta: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 11.5,
+      marginTop: 2,
+    },
 
     voicesEmptyHint: {
       color: theme.colors.onSurfaceVariant,

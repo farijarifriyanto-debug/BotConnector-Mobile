@@ -1,8 +1,15 @@
 import React from 'react';
 import {Alert, Image, ScrollView, View} from 'react-native';
+import {launchImageLibrary} from 'react-native-image-picker';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import Share from 'react-native-share';
-import {ActivityIndicator, Button, Chip, Text} from 'react-native-paper';
+import {
+  ActivityIndicator,
+  Button,
+  Chip,
+  IconButton,
+  Text,
+} from 'react-native-paper';
 import {observer} from 'mobx-react';
 import {SafeAreaView} from 'react-native-safe-area-context';
 
@@ -35,6 +42,11 @@ const COPY = {
     retry: 'Refresh models',
     noModels: 'No image models are available for this account right now.',
     generated: 'Generated image',
+    reference: 'Reference photos',
+    addReference: 'Add photos',
+    referenceHint:
+      'Use up to 4 JPG, PNG, or WebP images (4 MB each, 8 MB total). Only shown for models that support image references.',
+    referenceUnsupported: 'This model does not support reference photos.',
   },
   id: {
     intro:
@@ -52,8 +64,25 @@ const COPY = {
     retry: 'Muat ulang model',
     noModels: 'Saat ini tidak ada model gambar yang tersedia untuk akun ini.',
     generated: 'Gambar hasil',
+    reference: 'Foto referensi',
+    addReference: 'Tambah foto',
+    referenceHint:
+      'Maksimal 4 JPG, PNG, atau WebP (4 MB per gambar, total 8 MB). Hanya untuk model yang mendukung gambar referensi.',
+    referenceUnsupported: 'Model ini tidak mendukung foto referensi.',
   },
 };
+
+type ReferenceImage = {
+  uri: string;
+  dataUri: string;
+  mimeType: string;
+  bytes: number;
+};
+
+const MAX_REFERENCE_IMAGES = 4;
+const MAX_REFERENCE_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_REFERENCE_TOTAL_BYTES = 8 * 1024 * 1024;
+const REFERENCE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const extensionForMime = (mime: string): string => {
   if (mime.includes('jpeg') || mime.includes('jpg')) {
@@ -78,6 +107,7 @@ export const ImageGenerationScreen = observer(() => {
   const [models, setModels] = React.useState<BotConnectorMediaModel[]>([]);
   const [selectedModel, setSelectedModel] = React.useState('');
   const [prompt, setPrompt] = React.useState('');
+  const [referenceImages, setReferenceImages] = React.useState<ReferenceImage[]>([]);
   const [loadingModels, setLoadingModels] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
   const [resultUri, setResultUri] = React.useState<string | null>(null);
@@ -136,6 +166,68 @@ export const ImageGenerationScreen = observer(() => {
   }, [loadModels]);
 
   const selected = models.find(model => model.id === selectedModel);
+  const supportsReferenceImages = selected?.supports_reference_images === true;
+
+  React.useEffect(() => {
+    if (!supportsReferenceImages && referenceImages.length > 0) {
+      setReferenceImages([]);
+    }
+  }, [supportsReferenceImages, referenceImages.length]);
+
+  const addReferenceImages = async () => {
+    if (!supportsReferenceImages) {
+      return;
+    }
+    try {
+      const remaining = MAX_REFERENCE_IMAGES - referenceImages.length;
+      if (remaining <= 0) {
+        return;
+      }
+      const result = await launchImageLibrary({
+        mediaType: 'photo',
+        selectionLimit: remaining,
+        includeBase64: true,
+        quality: 0.9,
+      });
+      if (!result.assets?.length) {
+        return;
+      }
+
+      const existingBytes = referenceImages.reduce((sum, item) => sum + item.bytes, 0);
+      let runningBytes = existingBytes;
+      const accepted: ReferenceImage[] = [];
+      for (const asset of result.assets) {
+        const mimeType = String(asset.type || '').toLowerCase();
+        const bytes = Number(asset.fileSize || 0);
+        if (!asset.uri || !asset.base64 || !REFERENCE_MIME_TYPES.has(mimeType)) {
+          continue;
+        }
+        if (bytes <= 0 || bytes > MAX_REFERENCE_IMAGE_BYTES) {
+          continue;
+        }
+        if (runningBytes + bytes > MAX_REFERENCE_TOTAL_BYTES) {
+          break;
+        }
+        runningBytes += bytes;
+        accepted.push({
+          uri: asset.uri,
+          dataUri: `data:${mimeType};base64,${asset.base64}`,
+          mimeType,
+          bytes,
+        });
+      }
+      if (accepted.length === 0) {
+        Alert.alert('BotConnector', copy.referenceHint);
+        return;
+      }
+      setReferenceImages(current => [...current, ...accepted].slice(0, MAX_REFERENCE_IMAGES));
+    } catch (e) {
+      Alert.alert(
+        'BotConnector',
+        e instanceof Error ? e.message : copy.referenceHint,
+      );
+    }
+  };
 
   const generate = async () => {
     if (!botConnectorServer || !apiKey || !selectedModel || !prompt.trim()) {
@@ -151,6 +243,7 @@ export const ImageGenerationScreen = observer(() => {
         apiKey,
         model: selectedModel,
         prompt: prompt.trim(),
+        referenceImages: referenceImages.map(image => image.dataUri),
       });
 
       if (resultUri?.startsWith('file://')) {
@@ -245,7 +338,51 @@ export const ImageGenerationScreen = observer(() => {
             <View style={styles.modelMeta}>
               <Chip compact>{selected.developer}</Chip>
               <Chip compact>{selected.botconnector_access.toUpperCase()}</Chip>
+              {supportsReferenceImages ? <Chip compact>Image → Image</Chip> : null}
             </View>
+          ) : null}
+        </View>
+
+        <View style={styles.referenceSection}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionHeaderText}>
+              <Text variant="labelLarge">{copy.reference}</Text>
+              <Text style={styles.referenceHint}>
+                {supportsReferenceImages
+                  ? copy.referenceHint
+                  : copy.referenceUnsupported}
+              </Text>
+            </View>
+            <Button
+              compact
+              mode="outlined"
+              icon="image-plus"
+              disabled={!supportsReferenceImages || referenceImages.length >= MAX_REFERENCE_IMAGES}
+              onPress={() => addReferenceImages().catch(() => undefined)}>
+              {copy.addReference}
+            </Button>
+          </View>
+          {referenceImages.length > 0 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.referenceList}>
+              {referenceImages.map((image, index) => (
+                <View key={`${image.uri}:${index}`} style={styles.referenceItem}>
+                  <Image source={{uri: image.uri}} style={styles.referenceImage} />
+                  <IconButton
+                    icon="close-circle"
+                    size={20}
+                    style={styles.referenceRemove}
+                    onPress={() =>
+                      setReferenceImages(current =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  />
+                </View>
+              ))}
+            </ScrollView>
           ) : null}
         </View>
 

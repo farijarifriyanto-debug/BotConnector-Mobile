@@ -24,6 +24,8 @@ export interface Voice {
   engine: EngineId;
   /** Optional language code (BCP-47 or engine-specific). */
   language?: string;
+  /** Optional native/system quality metadata. */
+  quality?: 'Default' | 'Enhanced';
   /** Optional gender hint for UI grouping. */
   gender?: 'f' | 'm';
 }

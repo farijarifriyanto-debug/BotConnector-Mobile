@@ -1429,8 +1429,8 @@ export const SettingsScreen: React.FC = observer(() => {
               <Card.Content>
                 <View style={styles.settingItemContainer}>
                   {/* Clear Shortcuts Caches */}
-                  <View style={styles.switchContainer}>
-                    <View style={styles.textContainer}>
+                  <View style={styles.stackedActionContainer}>
+                    <View style={styles.stackedTextContainer}>
                       <Text variant="titleMedium" style={styles.textLabel}>
                         {l10n.settings.clearPalCaches}
                       </Text>
@@ -1508,7 +1508,7 @@ export const SettingsScreen: React.FC = observer(() => {
                           );
                         }
                       }}
-                      style={styles.menuButton}>
+                      style={styles.stackedActionButton}>
                       {l10n.settings.clearCachesButton}
                     </Button>
                   </View>

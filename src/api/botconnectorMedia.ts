@@ -71,12 +71,14 @@ export async function generateBotConnectorImage({
   model,
   prompt,
   size = '1024x1024',
+  referenceImages = [],
 }: {
   serverUrl: string;
   apiKey: string;
   model: string;
   prompt: string;
   size?: string;
+  referenceImages?: string[];
 }): Promise<{
   b64: string;
   mimeType: string;
@@ -92,7 +94,15 @@ export async function generateBotConnectorImage({
       {
         method: 'POST',
         headers: buildHeaders(apiKey),
-        body: JSON.stringify({model, prompt, n: 1, size}),
+        body: JSON.stringify({
+          model,
+          prompt,
+          n: 1,
+          size,
+          ...(referenceImages.length
+            ? {inputs: {referenceImages}}
+            : {}),
+        }),
         signal: controller.signal,
       },
     );

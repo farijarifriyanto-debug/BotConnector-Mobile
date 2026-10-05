@@ -25,6 +25,51 @@ export const createStyles = (theme: Theme) =>
       flexWrap: 'wrap',
       gap: theme.spacing.default / 2,
     },
+    referenceSection: {
+      gap: theme.spacing.default / 2,
+      padding: theme.spacing.default,
+      borderRadius: theme.borders.default,
+      backgroundColor: theme.colors.surface,
+      borderWidth: 1,
+      borderColor: theme.colors.surfaceVariant,
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: theme.spacing.default,
+    },
+    sectionHeaderText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    referenceHint: {
+      color: theme.colors.onSurfaceVariant,
+      fontSize: 12,
+      lineHeight: 17,
+      marginTop: 4,
+    },
+    referenceList: {
+      gap: theme.spacing.default / 2,
+      paddingTop: theme.spacing.default / 2,
+    },
+    referenceItem: {
+      width: 92,
+      height: 92,
+      borderRadius: theme.borders.default,
+      overflow: 'hidden',
+      backgroundColor: theme.colors.surfaceContainerHighest,
+    },
+    referenceImage: {
+      width: '100%',
+      height: '100%',
+    },
+    referenceRemove: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      backgroundColor: theme.colors.surface,
+    },
     emptyModels: {
       gap: theme.spacing.default / 2,
       paddingVertical: theme.spacing.default,

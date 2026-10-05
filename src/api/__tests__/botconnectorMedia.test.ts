@@ -102,6 +102,43 @@ describe('BotConnector media API', () => {
     );
   });
 
+  it('sends reference images only when provided', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        created: 1,
+        data: [{b64_json: 'ZmFrZS1pbWFnZQ=='}],
+        botconnector: {mime_type: 'image/png'},
+      }),
+    } as any);
+
+    const referenceImages = [
+      'data:image/jpeg;base64,ZmFrZS1yZWZlcmVuY2U=',
+    ];
+    await generateBotConnectorImage({
+      serverUrl: 'https://api.botconnector.id',
+      apiKey: 'bc_live_test',
+      model: 'img-edit',
+      prompt: 'make it sunset',
+      referenceImages,
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.botconnector.id/v1/images/generations',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          model: 'img-edit',
+          prompt: 'make it sunset',
+          n: 1,
+          size: '1024x1024',
+          inputs: {referenceImages},
+        }),
+      }),
+    );
+  });
+
   it('surfaces the server error message', async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

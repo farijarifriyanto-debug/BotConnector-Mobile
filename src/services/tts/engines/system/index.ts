@@ -32,7 +32,9 @@ export class SystemEngine implements Engine {
   }
 
   async play(text: string, voice: Voice): Promise<void> {
-    await ttsRuntime.acquire(this, () => Speech.speak(text, voice.id));
+    await ttsRuntime.acquire(this, () =>
+      Speech.speak(text, voice.id, {language: voice.language}),
+    );
   }
 
   /**
@@ -43,7 +45,12 @@ export class SystemEngine implements Engine {
    * `onFinish` loop and we inherit the library's CJK sentence handling.
    */
   playStreaming(voice: Voice, waitFor?: Promise<void>): StreamingHandle {
-    return createEngineStreamingHandle(this, voice.id, undefined, waitFor);
+    return createEngineStreamingHandle(
+      this,
+      voice.id,
+      {language: voice.language},
+      waitFor,
+    );
   }
 
   async stop(): Promise<void> {

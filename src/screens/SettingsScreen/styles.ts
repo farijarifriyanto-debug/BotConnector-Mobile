@@ -33,6 +33,18 @@ export const createStyles = (theme: Theme) =>
       flex: 1,
       marginRight: 16,
     },
+    stackedActionContainer: {
+      gap: 12,
+      marginVertical: 8,
+    },
+    stackedTextContainer: {
+      width: '100%',
+    },
+    stackedActionButton: {
+      alignSelf: 'flex-start',
+      minWidth: 160,
+      maxWidth: '100%',
+    },
     labelWithIconContainer: {
       flexDirection: 'row',
       alignItems: 'center',
