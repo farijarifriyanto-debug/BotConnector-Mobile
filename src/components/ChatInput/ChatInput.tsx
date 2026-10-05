@@ -437,6 +437,77 @@ export const ChatInput = observer(
           return;
         }
       }
+      updateSelectedFile(localKey, {
+        status: 'failed',
+        error: 'Processing is taking longer than expected. Tap retry.',
+      });
+    };
+
+    const retrySelectedFile = async (file: BotConnectorFile) => {
+      if (!activeServer || !botConnectorFilesEnabled) {
+        return;
+      }
+      const apiKey = await serverStore.getApiKey(activeServer.id);
+      if (!apiKey) {
+        updateSelectedFile(file.uri, {
+          status: 'failed',
+          error: 'BotConnector API key is required',
+        });
+        return;
+      }
+      if (file.id) {
+        updateSelectedFile(file.uri, {
+          status: 'processing',
+          error: undefined,
+        });
+        void pollFileStatus(
+          file.uri,
+          activeServer.url,
+          apiKey,
+          file.id,
+        );
+        return;
+      }
+      updateSelectedFile(file.uri, {
+        status: 'uploading',
+        progress: 0,
+        error: undefined,
+      });
+      try {
+        const uploaded = await uploadBotConnectorFile({
+          serverUrl: activeServer.url,
+          apiKey,
+          file,
+          onProgress: progress =>
+            updateSelectedFile(file.uri, {progress}),
+        });
+        updateSelectedFile(file.uri, {
+          id: uploaded.id,
+          name: uploaded.filename,
+          size: uploaded.bytes,
+          mediaType: uploaded.media_type || file.mediaType,
+          status: uploaded.status,
+          route: uploaded.route,
+          parser: uploaded.parser,
+          progress: 1,
+        });
+        if (uploaded.status !== 'ready') {
+          void pollFileStatus(
+            file.uri,
+            activeServer.url,
+            apiKey,
+            uploaded.id,
+          );
+        }
+      } catch (error) {
+        updateSelectedFile(file.uri, {
+          status: 'failed',
+          error:
+            error instanceof Error
+              ? error.message
+              : 'File upload failed',
+        });
+      }
     };
 
     const handleSelectFiles = async () => {
@@ -667,6 +738,14 @@ export const ChatInput = observer(
                       />
                     )}
                   </View>
+                  {file.status === 'failed' && (
+                    <IconButton
+                      icon="refresh"
+                      size={18}
+                      onPress={() => void retrySelectedFile(file)}
+                      accessibilityLabel={`Retry ${file.name}`}
+                    />
+                  )}
                   <IconButton
                     icon="close"
                     size={18}
