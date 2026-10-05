@@ -152,10 +152,14 @@ workflows:
           if ! ruby -e 'require "xcodeproj"' >/dev/null 2>&1; then
             gem install xcodeproj -v 1.25.1 --no-document
           fi
-          if ! command -v xcpretty >/dev/null 2>&1; then
+          if ! ruby -e 'gem "xcpretty", "0.4.1"' >/dev/null 2>&1; then
             gem install xcpretty -v 0.4.1 --no-document
           fi
+          if command -v rbenv >/dev/null 2>&1; then
+            rbenv rehash
+          fi
           ruby -e 'require "xcodeproj"; puts "xcodeproj #{Xcodeproj::VERSION}"'
+          ruby -e 'gem "xcpretty", "0.4.1"; puts "xcpretty gem 0.4.1 ready"'
           xcpretty --version
           xcode-project use-profiles
 
