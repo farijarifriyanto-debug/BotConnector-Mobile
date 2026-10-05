@@ -16,10 +16,7 @@ import {
   modelStore,
   serverStore,
 } from '../../../store';
-import {
-  getBotConnectorFile,
-  uploadBotConnectorFile,
-} from '../../../api/botconnectorFiles';
+import {uploadBotConnectorFile} from '../../../api/botconnectorFiles';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 // Mock react-native-image-picker
@@ -580,6 +577,118 @@ describe('input', () => {
   describe('Image Upload Functionality', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+    });
+
+    it('uploads and sends a ready BotConnector file without typed text', async () => {
+      runInAction(() => {
+        serverStore.servers = [
+          {
+            id: 'bc-files',
+            name: 'BotConnector',
+            url: 'https://api.botconnector.id',
+            serverType: 'OpenAI',
+          },
+        ];
+        serverStore.botConnectorAccess = {
+          'bc-files': {
+            object: 'botconnector.client_capabilities',
+            plan: 'plus',
+            access: 'full',
+            paid: true,
+            entitlement_sources: {
+              subscription: true,
+              payg: false,
+              family: false,
+            },
+            capabilities: {
+              chat: true,
+              web_search: true,
+              read_url: true,
+              tools: true,
+              vision: true,
+              media: true,
+            },
+          },
+        };
+        modelStore.models = [
+          {
+            id: 'bc-files/text-model',
+            origin: 'remote',
+            serverId: 'bc-files',
+            remoteModelId: 'text-model',
+          } as any,
+        ];
+        modelStore.activeModelId = 'bc-files/text-model';
+      });
+
+      const keySpy = jest
+        .spyOn(serverStore, 'getApiKey')
+        .mockResolvedValue('bc_live_test');
+      (pick as jest.Mock).mockResolvedValue([
+        {
+          uri: 'file:///tmp/report.pdf',
+          name: 'report.pdf',
+          size: 1024,
+          type: 'application/pdf',
+        },
+      ]);
+      (uploadBotConnectorFile as jest.Mock).mockResolvedValue({
+        id: 'file_bc_11111111-1111-1111-1111-111111111111',
+        object: 'file',
+        bytes: 1024,
+        filename: 'report.pdf',
+        media_type: 'application/pdf',
+        status: 'ready',
+        route: 'retrieval',
+      });
+
+      const onSendPress = jest.fn();
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            onSendPress={onSendPress}
+            showImageUpload={true}
+            isVisionEnabled={false}
+            sendButtonVisibilityMode="always"
+          />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(screen.getByLabelText('Add attachment'));
+      fireEvent.press(await screen.findByText('File'));
+
+      await waitFor(() => {
+        expect(uploadBotConnectorFile).toHaveBeenCalledTimes(1);
+        expect(screen.getByText('Ready')).toBeTruthy();
+      });
+
+      fireEvent.press(
+        screen.getByLabelText(
+          l10n.en.components.sendButton.accessibilityLabel,
+        ),
+      );
+      expect(onSendPress).toHaveBeenCalledWith(
+        expect.objectContaining({
+          text: '',
+          type: 'text',
+          botConnectorFiles: [
+            expect.objectContaining({
+              id: 'file_bc_11111111-1111-1111-1111-111111111111',
+              name: 'report.pdf',
+              size: 1024,
+              mediaType: 'application/pdf',
+              route: 'retrieval',
+            }),
+          ],
+        }),
+      );
+
+      keySpy.mockRestore();
+      runInAction(() => {
+        serverStore.servers = [];
+        serverStore.botConnectorAccess = {};
+        modelStore.activeModelId = undefined;
+      });
     });
 
     it('opens image upload menu when plus button is pressed', () => {
