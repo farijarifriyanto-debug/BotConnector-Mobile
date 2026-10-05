@@ -186,7 +186,9 @@ export const ChatInput = observer(
     const botConnectorFilesEnabled = Boolean(
       activeServer &&
         isBotConnectorApiUrl(activeServer.url) &&
-        serverStore.botConnectorAccess[activeServer.id]?.access === 'full',
+        serverStore.botConnectorAccess[activeServer.id]?.access === 'full' &&
+        serverStore.botConnectorAccess[activeServer.id]?.capabilities.files ===
+          true,
     );
 
     // Use `defaultValue` if provided
