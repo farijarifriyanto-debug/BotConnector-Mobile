@@ -432,7 +432,10 @@ export const ChatInput = observer(
             parser: latest.parser,
             progress: 1,
           });
-          if (latest.status === 'ready') {
+          if (
+            latest.status === 'ready' ||
+            latest.status === 'failed'
+          ) {
             return;
           }
         } catch (error) {
