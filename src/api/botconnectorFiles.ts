@@ -19,8 +19,7 @@ export type BotConnectorFileStatus =
 export type BotConnectorFileRoute =
   | 'retrieval'
   | 'data_analysis'
-  | 'vision'
-  | string;
+  | 'vision';
 
 export interface BotConnectorFile {
   id?: string;
