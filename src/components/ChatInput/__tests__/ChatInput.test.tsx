@@ -2,6 +2,7 @@ import {fireEvent, waitFor} from '@testing-library/react-native';
 import * as React from 'react';
 import {ScrollView, Alert} from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
+import {pick} from '@react-native-documents/picker';
 import {runInAction} from 'mobx';
 
 import {user} from '../../../../jest/fixtures';
@@ -9,13 +10,38 @@ import {l10n} from '../../../locales';
 import {UserContext} from '../../../utils';
 import {ChatInput} from '../ChatInput';
 import {render} from '../../../../jest/test-utils';
-import {palStore, chatSessionStore, modelStore} from '../../../store';
+import {
+  palStore,
+  chatSessionStore,
+  modelStore,
+  serverStore,
+} from '../../../store';
+import {
+  getBotConnectorFile,
+  uploadBotConnectorFile,
+} from '../../../api/botconnectorFiles';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 // Mock react-native-image-picker
 jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
   launchImageLibrary: jest.fn(),
+}));
+
+jest.mock('@react-native-documents/picker', () => ({
+  pick: jest.fn(),
+  types: {allFiles: '*/*'},
+  errorCodes: {OPERATION_CANCELED: 'OPERATION_CANCELED'},
+  isErrorWithCode: jest.fn(() => false),
+}));
+
+jest.mock('../../../api/botconnectorFiles', () => ({
+  BOTCONNECTOR_FILE_MAX_COUNT: 10,
+  BOTCONNECTOR_FILE_MAX_TOTAL_BYTES: 512 * 1024 * 1024,
+  isBotConnectorFileReady: (file: any) =>
+    file?.status === 'ready' && Boolean(file?.id),
+  uploadBotConnectorFile: jest.fn(),
+  getBotConnectorFile: jest.fn(),
 }));
 
 jest.spyOn(Alert, 'alert');
@@ -265,7 +291,7 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = getByLabelText('Add image');
+    const plusButton = getByLabelText('Add attachment');
     expect(plusButton).toBeDefined();
   });
 
@@ -284,7 +310,7 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = queryByLabelText('Add image');
+    const plusButton = queryByLabelText('Add attachment');
     expect(plusButton).toBeNull();
   });
 
@@ -304,7 +330,7 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = getByLabelText('Add image');
+    const plusButton = getByLabelText('Add attachment');
     expect(plusButton).toBeTruthy();
     expect(plusButton.props.accessibilityState.disabled).toBe(false);
   });
@@ -473,7 +499,7 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = getByLabelText('Add image');
+    const plusButton = getByLabelText('Add attachment');
     expect(plusButton.props.accessibilityState.disabled).toBe(true);
   });
 
@@ -493,7 +519,7 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = getByLabelText('Add image');
+    const plusButton = getByLabelText('Add attachment');
     expect(plusButton.props.accessibilityState.disabled).toBe(false);
   });
 
@@ -571,7 +597,7 @@ describe('input', () => {
         </UserContext.Provider>,
       );
 
-      const plusButton = getByLabelText('Add image');
+      const plusButton = getByLabelText('Add attachment');
       fireEvent.press(plusButton);
 
       // Menu should be visible after pressing plus button
@@ -598,7 +624,7 @@ describe('input', () => {
         </UserContext.Provider>,
       );
 
-      const plusButton = getByLabelText('Add image');
+      const plusButton = getByLabelText('Add attachment');
       fireEvent.press(plusButton);
 
       // Since testing the menu interaction is complex, let's test that the camera function works
@@ -628,7 +654,7 @@ describe('input', () => {
         </UserContext.Provider>,
       );
 
-      const plusButton = getByLabelText('Add image');
+      const plusButton = getByLabelText('Add attachment');
       fireEvent.press(plusButton);
 
       // Test that the component renders correctly even when camera errors are configured
@@ -653,7 +679,7 @@ describe('input', () => {
     const pressCameraMenuItem = async (
       screen: ReturnType<typeof renderWithImageUpload>,
     ) => {
-      fireEvent.press(screen.getByLabelText('Add image'));
+      fireEvent.press(screen.getByLabelText('Add attachment'));
       fireEvent.press(await screen.findByText(l10n.en.camera.takePhoto));
     };
 
@@ -757,7 +783,7 @@ describe('input', () => {
         </UserContext.Provider>,
       );
 
-      const plusButton = getByLabelText('Add image');
+      const plusButton = getByLabelText('Add attachment');
       fireEvent.press(plusButton);
 
       // Test that the component renders correctly with image library functionality
