@@ -95,8 +95,9 @@ export const initialAgentUiState: AgentUiState = {
 export interface AgentRunOptions {
   engine: CompletionEngine;
   initialParams: ApiCompletionParams;
-  /** Names of talents this Pal advertises; outcomes for any other
-   * talent the model invents are rejected with an error. */
+  /** Names of tools advertised for this run (Persona talents plus
+   * account-scoped tools such as BotConnector Web Search). Any tool the
+   * model invents outside this allowlist is rejected. */
   allowedTalentNames: string[];
   talentLookup: (name: string) => TalentEngine | undefined;
   /** Plain-text trigger markers (extracted from llama.rn
