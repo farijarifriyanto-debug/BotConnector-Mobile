@@ -597,6 +597,53 @@ describe('streamChatCompletion', () => {
     await resultPromise;
   });
 
+  it('sends BotConnector file ids only when the caller supplies them', async () => {
+    const resultPromise = streamChatCompletion(
+      {
+        samplers: {},
+        messages: [{role: 'user', content: 'summarize this'}],
+        model: 'test-model',
+        botconnector_file_ids: ['file_bc_11111111-1111-1111-1111-111111111111'],
+      },
+      endpointFor(),
+    );
+
+    const xhr = MockXHR.instances[0];
+    const body = JSON.parse(xhr.requestBody);
+    expect(body.botconnector_file_ids).toEqual([
+      'file_bc_11111111-1111-1111-1111-111111111111',
+    ]);
+
+    xhr.simulateHeaders(200);
+    xhr.simulateProgress(
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+    );
+    xhr.simulateLoad();
+    await resultPromise;
+  });
+
+  it('does not add a BotConnector file field to ordinary requests', async () => {
+    const resultPromise = streamChatCompletion(
+      {
+        samplers: {},
+        messages: [{role: 'user', content: 'hello'}],
+        model: 'test-model',
+      },
+      endpointFor(),
+    );
+
+    const xhr = MockXHR.instances[0];
+    const body = JSON.parse(xhr.requestBody);
+    expect(body).not.toHaveProperty('botconnector_file_ids');
+
+    xhr.simulateHeaders(200);
+    xhr.simulateProgress(
+      'data: {"choices":[{"delta":{},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n',
+    );
+    xhr.simulateLoad();
+    await resultPromise;
+  });
+
   it('encodes a local image path to a data URI on the remote wire', async () => {
     const RNFS = require('@dr.pogodin/react-native-fs');
     (RNFS.readFile as jest.Mock).mockResolvedValueOnce('QUJD');
