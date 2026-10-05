@@ -80,6 +80,27 @@ target 'PocketPal' do
       # :ccache_enabled => true
     )
 
+    # Mac Catalyst + Xcode 26.6: @react-native-community/slider declares
+    # RNCSlider.isSliding as C++ bool, while the Fabric component view uses
+    # BOOL for the backing ivar. Clang now rejects that mismatch on macabi.
+    # Patch only the Catalyst CI path; regular iOS remains untouched.
+    if ENV['BOTCONNECTOR_MAC_CATALYST'] == '1'
+      slider_view = File.expand_path(
+        '../node_modules/@react-native-community/slider/ios/RNCSliderComponentView.mm',
+        __dir__,
+      )
+      if File.exist?(slider_view)
+        source = File.read(slider_view)
+        patched = source.gsub('    BOOL _isSliding;', '    bool _isSliding;')
+        if patched == source
+          Pod::UI.warn 'Mac Catalyst slider compatibility patch was not applied; source signature changed.'
+        else
+          File.write(slider_view, patched)
+          Pod::UI.puts 'Applied Mac Catalyst slider bool compatibility patch'.green
+        end
+      end
+    end
+
     # Workaround: pin the fmt pod to C++17 so it skips the consteval code path
     # that Apple clang 21 (Xcode 26.4.1) rejects. Tracking facebook/react-native#55601.
     # Remove once RN vendors a fmt release that is clang-21-compatible.
