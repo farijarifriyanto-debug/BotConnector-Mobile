@@ -39,7 +39,7 @@ import {
   getEngine,
 } from '../../services/tts';
 import type {EngineId, Voice} from '../../services/tts';
-import {ttsStore} from '../../store';
+import {ttsStore, uiStore} from '../../store';
 import {L10nContext} from '../../utils';
 
 import {AutoSpeakRow} from './AutoSpeakRow';
@@ -53,9 +53,43 @@ import {l10n as locales, t} from '../../locales';
 type L10n = (typeof locales)['en'];
 type DownloadState = 'not_installed' | 'downloading' | 'ready' | 'error';
 
-// System TTS hidden until language/accent/search filtering is built —
-// 180+ iOS / 470+ Android unfiltered voices is hostile UX.
-const ENGINE_ORDER: EngineId[] = ['kitten', 'kokoro', 'supertonic'];
+// System voices first: always available with zero download. The OS catalog
+// (180+ iOS / 470+ Android voices) is filtered to the app language + English
+// so the list stays usable; neural engines remain optional extras.
+const ENGINE_ORDER: EngineId[] = ['system', 'kitten', 'kokoro', 'supertonic'];
+const SYSTEM_VOICE_LIMIT = 24;
+
+export const filterSystemVoices = (
+  voices: Voice[],
+  appLanguage: string,
+): Voice[] => {
+  const wanted = new Set([appLanguage.toLowerCase().split(/[-_]/)[0], 'en']);
+  const seen = new Set<string>();
+  return voices
+    .filter(v => {
+      const lang = String(v.language ?? '')
+        .toLowerCase()
+        .split(/[-_]/)[0];
+      return wanted.has(lang);
+    })
+    .sort((a, b) => {
+      const la = String(a.language ?? '').toLowerCase();
+      const lb = String(b.language ?? '').toLowerCase();
+      const ra = la.startsWith('en') ? 1 : 0;
+      const rb = lb.startsWith('en') ? 1 : 0;
+      return ra - rb || a.name.localeCompare(b.name);
+    })
+    .filter(v => {
+      // Same display name in the same language is one choice for the user.
+      const key = `${v.name}|${v.language}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    })
+    .slice(0, SYSTEM_VOICE_LIMIT);
+};
 
 type NeuralEngineId = Exclude<EngineId, 'system'>;
 
@@ -237,7 +271,7 @@ export const VoicePickerView: React.FC = observer(() => {
     const sys = getEngine('system') as SystemEngine;
     sys
       .getVoices()
-      .then(vs => setSystemVoices(vs))
+      .then(vs => setSystemVoices(filterSystemVoices(vs, uiStore.language)))
       .catch(err => {
         console.warn('[VoicePickerView] system voices failed:', err);
       });

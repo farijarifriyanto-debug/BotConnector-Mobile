@@ -59,6 +59,9 @@ export const createStyles = ({
     thinkingToggleTextDisabled: {
       // Dynamic color will be applied via theme
     },
+    menuItemUnavailable: {
+      opacity: 0.45,
+    },
     palSelector: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -67,7 +70,7 @@ export const createStyles = ({
     inputWrapper: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 13,
+      gap: 8,
       flexShrink: 1,
     },
     input: {
@@ -86,19 +89,21 @@ export const createStyles = ({
       borderRadius: 12,
       overflow: 'hidden',
     },
+    // Compact composer: the old 24/20 padding made the input dominate the
+    // screen once the keyboard was up.
     textInputArea: {
       flex: 1,
-      paddingHorizontal: 24,
-      paddingTop: 20,
-      paddingBottom: 8,
+      paddingHorizontal: 16,
+      paddingTop: 12,
+      paddingBottom: 4,
     },
     controlBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 24,
-      paddingVertical: 10,
-      minHeight: 36,
+      paddingHorizontal: 10,
+      paddingVertical: 2,
+      minHeight: 44,
     },
     leftControls: {
       flexDirection: 'row',

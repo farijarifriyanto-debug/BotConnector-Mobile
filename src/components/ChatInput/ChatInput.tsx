@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Image,
+  Linking,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
 import {
@@ -31,6 +32,7 @@ import {
   VideoRecorderIcon,
   PlusIcon,
   AtomIcon,
+  XSmIcon,
 } from '../../assets/icons';
 
 import {useTheme} from '../../hooks';
@@ -206,6 +208,8 @@ export const ChatInput = observer(
     const [selectedFiles, setSelectedFiles] = React.useState<
       BotConnectorFile[]
     >([]);
+    const selectedFileKeysRef = React.useRef<Set<string>>(new Set());
+    selectedFileKeysRef.current = new Set(selectedFiles.map(file => file.uri));
     // State for image upload menu
     const [showImageUploadMenu, setShowImageUploadMenu] = React.useState(false);
     // State for showing "model not loaded" helper text
@@ -277,8 +281,21 @@ export const ChatInput = observer(
       } catch (error) {
         const message =
           error instanceof Error ? error.message : 'Voice input failed.';
-        if (!/cancel/i.test(message)) {
-          Alert.alert('Voice input', message);
+        if (/permission/i.test(message)) {
+          // Denied permission: explain and offer the Settings shortcut.
+          Alert.alert(
+            l10n.components.voiceInput.title,
+            l10n.components.voiceInput.permissionDenied,
+            [
+              {text: l10n.common.cancel, style: 'cancel'},
+              {
+                text: l10n.components.voiceInput.openSettings,
+                onPress: () => Linking.openSettings().catch(() => undefined),
+              },
+            ],
+          );
+        } else if (!/cancel/i.test(message)) {
+          Alert.alert(l10n.components.voiceInput.title, message);
         }
       } finally {
         setIsVoiceInputActive(false);
@@ -389,6 +406,21 @@ export const ChatInput = observer(
       }
     };
 
+    const requireVision = (action: () => void) => () => {
+      if (isVisionEnabled) {
+        action();
+        return;
+      }
+      setShowImageUploadMenu(false);
+      Alert.alert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
+        {text: l10n.common.cancel, style: 'cancel'},
+        {
+          text: l10n.camera.chooseVisionModel,
+          onPress: () => uiStore.openModelPicker('models'),
+        },
+      ]);
+    };
+
     // Handle selecting images from the gallery
     const handleSelectImages = async () => {
       try {
@@ -446,20 +478,31 @@ export const ChatInput = observer(
       );
     };
 
+    // Server-side parsing/OCR of large files can take minutes: poll with a
+    // gentle backoff, ride out transient network errors, and stop as soon as
+    // the attachment is removed from the composer.
     const pollFileStatus = async (
       localKey: string,
       serverUrl: string,
       apiKey: string,
       fileId: string,
     ) => {
-      for (let attempt = 0; attempt < 80; attempt += 1) {
-        await new Promise(resolve => setTimeout(resolve, 1500));
+      const deadline = Date.now() + 5 * 60 * 1000;
+      let delay = 1500;
+      let consecutiveErrors = 0;
+      while (Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay = Math.min(delay + 500, 4000);
+        if (!selectedFileKeysRef.current.has(localKey)) {
+          return; // removed by the user
+        }
         try {
           const latest = await getBotConnectorFile({
             serverUrl,
             apiKey,
             fileId,
           });
+          consecutiveErrors = 0;
           updateSelectedFile(localKey, {
             id: latest.id,
             name: latest.filename,
@@ -474,6 +517,10 @@ export const ChatInput = observer(
             return;
           }
         } catch (error) {
+          consecutiveErrors += 1;
+          if (consecutiveErrors < 3) {
+            continue;
+          }
           updateSelectedFile(localKey, {
             status: 'failed',
             error:
@@ -774,6 +821,7 @@ export const ChatInput = observer(
                 Editing message
               </Text>
               <IconButton
+                hitSlop={8}
                 icon="close"
                 size={16}
                 onPress={handleCancel}
@@ -788,6 +836,7 @@ export const ChatInput = observer(
               {selectedFiles.map(file => (
                 <View key={file.uri} style={styles.filePreviewRow}>
                   <IconButton
+                    hitSlop={8}
                     icon="file-document-outline"
                     size={20}
                     style={styles.filePreviewIcon}
@@ -812,9 +861,19 @@ export const ChatInput = observer(
                         style={styles.fileProgress}
                       />
                     )}
+                    {file.status !== 'uploading' &&
+                      file.status !== 'ready' &&
+                      file.status !== 'failed' && (
+                        // Server-side parsing has no byte progress: show activity.
+                        <ProgressBar
+                          indeterminate
+                          style={styles.fileProgress}
+                        />
+                      )}
                   </View>
                   {file.status === 'failed' && (
                     <IconButton
+                      hitSlop={8}
                       icon="refresh"
                       size={18}
                       onPress={() =>
@@ -824,6 +883,7 @@ export const ChatInput = observer(
                     />
                   )}
                   <IconButton
+                    hitSlop={8}
                     icon="close"
                     size={18}
                     onPress={() => handleRemoveFile(file.uri)}
@@ -855,6 +915,7 @@ export const ChatInput = observer(
                       }`}
                     />
                     <IconButton
+                      hitSlop={8}
                       icon="close-circle"
                       size={20}
                       iconColor={theme.colors.error}
@@ -933,6 +994,7 @@ export const ChatInput = observer(
                   anchorPosition="top"
                   anchor={
                     <TouchableOpacity
+                      hitSlop={8}
                       style={styles.plusButton}
                       disabled={!isPlusButtonEnabled}
                       onPress={
@@ -943,17 +1005,19 @@ export const ChatInput = observer(
                       <PlusIcon width={20} height={20} stroke={plusColor} />
                     </TouchableOpacity>
                   }>
+                  {/* Camera/Gallery stay tappable: a non-vision model explains
+                      why and offers the model picker instead of a dead row. */}
                   <Menu.Item
                     label={l10n.camera?.takePhoto || 'Camera'}
                     icon="camera"
-                    disabled={!isVisionEnabled}
-                    onPress={handleTakePhoto}
+                    labelStyle={!isVisionEnabled && styles.menuItemUnavailable}
+                    onPress={requireVision(handleTakePhoto)}
                   />
                   <Menu.Item
                     label={l10n.common?.gallery || 'Gallery'}
                     icon="image"
-                    disabled={!isVisionEnabled}
-                    onPress={handleSelectImages}
+                    labelStyle={!isVisionEnabled && styles.menuItemUnavailable}
+                    onPress={requireVision(handleSelectImages)}
                   />
                   {botConnectorFilesEnabled && (
                     <Menu.Item
@@ -968,6 +1032,7 @@ export const ChatInput = observer(
               {/* Pal Selector */}
               <View style={styles.palSelector}>
                 <TouchableOpacity
+                  hitSlop={8}
                   style={[
                     styles.palBtn,
                     {
@@ -993,24 +1058,38 @@ export const ChatInput = observer(
 
                 {/* Pal Name Display */}
                 {currentActivePal?.name && hasActiveModel && (
-                  <Text
-                    style={[
-                      styles.palNameCompact,
-                      {
-                        color: onSurfaceColor,
-                      },
-                    ]}>
-                    Pal:{' '}
+                  <>
                     <Text
+                      numberOfLines={1}
                       style={[
-                        styles.palNameValueCompact,
+                        styles.palNameCompact,
                         {
                           color: onSurfaceColor,
                         },
                       ]}>
-                      {currentActivePal?.name}
+                      Pal:{' '}
+                      <Text
+                        style={[
+                          styles.palNameValueCompact,
+                          {
+                            color: onSurfaceColor,
+                          },
+                        ]}>
+                        {currentActivePal?.name}
+                      </Text>
                     </Text>
-                  </Text>
+                    {/* Persona is optional: one tap turns it off. */}
+                    <TouchableOpacity
+                      hitSlop={10}
+                      testID="clear-active-pal"
+                      onPress={() => chatSessionStore.setActivePal(undefined)}
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        l10n.components.chatPalModelPickerSheet.disablePal
+                      }>
+                      <XSmIcon width={14} height={14} stroke={onSurfaceColor} />
+                    </TouchableOpacity>
+                  </>
                 )}
               </View>
 
@@ -1019,6 +1098,7 @@ export const ChatInput = observer(
                   on/off. The label shows the current effort when graded. */}
               {showThinkingToggle && !isCameraActive && (
                 <TouchableOpacity
+                  hitSlop={8}
                   testID="thinking-toggle"
                   style={[
                     styles.thinkingToggleLeft,
@@ -1082,6 +1162,7 @@ export const ChatInput = observer(
               )}
 
               <IconButton
+                hitSlop={8}
                 testID="voice-input-button"
                 icon={
                   isVoiceInputActive
@@ -1114,6 +1195,7 @@ export const ChatInput = observer(
               ) : isVideoCapable && !isCameraActive ? (
                 /* Compact Start Video Button for Video Pals */
                 <TouchableOpacity
+                  hitSlop={8}
                   style={[
                     styles.compactVideoButton,
                     {

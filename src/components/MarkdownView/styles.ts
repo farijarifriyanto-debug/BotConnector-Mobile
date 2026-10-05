@@ -9,10 +9,64 @@ export const codeHighlighterPreOverride = {
   backgroundColor: 'transparent',
 } as const;
 
+// Chat-reading scale: body close to iOS body text, headings proportional, and
+// explicit block margins (react-native-render-html's browser defaults give
+// <p>/<ul> 16px margins and <h1> 32px, which made short answers fill a screen).
+const BODY_SIZE = 16;
+const BODY_LINE = 23;
+
+const heading = (fontSize: number, lineHeight: number) => ({
+  fontSize,
+  lineHeight,
+  fontWeight: '600' as const,
+  marginTop: 14,
+  marginBottom: 6,
+});
+
 export const createTagsStyles = (theme: Theme) => ({
+  p: {
+    marginTop: 0,
+    marginBottom: 10,
+  },
+  h1: heading(20, 26),
+  h2: heading(18, 24),
+  h3: heading(17, 23),
+  h4: heading(16, 22),
+  h5: heading(16, 22),
+  h6: heading(15, 21),
+  ul: {
+    marginTop: 0,
+    marginBottom: 10,
+    paddingLeft: 20,
+  },
+  ol: {
+    marginTop: 0,
+    marginBottom: 10,
+    paddingLeft: 22,
+  },
+  li: {
+    marginBottom: 4,
+  },
+  blockquote: {
+    marginTop: 4,
+    marginBottom: 10,
+    marginLeft: 0,
+    marginRight: 0,
+    paddingLeft: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: theme.colors.outline,
+    color: theme.colors.onSurfaceVariant,
+  },
+  hr: {
+    marginTop: 12,
+    marginBottom: 12,
+    height: 1,
+    backgroundColor: theme.colors.outline,
+  },
   body: {
     color: theme.colors.text,
-    fontSize: 16,
+    fontSize: BODY_SIZE,
+    lineHeight: BODY_LINE,
     fontFamily:
       '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
     padding: 0,

@@ -20,6 +20,24 @@ class MockServerStore {
     return deriveListCapsMap(this.servers, this.serverModels);
   }
 
+  botConnectorAccess: Record<string, any> = {};
+  botConnectorCatalog: Record<string, any> = {};
+
+  isBotConnectorServer(serverId: string | undefined): boolean {
+    const server = this.servers.find(s => s.id === serverId);
+    return !!server && server.url.startsWith('https://api.botconnector.id');
+  }
+
+  cloudModelsForServer(_serverId: string): any[] {
+    return [];
+  }
+
+  remoteDisplayName(_serverId: string, remoteModelId: string): string {
+    return remoteModelId;
+  }
+
+  refreshBotConnectorCatalog = jest.fn().mockResolvedValue(undefined);
+
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   remoteReasoning: Record<string, ReasoningCapability> = {};
   remoteCaps: Record<string, RemoteModelCaps> = {};

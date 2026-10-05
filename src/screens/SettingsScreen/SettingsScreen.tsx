@@ -56,8 +56,10 @@ import {
   hfStore,
   ttsStore,
   searchProviderStore,
+  serverStore,
 } from '../../store';
 import type {SearchProviderId} from '../../services/search/types';
+import {isBotConnectorApiUrl} from '../../config/botconnector';
 
 import {CacheType, ModelType} from '../../utils/types';
 import {
@@ -353,6 +355,14 @@ export const SettingsScreen: React.FC = observer(() => {
   );
   const activeSearchProviderId = searchProviderStore.activeProviderId;
   const searchHasConsent = searchProviderStore.hasConsentedToSearch;
+  // With a BotConnector account, web search is included with the account and
+  // runs through BotConnector automatically; bring-your-own-key providers are
+  // an advanced option, collapsed by default.
+  const hasBotConnectorCloud = serverStore.servers.some(server =>
+    isBotConnectorApiUrl(server.url),
+  );
+  const [showByokSearch, setShowByokSearch] = useState(false);
+  const byokSearchVisible = !hasBotConnectorCloud || showByokSearch;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -1212,93 +1222,129 @@ export const SettingsScreen: React.FC = observer(() => {
                   </View>
                 )}
 
-                {/* Provider picker */}
-                <Divider style={styles.divider} />
-                <View style={styles.switchContainer}>
-                  <View style={styles.textContainer}>
-                    <Text variant="titleMedium" style={styles.textLabel}>
-                      {l10n.settings.internetSearch.providerLabel}
-                    </Text>
-                  </View>
-                  <View style={styles.menuContainer}>
-                    <Button
-                      ref={searchProviderButtonRef}
-                      testID="search-provider-selector-button"
-                      mode="outlined"
-                      onPress={handleSearchProviderPress}
-                      style={styles.menuButton}
-                      contentStyle={styles.buttonContent}
-                      icon={({size, color}) => (
-                        <Icon source="chevron-down" size={size} color={color} />
-                      )}>
-                      {activeSearchProvider?.label ?? activeSearchProviderId}
-                    </Button>
-                    <Menu
-                      visible={showSearchProviderMenu}
-                      onDismiss={() => setShowSearchProviderMenu(false)}
-                      anchor={searchProviderAnchor}
-                      selectable>
-                      {searchProviderStore.providers.map(provider => (
-                        <Menu.Item
-                          key={provider.id}
-                          testID={`search-provider-option-${provider.id}`}
-                          disabled={!provider.selectable}
-                          style={styles.menu}
-                          label={
-                            provider.selectable
-                              ? provider.label
-                              : `${provider.label} (${l10n.settings.internetSearch.providerGated})`
-                          }
-                          selected={provider.id === activeSearchProviderId}
-                          onPress={() => {
-                            searchProviderStore.setActiveProvider(
-                              provider.id as SearchProviderId,
-                            );
-                            setShowSearchProviderMenu(false);
-                          }}
-                        />
-                      ))}
-                    </Menu>
-                  </View>
-                </View>
-
-                {/* Per-provider BYOK key entry */}
-                <Divider style={styles.divider} />
-                <View style={styles.switchContainer}>
-                  <View style={styles.textContainer}>
-                    <Text variant="titleMedium" style={styles.textLabel}>
-                      {l10n.settings.internetSearch.keyLabel}
-                    </Text>
-                    <Text variant="labelSmall" style={styles.textDescription}>
-                      {searchProviderStore.hasKey(activeSearchProviderId)
-                        ? t(l10n.settings.internetSearch.keyIsSet, {
-                            provider:
-                              activeSearchProvider?.label ??
-                              activeSearchProviderId,
-                          })
-                        : t(l10n.settings.internetSearch.keyNotSet, {
-                            provider:
-                              activeSearchProvider?.label ??
-                              activeSearchProviderId,
-                          })}
-                    </Text>
-                    {!searchHasConsent && (
-                      <Text variant="labelSmall" style={styles.textDescription}>
-                        {l10n.settings.internetSearch.consentRequired}
+                {hasBotConnectorCloud && (
+                  <>
+                    <Divider style={styles.divider} />
+                    <View
+                      style={styles.textContainer}
+                      testID="botconnector-search-included">
+                      <Text variant="titleMedium" style={styles.textLabel}>
+                        {l10n.settings.internetSearch.botconnectorTitle}
                       </Text>
-                    )}
-                  </View>
-                  <Button
-                    testID="search-provider-key-button"
-                    mode="outlined"
-                    disabled={!searchHasConsent}
-                    onPress={() => setShowSearchKeySheet(true)}
-                    style={styles.menuButton}>
-                    {searchProviderStore.hasKey(activeSearchProviderId)
-                      ? l10n.settings.internetSearch.updateKeyButton
-                      : l10n.settings.internetSearch.setKeyButton}
-                  </Button>
-                </View>
+                      <Text variant="labelSmall" style={styles.textDescription}>
+                        {l10n.settings.internetSearch.botconnectorDescription}
+                      </Text>
+                    </View>
+                    <Button
+                      testID="search-byok-toggle"
+                      mode="text"
+                      onPress={() => setShowByokSearch(v => !v)}
+                      icon={showByokSearch ? 'chevron-up' : 'chevron-down'}>
+                      {l10n.settings.internetSearch.byokAdvanced}
+                    </Button>
+                  </>
+                )}
+
+                {byokSearchVisible && (
+                  <>
+                    {/* Provider picker */}
+                    <Divider style={styles.divider} />
+                    <View style={styles.switchContainer}>
+                      <View style={styles.textContainer}>
+                        <Text variant="titleMedium" style={styles.textLabel}>
+                          {l10n.settings.internetSearch.providerLabel}
+                        </Text>
+                      </View>
+                      <View style={styles.menuContainer}>
+                        <Button
+                          ref={searchProviderButtonRef}
+                          testID="search-provider-selector-button"
+                          mode="outlined"
+                          onPress={handleSearchProviderPress}
+                          style={styles.menuButton}
+                          contentStyle={styles.buttonContent}
+                          icon={({size, color}) => (
+                            <Icon
+                              source="chevron-down"
+                              size={size}
+                              color={color}
+                            />
+                          )}>
+                          {activeSearchProvider?.label ??
+                            activeSearchProviderId}
+                        </Button>
+                        <Menu
+                          visible={showSearchProviderMenu}
+                          onDismiss={() => setShowSearchProviderMenu(false)}
+                          anchor={searchProviderAnchor}
+                          selectable>
+                          {searchProviderStore.providers.map(provider => (
+                            <Menu.Item
+                              key={provider.id}
+                              testID={`search-provider-option-${provider.id}`}
+                              disabled={!provider.selectable}
+                              style={styles.menu}
+                              label={
+                                provider.selectable
+                                  ? provider.label
+                                  : `${provider.label} (${l10n.settings.internetSearch.providerGated})`
+                              }
+                              selected={provider.id === activeSearchProviderId}
+                              onPress={() => {
+                                searchProviderStore.setActiveProvider(
+                                  provider.id as SearchProviderId,
+                                );
+                                setShowSearchProviderMenu(false);
+                              }}
+                            />
+                          ))}
+                        </Menu>
+                      </View>
+                    </View>
+
+                    {/* Per-provider BYOK key entry */}
+                    <Divider style={styles.divider} />
+                    <View style={styles.switchContainer}>
+                      <View style={styles.textContainer}>
+                        <Text variant="titleMedium" style={styles.textLabel}>
+                          {l10n.settings.internetSearch.keyLabel}
+                        </Text>
+                        <Text
+                          variant="labelSmall"
+                          style={styles.textDescription}>
+                          {searchProviderStore.hasKey(activeSearchProviderId)
+                            ? t(l10n.settings.internetSearch.keyIsSet, {
+                                provider:
+                                  activeSearchProvider?.label ??
+                                  activeSearchProviderId,
+                              })
+                            : t(l10n.settings.internetSearch.keyNotSet, {
+                                provider:
+                                  activeSearchProvider?.label ??
+                                  activeSearchProviderId,
+                              })}
+                        </Text>
+                        {!searchHasConsent && (
+                          <Text
+                            variant="labelSmall"
+                            style={styles.textDescription}>
+                            {l10n.settings.internetSearch.consentRequired}
+                          </Text>
+                        )}
+                      </View>
+                      <Button
+                        testID="search-provider-key-button"
+                        mode="outlined"
+                        disabled={!searchHasConsent}
+                        onPress={() => setShowSearchKeySheet(true)}
+                        style={styles.menuButton}>
+                        {searchProviderStore.hasKey(activeSearchProviderId)
+                          ? l10n.settings.internetSearch.updateKeyButton
+                          : l10n.settings.internetSearch.setKeyButton}
+                      </Button>
+                    </View>
+                  </>
+                )}
 
                 {/* Result-count control */}
                 <Divider style={styles.divider} />

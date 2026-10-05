@@ -5,7 +5,14 @@ import AVFoundation
 
 @objc(SpeechRecognitionModule)
 class SpeechRecognitionModule: NSObject, RCTBridgeModule {
-    private let audioEngine = AVAudioEngine()
+    // A fresh engine per session. A long-lived engine keeps the input node's
+    // format from whatever session category was active when it was created
+    // (often playback with no input: 0 Hz / 0 channels); installTap with that
+    // format fails AVAudioEngine's internal check and aborts the whole app
+    // (`_AVAE_Check` -> SIGABRT), which Swift cannot catch.
+    private var audioEngine: AVAudioEngine?
+    private var tapInstalled = false
+    private var sessionObservers: [NSObjectProtocol] = []
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
     private var silenceWorkItem: DispatchWorkItem?
@@ -82,66 +89,149 @@ class SpeechRecognitionModule: NSObject, RCTBridgeModule {
             return
         }
 
+        let session = AVAudioSession.sharedInstance()
         do {
-            let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+            // playAndRecord keeps TTS/playback working right after dictation and
+            // accepts headset/Bluetooth microphones.
+            try session.setCategory(
+                .playAndRecord,
+                mode: .measurement,
+                options: [.duckOthers, .defaultToSpeaker, .allowBluetooth]
+            )
             try session.setActive(true, options: .notifyOthersOnDeactivation)
+        } catch {
+            rejectAndCleanup(
+                code: "audio_session_failed",
+                message: "The microphone could not be prepared: \(error.localizedDescription)"
+            )
+            return
+        }
 
-            let request = SFSpeechAudioBufferRecognitionRequest()
-            request.shouldReportPartialResults = true
-            request.taskHint = .dictation
-            recognitionRequest = request
+        guard session.isInputAvailable else {
+            rejectAndCleanup(
+                code: "audio_input_unavailable",
+                message: "No microphone is available right now."
+            )
+            return
+        }
 
-            let inputNode = audioEngine.inputNode
-            inputNode.removeTap(onBus: 0)
-            let format = inputNode.outputFormat(forBus: 0)
-            inputNode.installTap(
-                onBus: 0,
-                bufferSize: 1024,
-                format: format
-            ) { [weak self] buffer, _ in
-                self?.recognitionRequest?.append(buffer)
-            }
+        // Created only after the session is active, so the input node reports
+        // the real hardware format of the current route.
+        let engine = AVAudioEngine()
+        audioEngine = engine
+        let inputNode = engine.inputNode
+        let format = inputNode.outputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            rejectAndCleanup(
+                code: "audio_input_unavailable",
+                message: "The microphone is not ready yet. Please try again."
+            )
+            return
+        }
 
-            audioEngine.prepare()
-            try audioEngine.start()
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        request.shouldReportPartialResults = true
+        request.taskHint = .dictation
+        recognitionRequest = request
 
-            recognitionTask = recognizer.recognitionTask(with: request) {
-                [weak self] result, error in
-                guard let self = self else { return }
-                DispatchQueue.main.async {
-                    if let result = result {
-                        let transcript = result.bestTranscription.formattedString
-                        if !transcript.isEmpty {
-                            self.latestTranscript = transcript
-                            self.scheduleSilenceFinish()
-                        }
-                        if result.isFinal {
-                            self.resolveAndCleanup(transcript)
-                            return
-                        }
-                    }
+        inputNode.installTap(
+            onBus: 0,
+            bufferSize: 1024,
+            format: format
+        ) { [weak self] buffer, _ in
+            self?.recognitionRequest?.append(buffer)
+        }
+        tapInstalled = true
+        observeSessionChanges(engine: engine)
 
-                    if let error = error, !self.settled {
-                        if !self.latestTranscript.isEmpty {
-                            self.resolveAndCleanup(self.latestTranscript)
-                        } else {
-                            self.rejectAndCleanup(
-                                code: "speech_recognition_failed",
-                                message: error.localizedDescription
-                            )
-                        }
-                    }
-                }
-            }
-
-            scheduleHardTimeout()
+        do {
+            engine.prepare()
+            try engine.start()
         } catch {
             rejectAndCleanup(
                 code: "speech_start_failed",
                 message: error.localizedDescription
             )
+            return
         }
+
+        recognitionTask = recognizer.recognitionTask(with: request) {
+            [weak self] result, error in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                if let result = result {
+                    let transcript = result.bestTranscription.formattedString
+                    if !transcript.isEmpty {
+                        self.latestTranscript = transcript
+                        self.scheduleSilenceFinish()
+                    }
+                    if result.isFinal {
+                        self.resolveAndCleanup(transcript)
+                        return
+                    }
+                }
+
+                if let error = error, !self.settled {
+                    if !self.latestTranscript.isEmpty {
+                        self.resolveAndCleanup(self.latestTranscript)
+                    } else {
+                        self.rejectAndCleanup(
+                            code: "speech_recognition_failed",
+                            message: error.localizedDescription
+                        )
+                    }
+                }
+            }
+        }
+
+        scheduleHardTimeout()
+    }
+
+    /// Route / engine configuration changes and interruptions end the session
+    /// gracefully (keeping any transcript) instead of leaving a stale engine.
+    private func observeSessionChanges(engine: AVAudioEngine) {
+        removeSessionObservers()
+        let center = NotificationCenter.default
+        let finish: (Notification) -> Void = { [weak self] _ in
+            DispatchQueue.main.async {
+                guard let self = self, !self.settled else { return }
+                if !self.latestTranscript.isEmpty {
+                    self.resolveAndCleanup(self.latestTranscript)
+                } else {
+                    self.rejectAndCleanup(
+                        code: "audio_route_changed",
+                        message: "The audio input changed. Please try again."
+                    )
+                }
+            }
+        }
+        sessionObservers = [
+            center.addObserver(
+                forName: .AVAudioEngineConfigurationChange,
+                object: engine,
+                queue: nil,
+                using: finish
+            ),
+            center.addObserver(
+                forName: AVAudioSession.interruptionNotification,
+                object: nil,
+                queue: nil,
+                using: finish
+            ),
+            center.addObserver(
+                forName: AVAudioSession.mediaServicesWereResetNotification,
+                object: nil,
+                queue: nil,
+                using: finish
+            ),
+        ]
+    }
+
+    private func removeSessionObservers() {
+        for observer in sessionObservers {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        sessionObservers = []
     }
 
     private func scheduleSilenceFinish() {
@@ -202,10 +292,19 @@ class SpeechRecognitionModule: NSObject, RCTBridgeModule {
         silenceWorkItem = nil
         hardTimeoutWorkItem = nil
 
-        if audioEngine.isRunning {
-            audioEngine.stop()
+        removeSessionObservers()
+        // Idempotent: the tap is removed only if this session installed it, and
+        // the engine is dropped so the next session starts clean.
+        if let engine = audioEngine {
+            if engine.isRunning {
+                engine.stop()
+            }
+            if tapInstalled {
+                engine.inputNode.removeTap(onBus: 0)
+            }
         }
-        audioEngine.inputNode.removeTap(onBus: 0)
+        tapInstalled = false
+        audioEngine = nil
 
         recognitionRequest?.endAudio()
         recognitionTask?.cancel()

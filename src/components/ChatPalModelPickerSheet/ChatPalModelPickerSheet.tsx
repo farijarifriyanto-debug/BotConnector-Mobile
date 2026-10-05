@@ -12,16 +12,20 @@ import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 import {modelStore, palStore, chatSessionStore} from '../../store';
 import {CustomBackdrop} from '../Sheet/CustomBackdrop';
-import {getModelSkills, L10nContext, Model} from '../../utils';
+import {L10nContext} from '../../utils';
 import {t} from '../../locales';
 import type {Pal} from '../../types/pal';
 import {CloseIcon, SettingsIcon} from '../../assets/icons';
-import {SkillsDisplay} from '../SkillsDisplay';
+import {ModelPickerList} from '../ModelPickerList';
 
 type Tab = 'models' | 'pals';
 
 interface ChatPalModelPickerSheetProps {
   isVisible: boolean;
+  /** Tab shown when the sheet opens. Models first: Persona is optional. */
+  initialTab?: Tab;
+  /** Opens the place where a BotConnector account can be connected. */
+  onConnectAccount?: () => void;
   chatInputHeight: number;
   onClose: () => void;
   onModelSelect?: (modelId: string) => void;
@@ -29,53 +33,19 @@ interface ChatPalModelPickerSheetProps {
   onPalSettingsSelect?: (pal: Pal) => void;
 }
 
-const ObservedSkillsDisplay = observer(({model}) => {
-  const hasProjectionModelWarning =
-    model.supportsMultimodal &&
-    model.visionEnabled &&
-    modelStore.getProjectionModelStatus(model).state === 'missing';
-
-  const toggleVision = async () => {
-    if (!model.supportsMultimodal) {
-      return;
-    }
-    try {
-      await modelStore.setModelVisionEnabled(
-        model.id,
-        !modelStore.getModelVisionPreference(model),
-      );
-    } catch (error) {
-      console.error('Failed to toggle vision setting:', error);
-      // The error is already handled in setModelVisionEnabled (vision state is reverted)
-      // We could show a toast/snackbar here if needed
-    }
-  };
-  const visionEnabled = modelStore.getModelVisionPreference(model);
-
-  return (
-    <SkillsDisplay
-      model={model}
-      hasProjectionModelWarning={hasProjectionModelWarning}
-      onVisionPress={toggleVision}
-      onProjectionWarningPress={() =>
-        model.defaultProjectionModel &&
-        modelStore.checkSpaceAndDownload(model.defaultProjectionModel)
-      }
-      visionEnabled={visionEnabled}
-    />
-  );
-});
-
 export const ChatPalModelPickerSheet = observer(
   ({
     isVisible,
+    initialTab = 'models',
+    onConnectAccount,
     onClose,
     onModelSelect,
     onPalSelect,
     onPalSettingsSelect,
     chatInputHeight,
   }: ChatPalModelPickerSheetProps) => {
-    const [activeTab, setActiveTab] = React.useState<Tab>('models');
+    const [activeTab, setActiveTab] = React.useState<Tab>(initialTab);
+    const searchFocusedRef = useRef(false);
     const theme = useTheme();
     const l10n = useContext(L10nContext);
     const styles = createStyles({theme});
@@ -83,14 +53,15 @@ export const ChatPalModelPickerSheet = observer(
     const flatListRef = useRef<BottomSheetFlatListMethods>(null);
 
     const TABS = React.useMemo(
+      // Models first (index 0): the sheet must open on models, never on Pals.
       () => [
-        {
-          id: 'pals' as Tab,
-          label: l10n.components.chatPalModelPickerSheet.palsTab,
-        },
         {
           id: 'models' as Tab,
           label: l10n.components.chatPalModelPickerSheet.modelsTab,
+        },
+        {
+          id: 'pals' as Tab,
+          label: l10n.components.chatPalModelPickerSheet.palsTab,
         },
       ],
       [
@@ -111,7 +82,8 @@ export const ChatPalModelPickerSheet = observer(
       const keyboardDidShowListener = Keyboard.addListener(
         'keyboardDidShow',
         () => {
-          if (isVisible) {
+          // Typing in the model search must not close the sheet.
+          if (isVisible && !searchFocusedRef.current) {
             onClose();
           }
         },
@@ -140,19 +112,6 @@ export const ChatPalModelPickerSheet = observer(
           {label}
         </Text>
       </Pressable>
-    );
-
-    const handleModelSelect = React.useCallback(
-      async (model: (typeof modelStore.availableModels)[0]) => {
-        try {
-          onModelSelect?.(model.id);
-          onClose();
-          modelStore.selectModel(model);
-        } catch (e) {
-          console.log(`Error: ${e}`);
-        }
-      },
-      [onModelSelect, onClose],
     );
 
     const handlePalSelect = React.useCallback(
@@ -221,33 +180,6 @@ export const ChatPalModelPickerSheet = observer(
       l10n.components.chatPalModelPickerSheet.disablePal,
       handlePalSelect,
     ]);
-
-    const renderModelItem = React.useCallback(
-      (model: Model) => {
-        const isActiveModel = model.id === modelStore.activeModelId;
-        const modelSkills = getModelSkills(model)
-          .flatMap(skill => skill.labelKey)
-          .join(', ');
-        return (
-          <Pressable
-            key={model.id}
-            style={[styles.listItem, isActiveModel && styles.activeListItem]}
-            onPress={() => handleModelSelect(model)}>
-            <View style={styles.itemContent}>
-              <Text
-                style={[
-                  styles.itemTitle,
-                  isActiveModel && styles.activeItemTitle,
-                ]}>
-                {model.name}
-              </Text>
-              {modelSkills && <ObservedSkillsDisplay model={model} />}
-            </View>
-          </Pressable>
-        );
-      },
-      [styles, handleModelSelect],
-    );
 
     const getCapabilityText = React.useCallback(
       (pal: Pal): string => {
@@ -330,13 +262,31 @@ export const ChatPalModelPickerSheet = observer(
         <View style={{width: Dimensions.get('window').width}}>
           <BottomSheetScrollView
             contentContainerStyle={{paddingBottom: chatInputHeight + 66}}>
-            {item.id === 'models'
-              ? modelStore.availableModels.map(renderModelItem)
-              : [renderDisablePalItem(), ...palStore.pals.map(renderPalItem)]}
+            {item.id === 'models' ? (
+              <ModelPickerList
+                onSelected={() => {
+                  onModelSelect?.(modelStore.activeModelId ?? '');
+                  onClose();
+                }}
+                onConnectAccount={onConnectAccount}
+                onSearchFocusChange={focused => {
+                  searchFocusedRef.current = focused;
+                }}
+              />
+            ) : (
+              [renderDisablePalItem(), ...palStore.pals.map(renderPalItem)]
+            )}
           </BottomSheetScrollView>
         </View>
       ),
-      [chatInputHeight, renderDisablePalItem, renderModelItem, renderPalItem],
+      [
+        chatInputHeight,
+        renderDisablePalItem,
+        renderPalItem,
+        onModelSelect,
+        onClose,
+        onConnectAccount,
+      ],
     );
 
     const onViewableItemsChanged = React.useCallback(
@@ -385,6 +335,12 @@ export const ChatPalModelPickerSheet = observer(
         <BottomSheetFlatList
           ref={flatListRef}
           data={TABS}
+          initialScrollIndex={initialTab === 'pals' ? 1 : 0}
+          getItemLayout={(_, index) => ({
+            length: Dimensions.get('window').width,
+            offset: Dimensions.get('window').width * index,
+            index,
+          })}
           renderItem={renderContent}
           bounces={false}
           showsVerticalScrollIndicator={false}

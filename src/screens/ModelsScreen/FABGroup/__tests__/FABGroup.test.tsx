@@ -69,7 +69,9 @@ describe('FABGroup', () => {
       getByLabelText('Add Local Model', {includeHiddenElements: true}),
     ).toBeTruthy();
     expect(
-      getByLabelText('Add Remote Model', {includeHiddenElements: true}),
+      getByLabelText('Connect account or server', {
+        includeHiddenElements: true,
+      }),
     ).toBeTruthy();
   });
 });

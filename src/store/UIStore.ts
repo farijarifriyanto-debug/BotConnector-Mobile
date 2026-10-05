@@ -57,6 +57,20 @@ export class UIStore {
   // Warning state for chat-related warnings (like multimodal warnings)
   chatWarning: ErrorState | null = null;
 
+  // Chat model picker visibility. In-memory only (not persisted) so the header
+  // model name, the empty-chat CTA and the composer button share one sheet.
+  modelPickerVisible = false;
+  modelPickerTab: 'models' | 'pals' = 'models';
+
+  openModelPicker(tab: 'models' | 'pals' = 'models') {
+    this.modelPickerTab = tab;
+    this.modelPickerVisible = true;
+  }
+
+  closeModelPicker() {
+    this.modelPickerVisible = false;
+  }
+
   // Models for which the tool-compatibility banner has already been shown.
   // Persisted so each model warns at most once per device.
   toolCompatWarnedModels: string[] = [];

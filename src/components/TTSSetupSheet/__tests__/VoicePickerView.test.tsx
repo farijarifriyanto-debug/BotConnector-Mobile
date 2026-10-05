@@ -7,7 +7,7 @@ import {L10nContext} from '../../../utils';
 import {l10n} from '../../../locales';
 import {ttsStore} from '../../../store';
 
-import {VoicePickerView} from '../VoicePickerView';
+import {VoicePickerView, filterSystemVoices} from '../VoicePickerView';
 
 const renderView = () =>
   render(
@@ -28,12 +28,29 @@ describe('VoicePickerView', () => {
     });
   });
 
-  it('renders one engine group per neural engine (system hidden)', () => {
-    const {getByTestId, queryByTestId} = renderView();
+  it('renders the system voices group plus one group per neural engine', () => {
+    const {getByTestId} = renderView();
+    // System voices need no download and must always be selectable.
+    expect(getByTestId('tts-engine-group-system')).toBeTruthy();
     expect(getByTestId('tts-engine-group-kitten')).toBeTruthy();
     expect(getByTestId('tts-engine-group-kokoro')).toBeTruthy();
     expect(getByTestId('tts-engine-group-supertonic')).toBeTruthy();
-    expect(queryByTestId('tts-engine-group-system')).toBeNull();
+  });
+
+  it('filters system voices to the app language plus English', () => {
+    const voices = [
+      {
+        id: 'a',
+        name: 'Damayanti',
+        engine: 'system' as const,
+        language: 'id-ID',
+      },
+      {id: 'b', name: 'Samantha', engine: 'system' as const, language: 'en-US'},
+      {id: 'c', name: 'Thomas', engine: 'system' as const, language: 'fr-FR'},
+      {id: 'd', name: 'Samantha', engine: 'system' as const, language: 'en-US'},
+    ];
+    const out = filterSystemVoices(voices, 'id');
+    expect(out.map(v => v.id)).toEqual(['a', 'b']);
   });
 
   it('groups start collapsed when no current voice; tap expands', () => {

@@ -36,6 +36,9 @@ const SYSTEM_FONTS = defaultSystemFonts;
 const DEFAULT_TEXT_PROPS = {
   selectable: false,
   userSelect: 'none' as const,
+  // Respect Dynamic Type but cap it: uncapped scaling turned long answers into
+  // headline-sized text on phones with Larger Text enabled.
+  maxFontSizeMultiplier: 1.35,
 };
 
 // Renderer map at module scope so its identity is stable across every

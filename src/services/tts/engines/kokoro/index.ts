@@ -1,6 +1,8 @@
 import {Platform} from 'react-native';
 
 import * as RNFS from '@dr.pogodin/react-native-fs';
+
+import {guardedDownload} from '../../guardedDownload';
 import Speech, {TTSEngine} from '@pocketpalai/react-native-speech';
 
 import {
@@ -127,19 +129,14 @@ export class KokoroEngine implements Engine {
         const target = this.getFilePath(file.name);
         const fromUrl =
           'url' in file ? file.url : `${KOKORO_MODEL_BASE_URL}/${file.urlPath}`;
-        const result = await RNFS.downloadFile({
-          fromUrl,
+        const result = await guardedDownload({
+          fromUrl: fromUrl,
           toFile: target,
-          background: false,
-          discretionary: false,
-          cacheable: false,
-          progressInterval: 500,
-          progress: res => {
-            const contentLength = res.contentLength || 1;
-            corePerFile[i] = Math.min(1, res.bytesWritten / contentLength);
+          onProgress: (written, total) => {
+            corePerFile[i] = Math.min(1, written / (total || 1));
             reportCore();
           },
-        }).promise;
+        });
 
         if (result.statusCode !== 200) {
           throw new Error(
@@ -170,14 +167,10 @@ export class KokoroEngine implements Engine {
     for (const voice of KOKORO_VOICES) {
       const target = `${voicesDir}/${voice.id}.bin`;
       try {
-        const result = await RNFS.downloadFile({
+        const result = await guardedDownload({
           fromUrl: `${KOKORO_VOICES_BASE_URL}/${voice.id}.bin`,
           toFile: target,
-          background: false,
-          discretionary: false,
-          cacheable: false,
-          progressInterval: 1000,
-        }).promise;
+        });
         if (result.statusCode !== 200) {
           console.warn(
             `[KokoroEngine] voice ${voice.id} download failed: HTTP ${result.statusCode}`,

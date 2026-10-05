@@ -11,6 +11,16 @@ import {
   fetchBotConnectorClientCapabilities,
 } from '../api/botconnectorAccess';
 import {isBotConnectorApiUrl} from '../config/botconnector';
+import {
+  BotConnectorCatalog,
+  fetchBotConnectorCatalog,
+} from '../api/botconnectorCatalog';
+import {
+  catalogSupportsVision,
+  describeCloudModel,
+  CloudModelDisplay,
+  isChatCatalogEntry,
+} from '../utils/botconnectorModels';
 import {fetchServerProps, PROPS_TIMEOUT_MS} from '../api/llamaServer/props';
 import {
   ListDerivedCaps,
@@ -84,6 +94,10 @@ class ServerStore {
   // Account-level mobile capability returned only by the official BotConnector API.
   // Not persisted: every launch/foreground refresh revalidates entitlement.
   botConnectorAccess: Record<string, BotConnectorClientCapabilities> = {};
+  // Public BotConnector catalog: display names + capability tags. Not persisted.
+  botConnectorCatalog: BotConnectorCatalog = {};
+  private catalogFetchedAt = 0;
+  private catalogInFlight: Promise<void> | null = null;
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   isLoading = false;
   error: string | null = null;
@@ -93,8 +107,10 @@ class ServerStore {
   private appStateSubscription: any = null;
 
   constructor() {
-    makeAutoObservable(this, {
+    makeAutoObservable<this, 'catalogFetchedAt' | 'catalogInFlight'>(this, {
       serverModels: observable,
+      catalogFetchedAt: false,
+      catalogInFlight: false,
     });
 
     makePersistable(this, {
@@ -249,7 +265,84 @@ class ServerStore {
    * dropped with the server, so these cannot outlive the url they came from.
    */
   get listCaps(): Record<string, ListDerivedCaps> {
-    return deriveListCapsMap(this.servers, this.serverModels);
+    const map = deriveListCapsMap(this.servers, this.serverModels);
+    // BotConnector Cloud has no /props probe; its catalog is the authoritative
+    // answer for image input, so it may open the live vision axis.
+    for (const server of this.servers) {
+      if (!isBotConnectorApiUrl(server.url)) {
+        continue;
+      }
+      for (const row of this.serverModels.get(server.id) ?? []) {
+        const vision = catalogSupportsVision(row, this.botConnectorCatalog);
+        if (vision !== undefined) {
+          const key = `${server.id}/${row.id}`;
+          map[key] = {
+            ...(map[key] ?? {tier: 'list'}),
+            supportsVision: vision,
+            authoritative: true,
+          };
+        }
+      }
+    }
+    return map;
+  }
+
+  /** True for the official BotConnector Cloud server. */
+  isBotConnectorServer(serverId: string | undefined): boolean {
+    const server = this.servers.find(s => s.id === serverId);
+    return !!server && isBotConnectorApiUrl(server.url);
+  }
+
+  /**
+   * Chat models the BotConnector account may use, straight from /v1/models
+   * (entitlement), enriched with catalog names/badges. Never a hardcoded lineup.
+   */
+  cloudModelsForServer(serverId: string): CloudModelDisplay[] {
+    if (!this.isBotConnectorServer(serverId)) {
+      return [];
+    }
+    const webSearch =
+      this.botConnectorAccess[serverId]?.capabilities?.web_search === true;
+    return (this.serverModels.get(serverId) ?? [])
+      .filter(row => isChatCatalogEntry(row, this.botConnectorCatalog))
+      .map(row =>
+        describeCloudModel(row, this.botConnectorCatalog, {webSearch}),
+      );
+  }
+
+  /** Human display name for a remote model id; raw id when nothing better is known. */
+  remoteDisplayName(serverId: string, remoteModelId: string): string {
+    if (!this.isBotConnectorServer(serverId)) {
+      return remoteModelId;
+    }
+    const row = (this.serverModels.get(serverId) ?? []).find(
+      m => m.id === remoteModelId,
+    ) ?? {id: remoteModelId, object: 'model', owned_by: ''};
+    return describeCloudModel(row, this.botConnectorCatalog).displayName;
+  }
+
+  async refreshBotConnectorCatalog(force = false): Promise<void> {
+    const fresh = Date.now() - this.catalogFetchedAt < 30 * 60 * 1000;
+    if (!force && fresh && Object.keys(this.botConnectorCatalog).length) {
+      return;
+    }
+    if (this.catalogInFlight) {
+      return this.catalogInFlight;
+    }
+    this.catalogInFlight = fetchBotConnectorCatalog()
+      .then(catalog => {
+        runInAction(() => {
+          if (Object.keys(catalog).length) {
+            this.botConnectorCatalog = catalog;
+            this.catalogFetchedAt = Date.now();
+          }
+        });
+      })
+      .catch(() => undefined) // names fall back to humanized ids
+      .finally(() => {
+        this.catalogInFlight = null;
+      });
+    return this.catalogInFlight;
   }
 
   getModelsNotYetAdded(serverId: string): RemoteModelInfo[] {
@@ -377,6 +470,9 @@ class ServerStore {
       const [models] = await Promise.all([
         fetchModels(url, apiKey, server.requestTimeoutMs),
         this.refreshBotConnectorAccess(serverId, apiKey),
+        isBotConnectorApiUrl(url)
+          ? this.refreshBotConnectorCatalog()
+          : Promise.resolve(),
       ]);
 
       runInAction(() => {

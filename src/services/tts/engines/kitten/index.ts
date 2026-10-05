@@ -1,6 +1,8 @@
 import {Platform} from 'react-native';
 
 import * as RNFS from '@dr.pogodin/react-native-fs';
+
+import {guardedDownload} from '../../guardedDownload';
 import Speech, {TTSEngine} from '@pocketpalai/react-native-speech';
 
 import {
@@ -95,19 +97,14 @@ export class KittenEngine implements Engine {
       for (let i = 0; i < allFiles.length; i++) {
         const file = allFiles[i]!;
         const target = this.getFilePath(file.name);
-        const result = await RNFS.downloadFile({
+        const result = await guardedDownload({
           fromUrl: file.url,
           toFile: target,
-          background: false,
-          discretionary: false,
-          cacheable: false,
-          progressInterval: 500,
-          progress: res => {
-            const contentLength = res.contentLength || 1;
-            perFileProgress[i] = Math.min(1, res.bytesWritten / contentLength);
+          onProgress: (written, total) => {
+            perFileProgress[i] = Math.min(1, written / (total || 1));
             reportOverall();
           },
-        }).promise;
+        });
 
         if (result.statusCode !== 200) {
           throw new Error(

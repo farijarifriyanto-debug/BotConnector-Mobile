@@ -141,11 +141,15 @@ describe('VideoPalScreen', () => {
 
     // Check the call arguments
     const callArgs = alertSpy.mock.calls[0];
-    expect(callArgs[0]).toBe('Multimodal Not Enabled');
-    expect(callArgs[1]).toBe(
-      'This model does not support image analysis. Please load a multimodal model.',
+    // Localized capability message + a way to pick a vision model; the
+    // screen never switches models silently.
+    expect(callArgs[0]).toBe('This model cannot read images');
+    expect(callArgs[1]).toContain('Vision');
+    expect(callArgs[2]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({text: 'Choose a model'}),
+      ]),
     );
-    expect(callArgs[2]).toEqual(expect.any(Array));
   });
 
   it('starts camera when multimodal is enabled, allows interval change, and closes back to chat', async () => {

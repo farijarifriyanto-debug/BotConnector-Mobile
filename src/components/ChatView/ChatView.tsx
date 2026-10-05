@@ -16,7 +16,11 @@ import dayjs from 'dayjs';
 import {observer} from 'mobx-react';
 import calendar from 'dayjs/plugin/calendar';
 import {Snackbar} from 'react-native-paper';
-import {useIsFocused} from '@react-navigation/native';
+import {
+  useIsFocused,
+  useNavigation,
+  NavigationProp,
+} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
@@ -53,7 +57,8 @@ import {t} from '../../locales';
 import {getModelMemoryRequirement} from '../../utils/memoryEstimator';
 import {CONTEXT_LADDER} from '../../utils/bannerVariantResolver';
 
-import {chatSessionStore, modelStore} from '../../store';
+import {chatSessionStore, modelStore, uiStore} from '../../store';
+import {ROUTES} from '../../utils/navigationConstants';
 
 import {MessageType, User} from '../../utils/types';
 import {Pal} from '../../types/pal';
@@ -244,6 +249,7 @@ export const ChatView = observer(
     const styles = createStyles({theme});
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
+    const navigation = useNavigation<NavigationProp<any>>();
 
     // ============ REFS ============
     const animationRef = React.useRef(false);
@@ -255,7 +261,15 @@ export const ChatView = observer(
     const inputTextRef = React.useRef(inputText);
     inputTextRef.current = inputText;
     const [inputImages, setInputImages] = React.useState<string[]>([]);
-    const [isPickerVisible, setIsPickerVisible] = React.useState(false);
+    // Shared with the header model name and the empty-chat CTA (uiStore).
+    const isPickerVisible = uiStore.modelPickerVisible;
+    const setIsPickerVisible = React.useCallback((visible: boolean) => {
+      if (visible) {
+        uiStore.openModelPicker('models');
+      } else {
+        uiStore.closeModelPicker();
+      }
+    }, []);
     const [_selectedModel, setSelectedModel] = React.useState<string | null>(
       null,
     );
@@ -1079,15 +1093,21 @@ export const ChatView = observer(
     );
 
     // ============ PAL/MODEL PICKER HANDLERS ============
-    const handleModelSelect = React.useCallback((model: string) => {
-      setSelectedModel(model);
-      setIsPickerVisible(false);
-    }, []);
+    const handleModelSelect = React.useCallback(
+      (model: string) => {
+        setSelectedModel(model);
+        setIsPickerVisible(false);
+      },
+      [setIsPickerVisible],
+    );
 
-    const handlePalSelect = React.useCallback((pal: string | undefined) => {
-      setSelectedPal(pal);
-      setIsPickerVisible(false);
-    }, []);
+    const handlePalSelect = React.useCallback(
+      (pal: string | undefined) => {
+        setSelectedPal(pal);
+        setIsPickerVisible(false);
+      },
+      [setIsPickerVisible],
+    );
 
     // ============ COMPUTED VALUES ============
     const inputBackgroundColor = activePal?.color?.[1]
@@ -1208,6 +1228,11 @@ export const ChatView = observer(
             {isPickerVisible && (
               <ChatPalModelPickerSheet
                 isVisible={isPickerVisible}
+                initialTab={uiStore.modelPickerTab}
+                onConnectAccount={() => {
+                  setIsPickerVisible(false);
+                  navigation.navigate(ROUTES.MODELS);
+                }}
                 onClose={() => setIsPickerVisible(false)}
                 onModelSelect={handleModelSelect}
                 onPalSelect={handlePalSelect}

@@ -131,8 +131,8 @@
     "apiKeyPlaceholder": "Opsional - diperlukan untuk OpenAI/Groq",
     "apiKeyDescription": "Disimpan dengan aman di perangkat.",
     "connectBotConnector": "Hubungkan BotConnector",
-    "connectBotConnectorDescription": "API BotConnector sudah diatur otomatis. Tempel API key untuk memuat model yang tersedia untuk key tersebut.",
-    "connectBotConnectorLocal": "Hubungkan BotConnector Local",
+    "connectBotConnectorDescription": "API BotConnector sudah terkonfigurasi. Tempel API key sekali; model Cloud lalu muncul di pemilih model chat (ketuk nama model di header chat).",
+    "connectBotConnectorLocal": "Lanjutan: koneksi langsung ke BotConnector Local",
     "connectBotConnectorLocalDescription": "Hubungkan langsung ke BotConnector Local di laptop. Di laptop, jalankan Local API Server dengan host 0.0.0.0, port 1337, dan API key; lalu masukkan alamat LAN lokal laptop di sini. Jika Anda memang memakai Tailscale, alamat Tailscale laptop juga bisa digunakan.",
     "localDeviceUrl": "Alamat laptop",
     "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
@@ -146,7 +146,7 @@
     "serverUrlRequired": "Dibutuhkan URL server",
     "serverUrlInvalid": "Format URL tidak valid",
     "serverUrlHttpWarning": "iOS membutuhkan HTTPS untuk server non-lokal. Gunakan https:// atau alamat jaringan lokal.",
-    "addRemoteModel": "Tambahkan Model Remote",
+    "addRemoteModel": "Hubungkan akun atau server",
     "yourServers": "Server Anda",
     "orConnectNewServer": "atau sambungkan ke server baru",
     "selectModel": "Pilih Model",
@@ -198,7 +198,10 @@
       "consentRequired": "Terima pengungkapan di atas untuk mengatur kunci dan mengaktifkan pencarian.",
       "consentGivenTitle": "Pencarian web diaktifkan",
       "consentGivenDescription": "Kueri dan pembacaan halaman dapat meninggalkan perangkat Anda seperti dijelaskan di atas.",
-      "consentRevoke": "Cabut"
+      "consentRevoke": "Cabut",
+      "botconnectorTitle": "Web Search BotConnector",
+      "botconnectorDescription": "Termasuk akun BotConnector Anda dan dipakai otomatis dengan model BotConnector Cloud. Pemakaian mengikuti paket (Free mengikuti kuota Free). Tidak perlu API key search.",
+      "byokAdvanced": "Lanjutan: pakai key search sendiri (BYOK)"
     },
     "languageSheetTitle": "Bahasa",
     "languageSearchPlaceholder": "Cari bahasa",
@@ -704,14 +707,16 @@
       "inheritedSettingsFor": "Pengaturan warisan untuk {{palName}}"
     },
     "chatHeaderTitle": {
-      "defaultTitle": "Obrolan"
+      "defaultTitle": "Obrolan",
+      "chooseModel": "Pilih model",
+      "switchModel": "Ganti model"
     },
     "fileMessage": {
       "fileButtonAccessibilityLabel": "File"
     },
     "chatPalModelPickerSheet": {
       "modelsTab": "Model",
-      "palsTab": "Pal",
+      "palsTab": "Persona",
       "noPal": "Tidak Ada Pal",
       "disablePal": "Nonaktifkan pal aktif",
       "noDescription": "Tidak ada deskripsi",
@@ -1044,6 +1049,38 @@
     "toolMetrics": {
       "tokens": "{{count}} token",
       "elapsed": "{{seconds}} dtk"
+    },
+    "modelPicker": {
+      "searchPlaceholder": "Cari model",
+      "clearSearch": "Hapus pencarian",
+      "cloudSection": "BotConnector Cloud",
+      "onDeviceSection": "Di perangkat ini",
+      "customSection": "Custom / Lanjutan",
+      "cloudNotConnected": "Hubungkan akun BotConnector untuk memakai model Cloud.",
+      "connectAccount": "Hubungkan akun",
+      "loadingModels": "Memuat model…",
+      "loadFailed": "Model tidak dapat dimuat.",
+      "retry": "Coba lagi",
+      "onDevice": "Di perangkat",
+      "noResults": "Tidak ada model yang cocok.",
+      "localBridgeNote": "BotConnector Local lewat Device Bridge belum tersedia di mobile. Koneksi langsung (LAN/Tailscale) bisa ditambahkan di Settings > Lanjutan.",
+      "badges": {
+        "vision": "Vision",
+        "think": "Think",
+        "tools": "Tools",
+        "web": "Web"
+      },
+      "access": {
+        "free": "Free",
+        "plan": "Paket",
+        "payg": "PAYG",
+        "family": "Family"
+      }
+    },
+    "voiceInput": {
+      "title": "Input suara",
+      "permissionDenied": "Akses mikrofon atau pengenalan suara dimatikan. Aktifkan di Pengaturan untuk mendikte pesan.",
+      "openSettings": "Buka Pengaturan"
     }
   },
   "palsScreen": {
@@ -1155,7 +1192,10 @@
     "startCamera": "Mulai Kamera",
     "stopCamera": "Hentikan Kamera",
     "promptPlaceholder": "Apa yang ingin Anda ketahui tentang gambar ini?",
-    "takePhoto": "Kamera"
+    "takePhoto": "Kamera",
+    "noVisionTitle": "Model ini tidak mendukung gambar",
+    "noVisionMessage": "Model aktif tidak mendukung gambar/kamera. Ganti ke model dengan badge Vision untuk mengirim foto.",
+    "chooseVisionModel": "Pilih model"
   },
   "video": {
     "permissionTitle": "Izin Kamera Diperlukan",

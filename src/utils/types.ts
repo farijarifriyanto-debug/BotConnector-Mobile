@@ -499,6 +499,12 @@ export interface RemoteModelInfo {
   architecture?: {input_modalities?: string[]; output_modalities?: string[]};
   meta?: {n_ctx?: number; n_ctx_train?: number; [key: string]: unknown};
   capabilities?: string[];
+  /** BotConnector Cloud only: how the account may use this model. */
+  botconnector_access?: string;
+  /** BotConnector Cloud only: verified runtime capabilities (tools, reasoning). */
+  botconnector_capabilities?: {tools?: boolean; reasoning?: boolean};
+  /** BotConnector Cloud only: canonical model id behind a route id such as `payg:provider:model`. */
+  botconnector_canonical_model?: string;
 }
 
 /**
@@ -539,6 +545,12 @@ export interface ListDerivedCaps {
   tier: 'list';
   supportsVision?: boolean;
   contextLength?: number;
+  /**
+   * True when the list answer comes from the provider's own authoritative
+   * catalog (BotConnector Cloud). Such a list can open the live session's
+   * vision axis even though no /props probe exists for that server.
+   */
+  authoritative?: boolean;
 }
 
 /**

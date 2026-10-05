@@ -438,18 +438,24 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             </Text>
           </View>
 
-          <View style={styles.inputSpacing}>
-            <Button
-              testID="botconnector-local-preset-button"
-              mode={isBotConnectorLocalPreset ? 'contained-tonal' : 'outlined'}
-              icon="laptop"
-              onPress={handleBotConnectorLocalPreset}>
-              {l10n.settings.connectBotConnectorLocal}
-            </Button>
-            <Text style={styles.apiKeyDescription}>
-              {l10n.settings.connectBotConnectorLocalDescription}
-            </Text>
-          </View>
+          {/* The Cloud form stays Cloud-only; the direct Local connection is
+              an advanced option shown when the Cloud preset is not active. */}
+          {!isBotConnectorPreset && (
+            <View style={styles.inputSpacing}>
+              <Button
+                testID="botconnector-local-preset-button"
+                mode={
+                  isBotConnectorLocalPreset ? 'contained-tonal' : 'outlined'
+                }
+                icon="laptop"
+                onPress={handleBotConnectorLocalPreset}>
+                {l10n.settings.connectBotConnectorLocal}
+              </Button>
+              <Text style={styles.apiKeyDescription}>
+                {l10n.settings.connectBotConnectorLocalDescription}
+              </Text>
+            </View>
+          )}
 
           {/* Known Server Chips */}
           {serverStore.servers.length > 0 && (

@@ -84,7 +84,14 @@ export function resolveModelCaps(
         positive(confirmed.contextLength) ?? positive(listed?.contextLength),
       // The session axis reads the probe alone: a listed value describes how
       // the server is configured, never what the live session can do.
-      visionActive: isActiveModel && confirmed.supportsVision === true,
+      // An authoritative provider catalog (BotConnector Cloud) answers for the
+      // session too: that server has no /props probe to confirm it.
+      visionActive:
+        isActiveModel &&
+        (confirmed.supportsVision === true ||
+          (confirmed.supportsVision === undefined &&
+            listed?.authoritative === true &&
+            listed.supportsVision === true)),
       effectiveContextLength: isActiveModel
         ? positive(confirmed.contextLength)
         : undefined,

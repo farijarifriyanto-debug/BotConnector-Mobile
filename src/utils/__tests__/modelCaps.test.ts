@@ -36,6 +36,51 @@ describe('resolveModelCaps', () => {
   });
 
   describe('remote', () => {
+    it('opens the live vision axis from an authoritative catalog (BotConnector Cloud)', () => {
+      const listed: ListDerivedCaps = {
+        tier: 'list',
+        supportsVision: true,
+        authoritative: true,
+      };
+      const caps = resolveModelCaps(
+        remoteModel(),
+        env({
+          listCaps: {'srv/gemma-4-e2b': listed},
+          activeModelId: 'srv/gemma-4-e2b',
+        }),
+      );
+      expect(caps.vision).toBe('yes');
+      expect(caps.visionActive).toBe(true);
+    });
+
+    it('keeps a non-authoritative list answer off the live vision axis', () => {
+      const listed: ListDerivedCaps = {tier: 'list', supportsVision: true};
+      const caps = resolveModelCaps(
+        remoteModel(),
+        env({
+          listCaps: {'srv/gemma-4-e2b': listed},
+          activeModelId: 'srv/gemma-4-e2b',
+        }),
+      );
+      expect(caps.visionActive).toBe(false);
+    });
+
+    it('lets an authoritative "no vision" stay closed', () => {
+      const listed: ListDerivedCaps = {
+        tier: 'list',
+        supportsVision: false,
+        authoritative: true,
+      };
+      const caps = resolveModelCaps(
+        remoteModel(),
+        env({
+          listCaps: {'srv/gemma-4-e2b': listed},
+          activeModelId: 'srv/gemma-4-e2b',
+        }),
+      );
+      expect(caps.visionActive).toBe(false);
+    });
+
     it.each([
       [true, 'yes', true],
       [false, 'no', false],

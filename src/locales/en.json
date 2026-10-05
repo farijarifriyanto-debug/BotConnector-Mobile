@@ -150,7 +150,10 @@
       "consentRequired": "Accept the disclosure above to set a key and enable search.",
       "consentGivenTitle": "Searching the web is enabled",
       "consentGivenDescription": "Queries and page reads may leave your device as described above.",
-      "consentRevoke": "Revoke"
+      "consentRevoke": "Revoke",
+      "botconnectorTitle": "BotConnector Web Search",
+      "botconnectorDescription": "Included with your BotConnector account and used automatically with BotConnector Cloud models. Usage follows your plan (Free follows the Free quota). No search API key needed.",
+      "byokAdvanced": "Advanced: use your own search key (BYOK)"
     },
     "apiSettingsTitle": "API Settings",
     "huggingFaceTokenLabel": "Hugging Face Token",
@@ -180,8 +183,8 @@
     "apiKeyPlaceholder": "Optional - required for OpenAI/Groq",
     "apiKeyDescription": "Stored securely on device.",
     "connectBotConnector": "Connect BotConnector",
-    "connectBotConnectorDescription": "BotConnector API is preconfigured. Paste your API key to load the models available to that key.",
-    "connectBotConnectorLocal": "Connect BotConnector Local",
+    "connectBotConnectorDescription": "BotConnector API is preconfigured. Paste your API key once; your Cloud models then appear in the chat model picker (tap the model name in the chat header).",
+    "connectBotConnectorLocal": "Advanced: direct connection to BotConnector Local",
     "connectBotConnectorLocalDescription": "Connect directly to BotConnector Local on your laptop. On the laptop, start Local API Server with host 0.0.0.0, port 1337, and an API key; then enter its local LAN address here. If you already use Tailscale, you can use the laptop's Tailscale address instead.",
     "localDeviceUrl": "Laptop address",
     "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
@@ -195,7 +198,7 @@
     "serverUrlRequired": "Server URL is required",
     "serverUrlInvalid": "Invalid URL format",
     "serverUrlHttpWarning": "iOS requires HTTPS for non-local servers. Use https:// or a local network address.",
-    "addRemoteModel": "Add Remote Model",
+    "addRemoteModel": "Connect account or server",
     "yourServers": "Your Servers",
     "orConnectNewServer": "or connect new server",
     "selectModel": "Select Model",
@@ -732,14 +735,16 @@
       "inheritedSettingsFor": "Inherited settings for {{palName}}"
     },
     "chatHeaderTitle": {
-      "defaultTitle": "Chat"
+      "defaultTitle": "Chat",
+      "chooseModel": "Choose a model",
+      "switchModel": "Switch model"
     },
     "fileMessage": {
       "fileButtonAccessibilityLabel": "File"
     },
     "chatPalModelPickerSheet": {
       "modelsTab": "Models",
-      "palsTab": "Pals",
+      "palsTab": "Persona",
       "noPal": "No Pal",
       "disablePal": "Disable active pal",
       "noDescription": "No description",
@@ -1032,7 +1037,12 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": ["Bytes", "KB", "MB", "GB"]
+      "byteSizes": [
+        "Bytes",
+        "KB",
+        "MB",
+        "GB"
+      ]
     },
     "chatView": {
       "menuItems": {
@@ -1048,6 +1058,38 @@
       "importPals": "Import pals",
       "importSuccess": "Successfully imported {{count}} pal(s).",
       "importError": "Failed to import pals. Please check the file format."
+    },
+    "modelPicker": {
+      "searchPlaceholder": "Search models",
+      "clearSearch": "Clear search",
+      "cloudSection": "BotConnector Cloud",
+      "onDeviceSection": "On this device",
+      "customSection": "Custom / Advanced",
+      "cloudNotConnected": "Connect your BotConnector account to use Cloud models.",
+      "connectAccount": "Connect account",
+      "loadingModels": "Loading models…",
+      "loadFailed": "Could not load models.",
+      "retry": "Retry",
+      "onDevice": "On-device",
+      "noResults": "No models match your search.",
+      "localBridgeNote": "BotConnector Local through Device Bridge is not available on mobile yet. A direct connection (LAN/Tailscale) can be added under Settings > Advanced.",
+      "badges": {
+        "vision": "Vision",
+        "think": "Think",
+        "tools": "Tools",
+        "web": "Web"
+      },
+      "access": {
+        "free": "Free",
+        "plan": "Plan",
+        "payg": "PAYG",
+        "family": "Family"
+      }
+    },
+    "voiceInput": {
+      "title": "Voice input",
+      "permissionDenied": "Microphone or speech recognition access is off. Turn it on in Settings to dictate messages.",
+      "openSettings": "Open Settings"
     }
   },
   "palsScreen": {
@@ -1159,7 +1201,10 @@
     "startCamera": "Start Camera",
     "stopCamera": "Stop Camera",
     "promptPlaceholder": "What do you want to know about this image?",
-    "takePhoto": "Camera"
+    "takePhoto": "Camera",
+    "noVisionTitle": "This model cannot read images",
+    "noVisionMessage": "The active model does not support images or the camera. Switch to a model with the Vision badge to send photos.",
+    "chooseVisionModel": "Choose a model"
   },
   "video": {
     "permissionTitle": "Camera Permission Required",

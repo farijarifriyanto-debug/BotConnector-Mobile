@@ -23,6 +23,10 @@ import {
 
 import {uiStore, hfStore} from '.';
 import {serverStore} from './ServerStore';
+import {
+  BOTCONNECTOR_REQUEST_TIMEOUT_MS,
+  isBotConnectorApiUrl,
+} from '../config/botconnector';
 import {chatSessionStore} from './ChatSessionStore';
 import {
   draftCacheDefaults,
@@ -2666,13 +2670,17 @@ class ModelStore {
       if (!server) {
         continue;
       }
-      // Use the remote model ID as the display name
+      // BotConnector Cloud ids can be internal route ids (payg:provider:model):
+      // show the catalog/humanized name; other servers keep their raw id.
       models.push(
         createRemoteModel({
           serverId: selected.serverId,
           serverName: server.name,
           remoteModelId: selected.remoteModelId,
-          modelName: selected.remoteModelId,
+          modelName: serverStore.remoteDisplayName(
+            selected.serverId,
+            selected.remoteModelId,
+          ),
         }),
       );
     }
@@ -2712,7 +2720,11 @@ class ModelStore {
         url: server.url,
         remoteModelId: model.remoteModelId!,
         apiKey,
-        timeoutMs: server.requestTimeoutMs,
+        timeoutMs:
+          server.requestTimeoutMs ??
+          (isBotConnectorApiUrl(server.url)
+            ? BOTCONNECTOR_REQUEST_TIMEOUT_MS
+            : undefined),
         serverType,
       });
       this.activeRemoteBinding = {
@@ -3772,12 +3784,17 @@ class ModelStore {
     onComplete?: (text: string) => void;
     onError?: (error: Error) => void;
   }): Promise<void> => {
-    if (!this.context) {
+    // Remote (e.g. BotConnector Cloud) vision models run through the same
+    // completion engine as chat; only local models need a loaded context.
+    const remote = !this.context && !!this.engine && !!this.activeRemoteBinding;
+    if (!this.context && !remote) {
       throw new Error('No model context available');
     }
 
     // Check if multimodal is enabled
-    if (!this.isMultimodalActive) {
+    if (
+      remote ? !this.activeModelCaps.visionActive : !this.isMultimodalActive
+    ) {
       throw new Error('Multimodal is not enabled for this model');
     }
 
@@ -3802,9 +3819,10 @@ class ModelStore {
         throw new Error('No images provided for multimodal completion');
       }
 
-      // Process all image paths to handle file:// prefix
+      // Process all image paths to handle file:// prefix (llama.rn only; the
+      // remote client inlines local files and data: urls itself).
       const processedImagePaths = imagePaths.map(path =>
-        path.startsWith('file://')
+        !remote && path.startsWith('file://')
           ? Platform.OS === 'ios'
             ? path.substring(7) // iOS: remove 'file://'
             : path // Android: keep as is
@@ -3860,14 +3878,14 @@ class ModelStore {
       );
 
       // Create the completion promise and register it for safe context release
-      const completionPromise = this.context.completion(
-        cleanCompletionParams,
-        data => {
-          if (data.token) {
-            params.onToken?.(data.token);
-          }
-        },
-      );
+      const onData = (data: {token?: string}) => {
+        if (data.token) {
+          params.onToken?.(data.token);
+        }
+      };
+      const completionPromise = this.context
+        ? this.context.completion(cleanCompletionParams, onData)
+        : this.engine!.completion(cleanCompletionParams, onData);
 
       // Register the promise so releaseContext can wait for it
       this.registerCompletionPromise(completionPromise);

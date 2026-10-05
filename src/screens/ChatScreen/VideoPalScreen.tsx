@@ -4,7 +4,7 @@ import {observer} from 'mobx-react';
 import {ChatView, EmbeddedVideoView} from '../../components';
 import {PalSheet} from '../../components/PalsSheets';
 import {L10nContext, UserContext, safeAlert} from '../../utils';
-import {modelStore, palStore} from '../../store';
+import {modelStore, palStore, uiStore} from '../../store';
 import {Pal} from '../../types/pal';
 import 'react-native-get-random-values';
 import {user as defaultUser} from '../../utils/chat';
@@ -108,7 +108,9 @@ export const VideoPalScreen = observer(({activePal}: VideoPalScreenProps) => {
 
   // Handle starting the camera
   const handleStartCamera = useCallback(async () => {
-    if (!modelStore.context) {
+    // A Cloud model needs no local load: it runs through the remote engine.
+    const remoteReady = !!modelStore.engine && !!modelStore.activeRemoteBinding;
+    if (!modelStore.context && !remoteReady) {
       safeAlert(l10n.chat.modelNotLoaded, l10n.chat.pleaseLoadModel, [
         {
           text: l10n.common.ok,
@@ -117,30 +119,19 @@ export const VideoPalScreen = observer(({activePal}: VideoPalScreenProps) => {
       return;
     }
 
-    // Check if multimodal is enabled
-    try {
-      if (!modelStore.activeModelCaps.visionActive) {
-        safeAlert(
-          'Multimodal Not Enabled',
-          'This model does not support image analysis. Please load a multimodal model.',
-          [
-            {
-              text: l10n.common.ok,
-            },
-          ],
-        );
-        return;
-      }
-
-      setIsCameraActive(true);
-    } catch (error) {
-      console.error('Error checking multimodal capability:', error);
-      safeAlert('Error', 'Failed to check if model supports images.', [
+    // The active model must read images; never switch models silently.
+    if (!modelStore.activeModelCaps.visionActive) {
+      safeAlert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
+        {text: l10n.common.cancel, style: 'cancel'},
         {
-          text: l10n.common.ok,
+          text: l10n.camera.chooseVisionModel,
+          onPress: () => uiStore.openModelPicker('models'),
         },
       ]);
+      return;
     }
+
+    setIsCameraActive(true);
   }, [l10n]);
 
   // Handle stopping the camera

@@ -1,6 +1,8 @@
 import {Platform} from 'react-native';
 
 import * as RNFS from '@dr.pogodin/react-native-fs';
+
+import {guardedDownload} from '../../guardedDownload';
 import Speech, {
   TTSEngine,
   type SupertonicLanguage,
@@ -189,19 +191,14 @@ export class SupertonicEngine implements Engine {
       for (let i = 0; i < SUPERTONIC_MODEL_FILES.length; i++) {
         const file = SUPERTONIC_MODEL_FILES[i]!;
         const target = this.getFilePath(file.name);
-        const result = await RNFS.downloadFile({
+        const result = await guardedDownload({
           fromUrl: `${SUPERTONIC_MODEL_BASE_URL}/${file.urlPath}`,
           toFile: target,
-          background: false,
-          discretionary: false,
-          cacheable: false,
-          progressInterval: 500,
-          progress: res => {
-            const contentLength = res.contentLength || 1;
-            corePerFile[i] = Math.min(1, res.bytesWritten / contentLength);
+          onProgress: (written, total) => {
+            corePerFile[i] = Math.min(1, written / (total || 1));
             reportCore();
           },
-        }).promise;
+        });
 
         if (result.statusCode !== 200) {
           throw new Error(
@@ -221,14 +218,10 @@ export class SupertonicEngine implements Engine {
       for (const voice of SUPERTONIC_VOICES) {
         const target = this.getFilePath(`${voice.id}.json`);
         try {
-          const result = await RNFS.downloadFile({
+          const result = await guardedDownload({
             fromUrl: `${SUPERTONIC_VOICES_BASE_URL}/${voice.id}.json`,
             toFile: target,
-            background: false,
-            discretionary: false,
-            cacheable: false,
-            progressInterval: 1000,
-          }).promise;
+          });
           if (result.statusCode !== 200) {
             console.warn(
               `[SupertonicEngine] voice ${voice.id} download failed: HTTP ${result.statusCode}`,

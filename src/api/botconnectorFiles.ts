@@ -98,6 +98,13 @@ export async function uploadBotConnectorFile({
   } catch {
     // Handled by the status check below.
   }
+  if (response.statusCode === 413) {
+    // The gateway can reject large uploads before the API sees them (HTML 413).
+    throw new Error(
+      payload?.error?.message ||
+        'This file is larger than the server currently accepts. Try a smaller file or split it.',
+    );
+  }
   if (response.statusCode < 200 || response.statusCode >= 300) {
     throw new Error(
       payload?.error?.message ||

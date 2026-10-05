@@ -35,6 +35,21 @@ jest.mock('../../../store', () => ({
       state: 'not_needed',
     }),
     getModelVisionPreference: jest.fn().mockReturnValue(true),
+    remoteModels: [],
+  },
+  serverStore: {
+    servers: [],
+    serverModels: new Map(),
+    botConnectorCatalog: {},
+    isLoading: false,
+    error: null,
+    isBotConnectorServer: () => false,
+    cloudModelsForServer: () => [],
+    fetchAllRemoteModels: jest.fn(),
+    addUserSelectedModel: jest.fn(),
+  },
+  uiStore: {
+    openModelPicker: jest.fn(),
   },
   palStore: {
     pals: [
@@ -85,6 +100,8 @@ jest.mock('@gorhom/bottom-sheet', () => {
         {testID: 'bottom-sheet-scrollview'},
         children,
       ),
+    BottomSheetTextInput: (props: any) =>
+      mockReact.createElement('TextInput', props),
     BottomSheetView: ({children}: any) =>
       mockReact.createElement(
         'View',
