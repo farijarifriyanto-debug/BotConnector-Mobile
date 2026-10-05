@@ -651,6 +651,7 @@ export type DraftConfig =
 
 export type RootDrawerParamList = {
   Chat: undefined;
+  'AI Images': undefined;
   Models: undefined;
   Settings: undefined;
 };

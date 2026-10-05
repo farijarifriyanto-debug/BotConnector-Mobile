@@ -1,1 +1,1 @@
-PocketPal AI
+BotConnector

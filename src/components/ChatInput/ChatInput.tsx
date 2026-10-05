@@ -48,6 +48,7 @@ import {
 import {MessageType} from '../../utils/types';
 import {L10nContext, UserContext} from '../../utils';
 import {t} from '../../locales';
+import {recognizeSpeechOnce} from '../../utils/speechRecognition';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {
   BOTCONNECTOR_FILE_MAX_COUNT,
@@ -209,6 +210,7 @@ export const ChatInput = observer(
     const [showImageUploadMenu, setShowImageUploadMenu] = React.useState(false);
     // State for showing "model not loaded" helper text
     const [showModelWarning, setShowModelWarning] = React.useState(false);
+    const [isVoiceInputActive, setIsVoiceInputActive] = React.useState(false);
     const isEditMode = chatSessionStore.isEditMode;
 
     const styles = createStyles({theme, isEditMode});
@@ -255,6 +257,31 @@ export const ChatInput = observer(
       } else {
         setText(newText);
         textInputProps?.onChangeText?.(newText);
+      }
+    };
+
+    const handleVoiceInput = async () => {
+      if (isVoiceInputActive || isStreaming || isCameraActive) {
+        return;
+      }
+      setIsVoiceInputActive(true);
+      try {
+        const transcript = (await recognizeSpeechOnce(uiStore.language)).trim();
+        if (transcript) {
+          const next = value.trim()
+            ? `${value.trimEnd()} ${transcript}`
+            : transcript;
+          handleChangeText(next);
+          inputRef.current?.focus();
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : 'Voice input failed.';
+        if (!/cancel/i.test(message)) {
+          Alert.alert('Voice input', message);
+        }
+      } finally {
+        setIsVoiceInputActive(false);
       }
     };
 
@@ -1053,6 +1080,28 @@ export const ChatInput = observer(
                   </Text>
                 </View>
               )}
+
+              <IconButton
+                testID="voice-input-button"
+                icon={
+                  isVoiceInputActive
+                    ? 'microphone-settings'
+                    : 'microphone-outline'
+                }
+                size={20}
+                disabled={isVoiceInputActive || isStreaming || isCameraActive}
+                iconColor={
+                  isVoiceInputActive
+                    ? theme.colors.primary
+                    : theme.colors.onSurfaceVariant
+                }
+                onPress={() => handleVoiceInput().catch(() => undefined)}
+                accessibilityLabel={
+                  isVoiceInputActive
+                    ? 'Listening for voice input'
+                    : 'Voice input'
+                }
+              />
 
               {/* Voice chip (TTS) — always present so users can stop
                   audio independently of text generation. Self-gates:

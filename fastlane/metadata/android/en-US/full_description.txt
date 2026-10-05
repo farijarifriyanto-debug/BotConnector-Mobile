@@ -1,41 +1,36 @@
-Your AI. No one else's.
+BotConnector brings cloud AI and local AI into one mobile app.
 
-PocketPal runs large language models directly on your phone. No servers. No internet. No data leaves your device. Ever.
+Connect your BotConnector API key to use the models available to your account, or connect compatible AI servers directly. BotConnector Local can run models from your own laptop over your local network or Tailscale when you choose to use it.
 
-This is AI you own — not AI you rent.
+FEATURES
 
-WHAT YOUR PHONE NEEDS
+• Chat with BotConnector Cloud models
+• Connect OpenAI-compatible remote AI servers
+• Connect BotConnector Local on your own laptop
+• Run supported local models directly on your phone
+• Generate AI images with BotConnector image models and account quotas
+• Attach photos and documents to supported BotConnector Cloud models
+• Web search and tool calling when supported by the selected model and account
+• Thinking/reasoning controls for compatible models
+• Voice input for dictating messages
+• Text-to-speech with system and optional local voice engines
+• Vision input from camera or photo library
+• Download and manage supported Hugging Face/GGUF local models
+• Benchmark local model performance on your device
+• Multiple languages, including Indonesian and English
 
-Modern phones are powerful enough to run real AI. PocketPal uses that power.
+PRIVACY AND DATA ROUTING
 
-You'll need 6GB+ RAM for smaller models, 8GB+ for the good stuff. Flagship and recent mid-range phones from the last 2-3 years run models well. Older or budget devices won't cut it — this is real inference, not a cloud wrapper.
+Local models can process supported conversations on your device. When you choose BotConnector Cloud, another remote server, web search, AI image generation, or another online feature, the relevant request leaves your device and is processed by the selected service.
 
-Not sure? Download a small model and benchmark it. The app will show you exactly what your device can handle.
+Remote server credentials are stored securely on the device. The app shows remote-server privacy information before connection.
 
-WHAT YOU GET
+BOTCONNECTOR ACCOUNT ACCESS
 
-- Hundreds of open-source models from HuggingFace, downloaded directly to your device
-- Complete offline operation — airplane mode, no signal, underground, anywhere
-- Zero data transmission. Zero telemetry. Verify it yourself: we're open source
-- Full control over model parameters — temperature, context length, system prompts
-- Built-in benchmarking to test model performance on your hardware
-- Metal acceleration on iOS, NNAPI on Android
-- Pals — AI personas from Palshub.ai that give models personality and purpose
+Available cloud models, media models, tools, file processing, quotas, and PAYG access depend on your BotConnector account and API key. The server remains the authority for access and quota enforcement.
 
-WHAT THIS IS NOT
+LOCAL AI
 
-This is not ChatGPT. Cloud AI has trillion-parameter models running on server farms. Your phone runs smaller models locally. The trade-off is real — and it's one we're proud of.
+Local AI remains optional. You can download compatible models to the phone or connect BotConnector Local running on your own computer. Device performance and supported model size depend on available RAM, storage, and hardware acceleration.
 
-You get something no cloud service can offer: conversations that exist only on your device, AI that works without internet, and complete freedom to run any model you choose. No content policies imposed by us. No behavioral guardrails we decided for you. Your rules.
-
-WHO THIS IS FOR
-
-People who stopped trusting the cloud with their conversations. People who want AI that works on a plane, in a tunnel, off the grid. People who care about what runs on their own hardware.
-
-If you're looking for the "best" AI at any cost and don't care about privacy — use ChatGPT. It's great at what it does.
-
-If you want AI that's yours, PocketPal is how you get it.
-
-OPEN SOURCE
-
-Every line of code is public on GitHub. Our privacy claims aren't marketing — they're verifiable. If you don't trust us, read the source. That's the point.
+BotConnector is developed at botconnector.id.

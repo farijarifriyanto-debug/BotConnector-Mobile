@@ -37,6 +37,7 @@ import {MarkdownProvider} from './src/components/MarkdownView';
 import {AutomationBridge, BenchmarkRunnerScreen} from './src/__automation__';
 import {
   ChatScreen,
+  ImageGenerationScreen,
   ModelsScreen,
   SettingsScreen,
   BenchmarkScreen,
@@ -135,6 +136,19 @@ const App = observer(() => {
                             }}
                           />
                           <Drawer.Screen
+                            name={ROUTES.IMAGES}
+                            component={gestureHandlerRootHOC(
+                              ImageGenerationScreen,
+                            )}
+                            options={{
+                              headerStyle: styles.headerWithoutDivider,
+                              title:
+                                uiStore.language === 'id'
+                                  ? 'Gambar AI'
+                                  : 'AI Images',
+                            }}
+                          />
+                          <Drawer.Screen
                             name={ROUTES.PALS}
                             component={gestureHandlerRootHOC(PalsScreen)}
                             options={{
@@ -193,7 +207,7 @@ const App = observer(() => {
                       E2E-only deep-link-driven benchmark matrix runner.
                       Hidden from the drawer sidebar via
                       drawerItemStyle:{display:'none'}; reachable only by
-                      the deep link pocketpal://e2e/benchmark in the e2e
+                      the deep link botconnector://e2e/benchmark in the e2e
                       flavor build (see useDeepLinking cold-launch effect
                       and android/app/src/e2e/AndroidManifest.xml).
                     */}

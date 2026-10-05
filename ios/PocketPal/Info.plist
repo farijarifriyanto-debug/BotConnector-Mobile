@@ -57,15 +57,19 @@
 		<true/>
 	</dict>
 	<key>NSCameraUsageDescription</key>
-	<string>BotConnector uses your camera to capture images and video for local AI analysis only. All processing happens on your device and no images are transmitted to external servers.</string>
+	<string>BotConnector uses your camera when you choose to capture images or video for AI conversations. Content may be processed on your device or sent to the AI provider you select.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>BotConnector connects to BotConnector Local and other AI servers you run on your own network when you add them as remote endpoints.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>BotConnector uses the microphone only when you tap the microphone button to dictate a message.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>BotConnector uses system speech recognition to turn your spoken words into text when you choose voice input.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>BotConnector never requests or collects your location. A bundled camera library references the system location API to offer optional photo geotagging, which BotConnector leaves turned off.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>BotConnector accesses your photo library to select images for local AI analysis only. Selected images are processed entirely on your device and are never transmitted to external servers.</string>
+	<string>BotConnector accesses your photo library only when you choose an image for an AI conversation. Selected content may be processed on your device or sent to the AI provider you select.</string>
 	<key>NSSiriUsageDescription</key>
-	<string>BotConnector uses Siri to let you ask questions to your AI Pals using voice commands.</string>
+	<string>BotConnector uses Siri when you choose to start an AI conversation with a voice command.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIAppFonts</key>
