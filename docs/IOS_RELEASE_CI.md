@@ -29,12 +29,22 @@ base64 < GoogleService-Info.plist | tr -d '\n'
 
 Do not commit the plist, API private key, certificates, or generated `ios/Config/Env.xcconfig`.
 
-## First build
+## First build without Apple signing
 
 1. Connect the GitHub repository in Codemagic.
-2. Add the `botconnector_ios` environment group.
-3. Select workflow **BotConnector iOS TestFlight**.
+2. Select branch `chore/release-pipeline`.
+3. Select workflow **BotConnector iOS Simulator Smoke**.
 4. Run the workflow.
-5. The workflow fetches/creates App Store signing files for `id.botconnector.app`, builds a signed IPA, and uploads it to TestFlight.
 
-Before each release, `scripts/release-preflight.sh` verifies the public app identity and that secret iOS files are not tracked.
+This workflow does not require Apple Developer signing credentials. It creates CI-only placeholder Firebase/Xcode environment files, builds an unsigned iOS Simulator app, and proves that the native iOS project can compile on a real macOS runner.
+
+## TestFlight build
+
+After Apple Developer / App Store Connect credentials are ready:
+
+1. Add the encrypted `botconnector_ios` environment group described above.
+2. Select workflow **BotConnector iOS TestFlight**.
+3. Run the workflow.
+4. The workflow fetches/creates App Store signing files for `id.botconnector.app`, builds a signed IPA, and uploads it to TestFlight.
+
+Before each build, `scripts/release-preflight.sh` verifies the public app identity and that secret iOS files are not tracked.
