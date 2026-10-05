@@ -33,6 +33,7 @@ import Reanimated, {
   withTiming,
   useAnimatedScrollHandler,
   useDerivedValue,
+  runOnJS,
 } from 'react-native-reanimated';
 
 import {useComponentSize} from '../KeyboardAccessoryView/hooks';
@@ -461,6 +462,13 @@ export const ChatView = observer(
     // Shared values for tracking scroll position and content overflow
     const underflow = useSharedValue(true);
     const atLatest = useSharedValue(true);
+    // JS mirror used by content-size changes during token streaming. The
+    // Reanimated shared value drives button visibility, while this ref keeps
+    // auto-follow from fighting a user who intentionally scrolled upward.
+    const followLatestRef = React.useRef(true);
+    const setFollowLatest = React.useCallback((value: boolean) => {
+      followLatestRef.current = value;
+    }, []);
 
     const STICK = 24;
     const LEAVE = 40;
@@ -481,13 +489,20 @@ export const ChatView = observer(
         const clampedY = Math.min(Math.max(y, 0), maxY);
 
         if (underflow.value) {
-          atLatest.value = true;
+          if (!atLatest.value) {
+            atLatest.value = true;
+            runOnJS(setFollowLatest)(true);
+          }
           return;
         }
         if (atLatest.value) {
-          if (clampedY > LEAVE) atLatest.value = false;
-        } else {
-          if (clampedY < STICK) atLatest.value = true;
+          if (clampedY > LEAVE) {
+            atLatest.value = false;
+            runOnJS(setFollowLatest)(false);
+          }
+        } else if (clampedY < STICK) {
+          atLatest.value = true;
+          runOnJS(setFollowLatest)(true);
         }
       },
     });
@@ -505,11 +520,22 @@ export const ChatView = observer(
 
     // Scroll to bottom handler
     const scrollToBottom = React.useCallback(() => {
+      followLatestRef.current = true;
       list.current?.scrollToOffset({
         animated: true,
         offset: 0,
       });
     }, []);
+
+    const handleContentSizeChange = React.useCallback(() => {
+      // In an inverted list the newest message lives at offset 0. Streaming
+      // mutates the height of that same row without changing its id, so the
+      // "new message" effect below never fires. Keep following only while the
+      // user is already at the latest turn; use no animation per token.
+      if (isStreaming && followLatestRef.current) {
+        list.current?.scrollToOffset({animated: false, offset: 0});
+      }
+    }, [isStreaming]);
 
     // ============ MESSAGE PROCESSING & CALCULATIONS ============
     // Calculate chat messages with date headers and user names
@@ -522,6 +548,40 @@ export const ChatView = observer(
     });
 
     const previousChatMessages = usePrevious(chatMessages);
+
+    // Streaming mutates the latest assistant row in place. FlatList does not
+    // reliably emit onContentSizeChange for every token/layout pass, so keep a
+    // lightweight signature of the newest turn and explicitly follow it only
+    // while the user is still at the latest message.
+    const latestAssistantStreamSignature = React.useMemo(() => {
+      const latest = chatMessages[0];
+      if (!latest || latest.type !== 'assistant_turn') {
+        return '';
+      }
+      return latest.steps
+        .map(step =>
+          [
+            step.content?.length ?? 0,
+            step.reasoningContent?.length ?? 0,
+            step.toolCalls?.length ?? 0,
+            step.toolOutcomes?.length ?? 0,
+            step.partial ? 1 : 0,
+          ].join(':'),
+        )
+        .join('|');
+    }, [chatMessages]);
+
+    React.useEffect(() => {
+      if (!isStreaming || !followLatestRef.current || !latestAssistantStreamSignature) {
+        return;
+      }
+      const frame = requestAnimationFrame(() => {
+        if (followLatestRef.current) {
+          list.current?.scrollToOffset({animated: false, offset: 0});
+        }
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [isStreaming, latestAssistantStreamSignature]);
 
     // ============ MESSAGE INPUT HANDLERS ============
     const wrappedOnSendPress = React.useCallback(
@@ -562,6 +622,7 @@ export const ChatView = observer(
         chatMessages[0]?.id !== previousChatMessages?.[0]?.id &&
         chatMessages[0]?.author?.id === user.id
       ) {
+        followLatestRef.current = true;
         list.current?.scrollToOffset({
           animated: true,
           offset: 0,
@@ -1017,6 +1078,7 @@ export const ChatView = observer(
               style={[styles.flatList, {marginBottom: bottomComponentHeight}]}
               showsVerticalScrollIndicator={false}
               onScroll={handleScroll}
+              onContentSizeChange={handleContentSizeChange}
               {...unwrap(flatListProps)}
               data={chatMessages}
               inverted={chatMessages.length > 0}
@@ -1036,8 +1098,11 @@ export const ChatView = observer(
               maintainVisibleContentPosition={
                 isStreaming // || hasHiddenContentState
                   ? {
-                      autoscrollToTopThreshold: 20,
-                      minIndexForVisible: 1, //isStreaming ? 1 : 0,
+                      // The list is inverted, so the newest/streaming
+                      // assistant turn is index 0. Excluding it here prevents
+                      // React Native from keeping the growing answer in view.
+                      autoscrollToTopThreshold: 40,
+                      minIndexForVisible: 0,
                     }
                   : undefined
               }
