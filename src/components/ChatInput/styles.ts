@@ -162,6 +162,40 @@ export const createStyles = ({
       ...fontStyles.semibold,
       color: theme.colors.inverseOnSurface,
     },
+    filePreviewContainer: {
+      paddingHorizontal: 16,
+      paddingTop: 8,
+      gap: 6,
+    },
+    filePreviewRow: {
+      minHeight: 54,
+      flexDirection: 'row',
+      alignItems: 'center',
+      borderRadius: 10,
+      backgroundColor: theme.colors.surfaceVariant,
+      paddingHorizontal: 6,
+    },
+    filePreviewIcon: {
+      margin: 0,
+    },
+    filePreviewText: {
+      flex: 1,
+      minWidth: 0,
+      paddingHorizontal: 4,
+    },
+    filePreviewName: {
+      fontSize: 12,
+      color: theme.colors.onSurface,
+    },
+    filePreviewStatus: {
+      marginTop: 2,
+      fontSize: 10,
+      color: theme.colors.onSurfaceVariant,
+    },
+    fileProgress: {
+      height: 2,
+      marginTop: 4,
+    },
     // Image preview styles
     imagePreviewContainer: {
       marginVertical: 8,
