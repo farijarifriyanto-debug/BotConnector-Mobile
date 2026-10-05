@@ -75,6 +75,8 @@ export interface StreamChatParams {
   response_format?: OpenAIResponseFormat;
   /** Reasoning on/off + effort intent; translated to a per-serverType payload. */
   reasoning?: ReasoningIntent;
+  /** Stable BotConnector Cloud file ids. Never sent unless the caller sets them. */
+  botconnector_file_ids?: string[];
 }
 
 /**
@@ -446,6 +448,7 @@ export const TRANSPORT_BODY_KEYS = [
   'tools',
   'tool_choice',
   'response_format',
+  'botconnector_file_ids',
 ] as const;
 
 export type TransportBodyKey = (typeof TRANSPORT_BODY_KEYS)[number];
@@ -819,6 +822,12 @@ export async function streamChatCompletion(
     }
     if (params.tool_choice !== undefined) {
       transportBody.tool_choice = params.tool_choice;
+    }
+    if (
+      Array.isArray(params.botconnector_file_ids) &&
+      params.botconnector_file_ids.length > 0
+    ) {
+      transportBody.botconnector_file_ids = params.botconnector_file_ids;
     }
     if (params.response_format) {
       // OpenAI requires `name` inside json_schema; llama.cpp / Ollama /
