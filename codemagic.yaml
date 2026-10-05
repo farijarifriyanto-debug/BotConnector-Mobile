@@ -149,6 +149,10 @@ workflows:
 
       - name: Set up App Store code signing
         script: |
+          if ! ruby -e 'require "xcodeproj"' >/dev/null 2>&1; then
+            gem install xcodeproj -v 1.25.1 --no-document
+          fi
+          ruby -e 'require "xcodeproj"; puts "xcodeproj #{Xcodeproj::VERSION}"'
           xcode-project use-profiles
 
       - name: Set iOS build number
