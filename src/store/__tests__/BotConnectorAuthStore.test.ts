@@ -331,6 +331,48 @@ describe('BotConnectorAuthStore', () => {
     expect(botConnectorAuthStore.error).toMatch(/network/i);
   });
 
+  it('revalidate: signs out when the session was revoked while the app stayed open', async () => {
+    mem.set(AUTH_SERVICE, {
+      username: 'session',
+      password: JSON.stringify({
+        sessionToken: 'sess-token',
+        accessToken: EXCHANGE.access_token,
+        userId: EXCHANGE.user_id,
+        expiresAt: EXCHANGE.expires_at,
+      }),
+    });
+    (botConnectorAuthStore as any).hasStoredSession = true;
+    (botConnectorAuthStore as any).lastResolvedAt = 0;
+    fetchMock.mockResolvedValueOnce(jsonResponse(401, {detail: 'revoked'}));
+
+    await botConnectorAuthStore.revalidate();
+
+    expect(mem.has(AUTH_SERVICE)).toBe(false);
+    expect(botConnectorAuthStore.isSignedIn).toBe(false);
+  });
+
+  it('revalidate: is throttled and ignores an offline error', async () => {
+    mem.set(AUTH_SERVICE, {
+      username: 'session',
+      password: JSON.stringify({
+        sessionToken: 'sess-token',
+        accessToken: EXCHANGE.access_token,
+        userId: EXCHANGE.user_id,
+        expiresAt: EXCHANGE.expires_at,
+      }),
+    });
+    (botConnectorAuthStore as any).hasStoredSession = true;
+    (botConnectorAuthStore as any).lastResolvedAt = Date.now();
+    await botConnectorAuthStore.revalidate();
+    expect(fetchMock).not.toHaveBeenCalled(); // checked recently
+
+    (botConnectorAuthStore as any).lastResolvedAt = 0;
+    fetchMock.mockRejectedValueOnce(new Error('offline'));
+    await botConnectorAuthStore.revalidate();
+    expect(mem.has(AUTH_SERVICE)).toBe(true);
+    expect(botConnectorAuthStore.isSignedIn).toBe(true);
+  });
+
   it('logout revokes server-side, clears Keychain, releases an active Cloud model and removes the Cloud server', async () => {
     mem.set(AUTH_SERVICE, {
       username: 'session',

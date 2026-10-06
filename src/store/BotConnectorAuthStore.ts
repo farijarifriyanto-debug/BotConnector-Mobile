@@ -15,7 +15,6 @@ import {serverStore} from './ServerStore';
 import {modelStore} from './ModelStore';
 
 const NATIVE_CLIENT_ID = 'botconnector-mobile';
-const CALLBACK_URL = 'botconnector://auth/callback';
 const LOGIN_START_URL = 'https://botconnector.id/app-login/start';
 const NATIVE_EXCHANGE_URL = 'https://botconnector.id/app-login/native/exchange';
 const NATIVE_SESSION_URL = 'https://botconnector.id/app-login/native/session';
@@ -110,17 +109,22 @@ class BotConnectorAuthStore {
   // The authorization code is single-use. Whatever delivers the callback (native
   // module, RN Linking, a cold-start replay) must never exchange it twice.
   private isOpeningLogin = false;
+  private lastResolvedAt = 0;
   private handledCallbacks = new Set<string>();
   private callbacksInFlight = new Map<string, Promise<boolean>>();
 
   constructor() {
     makeAutoObservable<
       this,
-      'handledCallbacks' | 'callbacksInFlight' | 'isOpeningLogin'
+      | 'handledCallbacks'
+      | 'callbacksInFlight'
+      | 'isOpeningLogin'
+      | 'lastResolvedAt'
     >(this, {
       handledCallbacks: false,
       callbacksInFlight: false,
       isOpeningLogin: false,
+      lastResolvedAt: false,
     });
   }
 
@@ -386,10 +390,32 @@ class BotConnectorAuthStore {
       return null;
     }
     const account = await parseJsonResponse<BotConnectorAccount>(response);
+    this.lastResolvedAt = Date.now();
     runInAction(() => {
       this.account = account;
     });
     return account;
+  }
+
+  /**
+   * Re-check the session when the app returns to the foreground (throttled), so a session that was
+   * revoked or expired while the app stayed alive turns into "signed out" instead of failing silently.
+   * Network errors keep the credential (offline is not a logout).
+   */
+  async revalidate(minIntervalMs = 5 * 60 * 1000): Promise<void> {
+    if (
+      !this.hasStoredSession ||
+      this.isRestoring ||
+      this.isSigningIn ||
+      Date.now() - this.lastResolvedAt < minIntervalMs
+    ) {
+      return;
+    }
+    try {
+      await this.refreshAccount();
+    } catch {
+      // offline / transient: keep the credential, try again on the next foreground
+    }
   }
 
   /** Session resolved on relaunch: make sure the Cloud credential/models are installed (idempotent). */

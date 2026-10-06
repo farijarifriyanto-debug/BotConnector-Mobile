@@ -323,7 +323,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setAvailableModels([]);
       setSelectedModelId(null);
       setUrlError('');
-    }, [handleServerChipPress, botConnectorAuthStore.isSignedIn]);
+    }, [handleServerChipPress]);
 
     const handleBotConnectorLocalPreset = useCallback(() => {
       setSelectedServerId(null);

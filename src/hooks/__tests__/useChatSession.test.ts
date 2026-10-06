@@ -510,12 +510,10 @@ describe('useChatSession', () => {
 
     let captured: any;
     if (modelStore.context) {
-      modelStore.context.completion = jest
-        .fn()
-        .mockImplementation(params => {
-          captured = params;
-          return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
-        });
+      modelStore.context.completion = jest.fn().mockImplementation(params => {
+        captured = params;
+        return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
+      });
     }
 
     const {result} = renderHook(() =>
@@ -572,12 +570,10 @@ describe('useChatSession', () => {
 
     let captured: any;
     if (modelStore.context) {
-      modelStore.context.completion = jest
-        .fn()
-        .mockImplementation(params => {
-          captured = params;
-          return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
-        });
+      modelStore.context.completion = jest.fn().mockImplementation(params => {
+        captured = params;
+        return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
+      });
     }
 
     const {result} = renderHook(() =>

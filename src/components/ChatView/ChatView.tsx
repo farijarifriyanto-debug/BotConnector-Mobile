@@ -572,7 +572,11 @@ export const ChatView = observer(
     }, [chatMessages]);
 
     React.useEffect(() => {
-      if (!isStreaming || !followLatestRef.current || !latestAssistantStreamSignature) {
+      if (
+        !isStreaming ||
+        !followLatestRef.current ||
+        !latestAssistantStreamSignature
+      ) {
         return;
       }
       const frame = requestAnimationFrame(() => {
@@ -1145,6 +1149,7 @@ export const ChatView = observer(
         renderListHeaderComponent,
         bottomComponentHeight,
         handleScroll,
+        handleContentSizeChange,
         flatListProps,
         keyExtractor,
         handleEndReached,

@@ -107,7 +107,9 @@ export const ImageGenerationScreen = observer(() => {
   const [models, setModels] = React.useState<BotConnectorMediaModel[]>([]);
   const [selectedModel, setSelectedModel] = React.useState('');
   const [prompt, setPrompt] = React.useState('');
-  const [referenceImages, setReferenceImages] = React.useState<ReferenceImage[]>([]);
+  const [referenceImages, setReferenceImages] = React.useState<
+    ReferenceImage[]
+  >([]);
   const [loadingModels, setLoadingModels] = React.useState(false);
   const [generating, setGenerating] = React.useState(false);
   const [resultUri, setResultUri] = React.useState<string | null>(null);
@@ -193,13 +195,20 @@ export const ImageGenerationScreen = observer(() => {
         return;
       }
 
-      const existingBytes = referenceImages.reduce((sum, item) => sum + item.bytes, 0);
+      const existingBytes = referenceImages.reduce(
+        (sum, item) => sum + item.bytes,
+        0,
+      );
       let runningBytes = existingBytes;
       const accepted: ReferenceImage[] = [];
       for (const asset of result.assets) {
         const mimeType = String(asset.type || '').toLowerCase();
         const bytes = Number(asset.fileSize || 0);
-        if (!asset.uri || !asset.base64 || !REFERENCE_MIME_TYPES.has(mimeType)) {
+        if (
+          !asset.uri ||
+          !asset.base64 ||
+          !REFERENCE_MIME_TYPES.has(mimeType)
+        ) {
           continue;
         }
         if (bytes <= 0 || bytes > MAX_REFERENCE_IMAGE_BYTES) {
@@ -220,7 +229,9 @@ export const ImageGenerationScreen = observer(() => {
         Alert.alert('BotConnector', copy.referenceHint);
         return;
       }
-      setReferenceImages(current => [...current, ...accepted].slice(0, MAX_REFERENCE_IMAGES));
+      setReferenceImages(current =>
+        [...current, ...accepted].slice(0, MAX_REFERENCE_IMAGES),
+      );
     } catch (e) {
       Alert.alert(
         'BotConnector',
@@ -338,7 +349,9 @@ export const ImageGenerationScreen = observer(() => {
             <View style={styles.modelMeta}>
               <Chip compact>{selected.developer}</Chip>
               <Chip compact>{selected.botconnector_access.toUpperCase()}</Chip>
-              {supportsReferenceImages ? <Chip compact>Image → Image</Chip> : null}
+              {supportsReferenceImages ? (
+                <Chip compact>Image → Image</Chip>
+              ) : null}
             </View>
           ) : null}
         </View>
@@ -357,7 +370,10 @@ export const ImageGenerationScreen = observer(() => {
               compact
               mode="outlined"
               icon="image-plus"
-              disabled={!supportsReferenceImages || referenceImages.length >= MAX_REFERENCE_IMAGES}
+              disabled={
+                !supportsReferenceImages ||
+                referenceImages.length >= MAX_REFERENCE_IMAGES
+              }
               onPress={() => addReferenceImages().catch(() => undefined)}>
               {copy.addReference}
             </Button>
@@ -368,8 +384,13 @@ export const ImageGenerationScreen = observer(() => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.referenceList}>
               {referenceImages.map((image, index) => (
-                <View key={`${image.uri}:${index}`} style={styles.referenceItem}>
-                  <Image source={{uri: image.uri}} style={styles.referenceImage} />
+                <View
+                  key={`${image.uri}:${index}`}
+                  style={styles.referenceItem}>
+                  <Image
+                    source={{uri: image.uri}}
+                    style={styles.referenceImage}
+                  />
                   <IconButton
                     icon="close-circle"
                     size={20}
