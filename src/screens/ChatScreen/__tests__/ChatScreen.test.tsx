@@ -1,5 +1,6 @@
 import React from 'react';
 import {runInAction} from 'mobx';
+import {StyleSheet} from 'react-native';
 
 import {LlamaContext} from 'llama.rn';
 import {
@@ -872,6 +873,17 @@ describe('ChatScreen on/off toggle → reasoning carrier (remote)', () => {
 // screen is already on screen: the probe is detached and a lazily-started
 // server can take seconds to answer.
 describe('ChatScreen remote vision reactivity', () => {
+  // Build 14: the + control is always enabled (File works without vision).
+  // Vision availability shows on the Gallery row instead (dimmed when unusable).
+  const openGallery = async (screen: ReturnType<typeof render>) => {
+    const plus = screen.getByLabelText('Add attachment');
+    expect(plus.props.accessibilityState.disabled).toBe(false);
+    fireEvent.press(plus);
+    return screen.findByText(l10n.en.common.gallery);
+  };
+  const isDimmed = (node: {props: {style?: unknown}}) =>
+    StyleSheet.flatten(node.props.style as any)?.opacity === 0.45;
+
   const modelId = 'srv-1/gemma-4-e2b';
   let savedModels: any[];
 
@@ -916,12 +928,10 @@ describe('ChatScreen remote vision reactivity', () => {
     });
   });
 
-  it('enables attach when capabilities land, with no further user action', () => {
-    const {getByLabelText} = render(<ChatScreen />, {withNavigation: true});
+  it('enables attach when capabilities land, with no further user action', async () => {
+    const screen = render(<ChatScreen />, {withNavigation: true});
 
-    expect(getByLabelText('Add image').props.accessibilityState.disabled).toBe(
-      true,
-    );
+    expect(isDimmed(await openGallery(screen))).toBe(true);
 
     act(() => {
       runInAction(() => {
@@ -929,12 +939,12 @@ describe('ChatScreen remote vision reactivity', () => {
       });
     });
 
-    expect(getByLabelText('Add image').props.accessibilityState.disabled).toBe(
+    expect(isDimmed(await screen.findByText(l10n.en.common.gallery))).toBe(
       false,
     );
   });
 
-  it('enables attach when a local model finishes loading its projection', () => {
+  it('enables attach when a local model finishes loading its projection', async () => {
     const localId = 'local-mm-1';
     runInAction(() => {
       modelStore.models = [
@@ -950,11 +960,9 @@ describe('ChatScreen remote vision reactivity', () => {
       modelStore.isMultimodalActive = false;
     });
 
-    const {getByLabelText} = render(<ChatScreen />, {withNavigation: true});
+    const screen = render(<ChatScreen />, {withNavigation: true});
 
-    expect(getByLabelText('Add image').props.accessibilityState.disabled).toBe(
-      true,
-    );
+    expect(isDimmed(await openGallery(screen))).toBe(true);
 
     // What `proceedWithInitialization` writes once the native init verifies.
     act(() => {
@@ -963,7 +971,7 @@ describe('ChatScreen remote vision reactivity', () => {
       });
     });
 
-    expect(getByLabelText('Add image').props.accessibilityState.disabled).toBe(
+    expect(isDimmed(await screen.findByText(l10n.en.common.gallery))).toBe(
       false,
     );
 
@@ -972,17 +980,15 @@ describe('ChatScreen remote vision reactivity', () => {
     });
   });
 
-  it('does not let the active model inherit a sibling model vision flag', () => {
+  it('does not let the active model inherit a sibling model vision flag', async () => {
     act(() => {
       runInAction(() => {
         serverStore.remoteCaps['srv-1/gemma-3-4b'] = {supportsVision: true};
       });
     });
 
-    const {getByLabelText} = render(<ChatScreen />, {withNavigation: true});
+    const screen = render(<ChatScreen />, {withNavigation: true});
 
-    expect(getByLabelText('Add image').props.accessibilityState.disabled).toBe(
-      true,
-    );
+    expect(isDimmed(await openGallery(screen))).toBe(true);
   });
 });

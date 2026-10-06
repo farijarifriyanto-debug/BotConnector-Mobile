@@ -3,7 +3,11 @@ import {render, fireEvent, waitFor} from '@testing-library/react-native';
 import {Alert, Keyboard} from 'react-native';
 
 import {ChatPalModelPickerSheet} from '../ChatPalModelPickerSheet';
-import {modelStore, chatSessionStore} from '../../../store';
+import {
+  modelStore,
+  chatSessionStore,
+  botConnectorAuthStore,
+} from '../../../store';
 import {user} from '../../../../jest/fixtures';
 import {UserContext, L10nContext} from '../../../utils';
 import {l10n} from '../../../locales';
@@ -70,6 +74,15 @@ jest.mock('../../../store', () => ({
   chatSessionStore: {
     activePalId: 'pal1',
     setActivePal: jest.fn(),
+  },
+  // Build 14: the sheet embeds BotConnectorAccountCard (signed-out state).
+  botConnectorAuthStore: {
+    account: null,
+    isSignedIn: false,
+    isSigningIn: false,
+    error: null,
+    startLogin: jest.fn().mockResolvedValue(undefined),
+    logout: jest.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -150,6 +163,20 @@ describe('ChatPalModelPickerSheet', () => {
 
     expect(getByTestId('bottom-sheet')).toBeTruthy();
     expect(getByTestId('bottom-sheet-flatlist')).toBeTruthy();
+  });
+
+  it('shows the BotConnector account card, separate from model selection', () => {
+    const {getByTestId} = render(
+      <UserContext.Provider value={user}>
+        <L10nContext.Provider value={l10n.en}>
+          <ChatPalModelPickerSheet {...defaultProps} />
+        </L10nContext.Provider>
+      </UserContext.Provider>,
+    );
+
+    expect(getByTestId('botconnector-account-card')).toBeTruthy();
+    fireEvent.press(getByTestId('botconnector-account-action'));
+    expect(botConnectorAuthStore.startLogin).toHaveBeenCalledTimes(1);
   });
 
   it('does not render when not visible', () => {

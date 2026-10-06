@@ -64,6 +64,12 @@ const {getDeviceOptions} = require('../../../utils/deviceSelection');
 // they need to assert the threading propagation.
 jest.mock('../../../utils/deviceCapabilities', () => ({
   getRecommendedThreadCount: jest.fn().mockResolvedValue(6),
+  // ModelStore.initializeGpuSettings() calls this on hydration.
+  checkGpuSupport: jest.fn().mockResolvedValue({
+    isSupported: false,
+    reason: 'simulator',
+    details: {isSimulator: true},
+  }),
 }));
 
 const {

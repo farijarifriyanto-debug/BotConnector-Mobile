@@ -58,6 +58,7 @@ jest.mock('../../../assets/icons', () => ({
   VideoRecorderIcon: 'VideoRecorderIcon',
   PlusIcon: 'PlusIcon',
   AtomIcon: 'AtomIcon',
+  SearchIcon: 'SearchIcon',
 }));
 
 // Mock the components
@@ -69,11 +70,14 @@ jest.mock('../../StopButton', () => ({
   StopButton: 'StopButton',
 }));
 
-jest.mock('../../Menu', () => ({
-  Menu: {
-    Item: 'MenuItem',
-  },
-}));
+// Build 14 always renders the attachment Menu (File works without vision), so
+// the mock must be a component. It only needs to show the anchor; the menu body
+// is closed in these tests.
+jest.mock('../../Menu', () => {
+  const Menu: any = ({anchor}: {anchor?: React.ReactNode}) => anchor ?? null;
+  Menu.Item = 'MenuItem';
+  return {Menu};
+});
 
 const mockUser = {
   id: 'test-user',

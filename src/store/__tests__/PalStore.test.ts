@@ -57,8 +57,10 @@ jest.mock('../../services', () => ({
 }));
 
 // Mock MobX persist
+// Stores chain `.then()` on makePersistable (ServerStore is pulled in
+// transitively), so keep the real contract: it returns a Promise.
 jest.mock('mobx-persist-store', () => ({
-  makePersistable: jest.fn(),
+  makePersistable: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Eligibility writer dependencies: iOS StoreKit storefront + Android probe.

@@ -1,10 +1,6 @@
 import React from 'react';
 import {Alert, Linking, Platform} from 'react-native';
-import {
-  render as baseRender,
-  fireEvent,
-  act,
-} from '../../../../jest/test-utils';
+import {render as baseRender, fireEvent} from '../../../../jest/test-utils';
 import {AboutScreen} from '../AboutScreen';
 import {submitFeedback} from '../../../api/feedback';
 import {l10n} from '../../../locales';
@@ -13,9 +9,12 @@ const render = (ui: React.ReactElement, options: any = {}) =>
   baseRender(ui, {withBottomSheetProvider: true, ...options});
 
 // Mock DeviceInfo
+// isEmulator is async in react-native-device-info; the render path reaches it
+// through checkGpuSupport().
 jest.mock('react-native-device-info', () => ({
   getVersion: jest.fn().mockReturnValue('1.0.0'),
   getBuildNumber: jest.fn().mockReturnValue('100'),
+  isEmulator: jest.fn().mockResolvedValue(false),
 }));
 
 // Mock Clipboard
@@ -40,8 +39,11 @@ describe('AboutScreen', () => {
   });
 
   it('renders correctly', () => {
-    const {getByText} = render(<AboutScreen />);
+    const {getByText, getByTestId} = render(<AboutScreen />);
 
+    // The account card is rendered above the about card.
+    expect(getByTestId('botconnector-account-card')).toBeTruthy();
+    // Exact match: the app title only. The card says "...to BotConnector".
     expect(getByText('BotConnector')).toBeTruthy();
     expect(getByText('v1.0.0 (100)')).toBeTruthy();
     expect(getByText(l10n.en.about.supportProject)).toBeTruthy();
@@ -80,121 +82,25 @@ describe('AboutScreen', () => {
       Platform.OS = originalOS;
     });
 
-    it('shows no sponsorship option in the support section', () => {
+    it('shows only the GitHub support option while feedback is disabled', () => {
       const {queryByText, getByText} = render(<AboutScreen />);
 
       expect(queryByText('Become a Sponsor')).toBeNull();
       expect(queryByText('or')).toBeNull();
       expect(getByText(l10n.en.about.githubButton)).toBeTruthy();
-      expect(getByText(l10n.en.about.orBy)).toBeTruthy();
-      expect(getByText(l10n.en.feedback.shareThoughtsButton)).toBeTruthy();
+      // FEEDBACK_ENABLED is false: no dead "Share thoughts" entry point.
+      expect(queryByText(l10n.en.about.orBy)).toBeNull();
+      expect(queryByText(l10n.en.feedback.shareThoughtsButton)).toBeNull();
     });
   });
 
-  it('opens feedback form when share thoughts button is pressed', async () => {
-    const {getByText, findByText} = render(<AboutScreen />);
+  // The feedback form (open / submit / validation / API error) is unreachable
+  // while FEEDBACK_ENABLED=false (commit 7433521: no button that cannot
+  // succeed). Re-add those flow tests together with the flag.
+  it('never submits feedback while the feedback entry point is disabled', () => {
+    const {queryByText} = render(<AboutScreen />);
 
-    fireEvent.press(getByText(l10n.en.feedback.shareThoughtsButton));
-
-    expect(await findByText(l10n.en.feedback.useCase.label)).toBeTruthy();
-    expect(
-      await findByText(l10n.en.feedback.featureRequests.label),
-    ).toBeTruthy();
-    expect(
-      await findByText(l10n.en.feedback.generalFeedback.label),
-    ).toBeTruthy();
-    expect(
-      await findByText(l10n.en.feedback.usageFrequency.label),
-    ).toBeTruthy();
-  });
-
-  it('submits feedback successfully', async () => {
-    const {findByText, getByText, findByPlaceholderText} = render(
-      <AboutScreen />,
-    );
-
-    // Open feedback form
-    fireEvent.press(getByText(l10n.en.feedback.shareThoughtsButton));
-
-    const useCaseInput = await findByPlaceholderText(
-      l10n.en.feedback.useCase.placeholder,
-    );
-    fireEvent.changeText(useCaseInput, 'Test use case');
-
-    const featureRequestsInput = await findByPlaceholderText(
-      l10n.en.feedback.featureRequests.placeholder,
-    );
-    fireEvent.changeText(featureRequestsInput, 'Test feature request');
-
-    const generalFeedbackInput = await findByPlaceholderText(
-      l10n.en.feedback.generalFeedback.placeholder,
-    );
-    fireEvent.changeText(generalFeedbackInput, 'Test feedback');
-
-    const dailyButton = await findByText(
-      l10n.en.feedback.usageFrequency.options.daily,
-    );
-    fireEvent.press(dailyButton);
-
-    // Submit form
-    const submitButton = await findByText(l10n.en.feedback.submit);
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    expect(submitFeedback).toHaveBeenCalledWith({
-      useCase: 'Test use case',
-      featureRequests: 'Test feature request',
-      generalFeedback: 'Test feedback',
-      usageFrequency: 'daily',
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      'Success',
-      'Thank you for your feedback!',
-    );
-  });
-
-  it('shows validation error when submitting empty feedback', async () => {
-    const {getByText, findByText} = render(<AboutScreen />);
-
-    // Open feedback form
-    fireEvent.press(getByText(l10n.en.feedback.shareThoughtsButton));
-
-    // Submit empty form
-    const submitButton = await findByText(l10n.en.feedback.submit);
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith(
-      l10n.en.feedback.validation.required,
-    );
+    expect(queryByText(l10n.en.feedback.shareThoughtsButton)).toBeNull();
     expect(submitFeedback).not.toHaveBeenCalled();
-  });
-
-  it('handles feedback submission error', async () => {
-    (submitFeedback as jest.Mock).mockRejectedValueOnce(new Error('API Error'));
-
-    const {getByText, findByText, findByPlaceholderText} = render(
-      <AboutScreen />,
-    );
-
-    // Open feedback form
-    fireEvent.press(getByText(l10n.en.feedback.shareThoughtsButton));
-
-    // Fill out form
-    fireEvent.changeText(
-      await findByPlaceholderText(l10n.en.feedback.useCase.placeholder),
-      'Test use case',
-    );
-
-    // Submit form
-    const submitButton = await findByText(l10n.en.feedback.submit);
-    await act(async () => {
-      fireEvent.press(submitButton);
-    });
-
-    expect(Alert.alert).toHaveBeenCalledWith('Error', 'API Error');
   });
 });

@@ -23,6 +23,8 @@ jest.mock('../../../store', () => ({
 
 jest.mock('react-native-device-info', () => ({
   getTotalMemory: jest.fn().mockResolvedValue(12 * 1e9),
+  // Real ModelStore hydration reaches checkGpuSupport(), which awaits this.
+  isEmulator: jest.fn().mockResolvedValue(false),
 }));
 
 jest.mock('../../Sheet', () => {
