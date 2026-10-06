@@ -132,6 +132,9 @@ workflows:
         script: |
           export NODE_OPTIONS="--max-old-space-size=4096"
           export EXTRA_PACKAGER_ARGS="--max-workers 2"
+          # hermesc -Og cannot encode the phonemize dictionary module; compile
+          # the Debug bundle with -O instead (see the script header).
+          export HERMES_CLI_PATH="$CM_BUILD_DIR/scripts/ci/hermesc-no-og.sh"
           xcodebuild \
             -workspace "$XCODE_WORKSPACE" \
             -scheme "$XCODE_SCHEME" \
