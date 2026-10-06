@@ -63,6 +63,19 @@ import {mockTTSStore} from '../__mocks__/stores/ttsStore';
 import {checkoutFlowStore as mockCheckoutFlowStore} from '../__mocks__/stores/checkoutFlowStore';
 import {mockSearchProviderStore} from '../__mocks__/stores/searchProviderStore';
 
+const mockBotConnectorAuthStore = {
+  account: null,
+  isRestoring: false,
+  isSigningIn: false,
+  error: null,
+  isSignedIn: false,
+  restore: jest.fn(() => Promise.resolve()),
+  startLogin: jest.fn(() => Promise.resolve()),
+  logout: jest.fn(() => Promise.resolve()),
+  isAuthCallback: jest.fn(() => false),
+  handleAuthCallback: jest.fn(() => Promise.resolve(false)),
+};
+
 jest.mock('@react-native-clipboard/clipboard', () => mockClipboard);
 
 jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter');
@@ -118,6 +131,7 @@ jest.mock('../src/store', () => {
     palStore: mockPalStore,
     deepLinkStore: mockDeepLinkStore,
     serverStore: mockServerStore,
+    botConnectorAuthStore: mockBotConnectorAuthStore,
     ttsStore: mockTTSStore,
     checkoutFlowStore: mockCheckoutFlowStore,
     searchProviderStore: mockSearchProviderStore,

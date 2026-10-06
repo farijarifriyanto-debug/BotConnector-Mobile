@@ -23,7 +23,7 @@ import debounce from 'lodash/debounce';
 
 import {Sheet, TextInput} from '..';
 import {useTheme} from '../../hooks';
-import {serverStore} from '../../store';
+import {botConnectorAuthStore, serverStore} from '../../store';
 import {L10nContext} from '../../utils';
 import {isLocalHost} from '../../utils/network';
 import {parseTimeoutMs} from '../../utils/timeout';
@@ -295,28 +295,35 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
       setUrlError('');
     }, []);
 
-    const handleBotConnectorPreset = useCallback(() => {
+    const handleBotConnectorPreset = useCallback(async () => {
+      if (!botConnectorAuthStore.isSignedIn) {
+        await botConnectorAuthStore.startLogin();
+        return;
+      }
+
       const existing = serverStore.servers.find(server =>
         isBotConnectorApiUrl(server.url),
       );
       if (existing) {
-        handleServerChipPress(existing);
+        await handleServerChipPress(existing);
         return;
       }
 
+      // A valid restored session should normally already have a persisted
+      // official server. If it was manually removed, startLogin is not needed;
+      // restore the server on the next authenticated callback instead of
+      // exposing a BotConnector API-key form.
       setSelectedServerId(null);
       setUrl(BOTCONNECTOR_API_BASE_URL);
       setServerName(BOTCONNECTOR_NAME);
       setServerType('OpenAI');
-      setApiKey('');
-      apiKeyRef.current = '';
       setIsBotConnectorPreset(true);
       setIsBotConnectorLocalPreset(false);
       setProbeResult(null);
       setAvailableModels([]);
       setSelectedModelId(null);
       setUrlError('');
-    }, [handleServerChipPress]);
+    }, [handleServerChipPress, botConnectorAuthStore.isSignedIn]);
 
     const handleBotConnectorLocalPreset = useCallback(() => {
       setSelectedServerId(null);
@@ -390,9 +397,9 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     // Show API key + server name fields when probe attempted (success OR auth failure)
     // This lets users enter an API key after a 401, then retry
     const showServerFields =
-      isBotConnectorPreset ||
-      isBotConnectorLocalPreset ||
-      (probeResult !== null && !isProbing && !selectedServerId);
+      !isBotConnectorPreset &&
+      (isBotConnectorLocalPreset ||
+        (probeResult !== null && !isProbing && !selectedServerId));
 
     return (
       <Sheet
@@ -428,14 +435,48 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
           <View style={styles.inputSpacing}>
             <Button
               testID="botconnector-preset-button"
-              mode={isBotConnectorPreset ? 'contained-tonal' : 'outlined'}
-              icon="cloud-outline"
-              onPress={handleBotConnectorPreset}>
-              {l10n.settings.connectBotConnector}
+              mode={
+                botConnectorAuthStore.isSignedIn || isBotConnectorPreset
+                  ? 'contained-tonal'
+                  : 'outlined'
+              }
+              icon={
+                botConnectorAuthStore.isSignedIn
+                  ? 'account-check-outline'
+                  : 'account-arrow-right-outline'
+              }
+              loading={botConnectorAuthStore.isSigningIn}
+              disabled={botConnectorAuthStore.isSigningIn}
+              onPress={() => {
+                handleBotConnectorPreset().catch(() => undefined);
+              }}>
+              {botConnectorAuthStore.isSignedIn
+                ? `${BOTCONNECTOR_NAME} · ${botConnectorAuthStore.account?.plan ?? ''}`
+                : l10n.settings.connectBotConnector}
             </Button>
             <Text style={styles.apiKeyDescription}>
-              {l10n.settings.connectBotConnectorDescription}
+              {botConnectorAuthStore.isSignedIn
+                ? `${l10n.settings.connected} · ${botConnectorAuthStore.account?.plan ?? BOTCONNECTOR_NAME}`
+                : l10n.settings.connectBotConnectorDescription}
             </Text>
+            {botConnectorAuthStore.error ? (
+              <Text style={styles.errorText}>
+                {botConnectorAuthStore.error}
+              </Text>
+            ) : null}
+            {botConnectorAuthStore.isSignedIn ? (
+              <Button
+                compact
+                mode="text"
+                onPress={() => {
+                  botConnectorAuthStore
+                    .logout()
+                    .then(handleDeselectChip)
+                    .catch(() => undefined);
+                }}>
+                {l10n.palsScreen.signOut}
+              </Button>
+            ) : null}
           </View>
 
           {/* The Cloud form stays Cloud-only; the direct Local connection is

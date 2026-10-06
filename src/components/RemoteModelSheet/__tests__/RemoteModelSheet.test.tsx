@@ -1,7 +1,8 @@
 import React from 'react';
 import {render, fireEvent, waitFor} from '../../../../jest/test-utils';
 import {RemoteModelSheet} from '../RemoteModelSheet';
-import {serverStore} from '../../../store';
+import {botConnectorAuthStore, serverStore} from '../../../store';
+import {l10n} from '../../../locales';
 import {fetchModels, fetchModelsWithHeaders} from '../../../api/openai';
 import {detectServerType} from '../../../api/servers/detect';
 import {routerModelsBody} from '../../../../jest/fixtures/remoteModelList';
@@ -473,87 +474,63 @@ describe('RemoteModelSheet', () => {
     });
   });
 
-  describe('BotConnector preset', () => {
+  describe('BotConnector account (native login)', () => {
+    const authStore = botConnectorAuthStore as any;
+
     beforeEach(() => {
       serverStore.servers = [];
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [],
-        headers: {},
-      });
+      authStore.isSignedIn = false;
+      authStore.account = null;
+      authStore.error = null;
+      authStore.isSigningIn = false;
     });
 
-    it('prefills the BotConnector endpoint and asks only for the API key', async () => {
+    it('signed out: the main button starts BotConnector login and never asks for an API key', async () => {
       const {getByTestId, queryByTestId} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
       );
 
       fireEvent.press(getByTestId('botconnector-preset-button'));
 
-      const urlInput = getByTestId('remote-url-input');
-      expect(urlInput.props.value).toBe('https://api.botconnector.id');
-      expect(urlInput.props.editable).toBe(false);
-      expect(getByTestId('remote-apikey-input')).toBeTruthy();
-      expect(queryByTestId('remote-name-input')).toBeNull();
-      expect(queryByTestId('server-type-dropdown')).toBeNull();
+      await waitFor(() => {
+        expect(authStore.startLogin).toHaveBeenCalledTimes(1);
+      });
+      expect(queryByTestId('remote-apikey-input')).toBeNull();
       expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
+      expect(serverStore.setApiKey).not.toHaveBeenCalled();
     });
 
-    it('loads /v1/models after the BotConnector API key is entered', async () => {
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [{id: 'bc-model-1', object: 'model', owned_by: 'BotConnector'}],
-        headers: {},
-      });
+    it('signed in: shows the plan, does not start another login, and offers sign out', async () => {
+      authStore.isSignedIn = true;
+      authStore.account = {plan: 'plus'};
 
       const {getByTestId, getByText} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
       );
 
+      expect(getByText(/BotConnector · plus/)).toBeTruthy();
       fireEvent.press(getByTestId('botconnector-preset-button'));
-      fireEvent.changeText(getByTestId('remote-apikey-input'), 'bc_live_test');
-      fireEvent(getByTestId('remote-apikey-input'), 'blur');
+      expect(authStore.startLogin).not.toHaveBeenCalled();
 
+      fireEvent.press(getByText(l10n.en.palsScreen.signOut));
       await waitFor(() => {
-        expect(mockedFetchModelsWithHeaders).toHaveBeenCalledWith(
-          'https://api.botconnector.id',
-          'bc_live_test',
-          undefined,
-        );
-        expect(getByText('bc-model-1')).toBeTruthy();
+        expect(authStore.logout).toHaveBeenCalledTimes(1);
       });
     });
 
-    it('persists BotConnector as an OpenAI-compatible remote server', async () => {
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [{id: 'bc-model-1', object: 'model', owned_by: 'BotConnector'}],
-        headers: {},
-      });
-
-      const {getByTestId, getByText} = render(
+    it('other providers keep the API-key form (Custom / Advanced)', async () => {
+      const {getByTestId} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
       );
 
-      fireEvent.press(getByTestId('botconnector-preset-button'));
-      fireEvent.changeText(getByTestId('remote-apikey-input'), 'bc_live_test');
-      fireEvent(getByTestId('remote-apikey-input'), 'blur');
+      mockedFetchModelsWithHeaders.mockResolvedValue({models: [], headers: {}});
+      fireEvent.changeText(
+        getByTestId('remote-url-input'),
+        'http://localhost:1234',
+      );
 
       await waitFor(() => {
-        expect(getByText('bc-model-1')).toBeTruthy();
-      });
-
-      fireEvent.press(getByTestId('add-model-button'));
-
-      await waitFor(() => {
-        expect(serverStore.addServer).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'BotConnector',
-            url: 'https://api.botconnector.id',
-            serverType: 'OpenAI',
-          }),
-        );
-        expect(serverStore.setApiKey).toHaveBeenCalledWith(
-          expect.anything(),
-          'bc_live_test',
-        );
+        expect(getByTestId('remote-apikey-input')).toBeTruthy();
       });
     });
   });
