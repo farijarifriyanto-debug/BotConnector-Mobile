@@ -17,6 +17,7 @@ import {usePendingMessage} from '../../hooks/useDeepLinking';
 import {Pal} from '../../types/pal';
 
 import {
+  botConnectorAuthStore,
   modelStore,
   chatSessionStore,
   palStore,
@@ -113,8 +114,6 @@ export const ChatScreen: React.FC = observer(() => {
     serverStore.servers,
     serverStore.botConnectorAccess,
   );
-  const visionEnabled =
-    richFeaturesEnabled && modelStore.activeModelCaps.visionActive;
   const activeServer = modelStore.activeModel?.serverId
     ? serverStore.servers.find(
         server => server.id === modelStore.activeModel?.serverId,
@@ -124,12 +123,34 @@ export const ChatScreen: React.FC = observer(() => {
     activeServer && isBotConnectorApiUrl(activeServer.url)
       ? serverStore.botConnectorAccess[activeServer.id]
       : undefined;
-  const internetAvailable = Boolean(
-    richFeaturesEnabled &&
-      activeBotConnectorAccess?.capabilities.web_search === true,
+  // BotConnector Cloud exposes account capabilities independently. Do not let
+  // the legacy coarse `chat_only/full` flag suppress a model's real vision or
+  // Web Search capability.
+  const visionEnabled = Boolean(
+    modelStore.activeModelCaps.visionActive &&
+      (activeBotConnectorAccess
+        ? activeBotConnectorAccess.capabilities.vision === true
+        : richFeaturesEnabled),
   );
+  const internetAvailable =
+    activeBotConnectorAccess?.capabilities.web_search === true;
   const internetForced =
     internetAvailable && searchProviderStore.forceInternetSearch;
+
+  const handleInternetUnavailable = React.useCallback(() => {
+    if (!botConnectorAuthStore.isSignedIn) {
+      botConnectorAuthStore.startLogin().catch(() => undefined);
+      return;
+    }
+    Alert.alert(
+      uiStore.language === 'id'
+        ? 'Internet belum tersedia'
+        : 'Internet unavailable',
+      uiStore.language === 'id'
+        ? 'Pilih model BotConnector Cloud yang mendukung Web Search.'
+        : 'Choose a BotConnector Cloud model that supports Web Search.',
+    );
+  }, []);
 
   const handleInternetToggle = React.useCallback(
     (enabled: boolean) => {
@@ -325,9 +346,11 @@ export const ChatScreen: React.FC = observer(() => {
         initialInputText={pendingMessage || undefined}
         onInitialTextConsumed={clearPendingMessage}
         inputProps={{
-          showInternetToggle: internetAvailable,
+          showInternetToggle: Boolean(modelStore.activeModel),
+          isInternetAvailable: internetAvailable,
           isInternetEnabled: internetForced,
           onInternetToggle: handleInternetToggle,
+          onInternetUnavailable: handleInternetUnavailable,
           showThinkingToggle: thinkingSupported,
           isThinkingEnabled: thinkingEnabled,
           onThinkingToggle: handleThinkingToggle,

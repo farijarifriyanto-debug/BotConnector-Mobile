@@ -85,27 +85,34 @@ const prepareCompletion = async ({
     serverStore.servers,
     serverStore.botConnectorAccess,
   );
-  if (!allowRichFeatures && sessionCompletionSettings.tools) {
-    sessionCompletionSettings = {
-      ...sessionCompletionSettings,
-      tools: undefined,
-    };
-  }
   const activeServer = modelStore.activeModel?.serverId
     ? serverStore.servers.find(
         server => server.id === modelStore.activeModel?.serverId,
       )
     : undefined;
 
-  // BotConnector Web Search is an account capability, not a Pal-only talent.
-  // Merge it with any Persona tools after the active server is known, while
-  // preserving the explicit privacy consent gate.
+  // BotConnector Cloud exposes feature entitlements independently from the
+  // coarse `chat_only/full` compatibility flag. Keep each axis separate so a
+  // Starter account can use Vision/Web Search without accidentally unlocking
+  // Files/Media/other paid-only features.
   const activeBotConnectorAccess =
     activeServer && isBotConnectorApiUrl(activeServer.url)
       ? serverStore.botConnectorAccess[activeServer.id]
       : undefined;
+  const toolsAllowed = activeBotConnectorAccess
+    ? activeBotConnectorAccess.capabilities.tools === true
+    : allowRichFeatures;
+  if (!toolsAllowed && sessionCompletionSettings.tools) {
+    sessionCompletionSettings = {
+      ...sessionCompletionSettings,
+      tools: undefined,
+    };
+  }
+
+  // BotConnector Web Search is an account capability, not a Pal-only talent.
+  // Merge it after account capability resolution, while preserving the explicit
+  // privacy-consent gate.
   if (
-    allowRichFeatures &&
     searchProviderStore.hasConsentedToSearch &&
     activeBotConnectorAccess?.capabilities.web_search === true
   ) {
@@ -130,14 +137,11 @@ const prepareCompletion = async ({
     };
   }
 
-  const officialBotConnectorFiles =
-    allowRichFeatures &&
-    Boolean(
-      activeServer &&
-        isBotConnectorApiUrl(activeServer.url) &&
-        serverStore.botConnectorAccess[activeServer.id]?.capabilities.files ===
-          true,
-    );
+  const officialBotConnectorFiles = Boolean(
+    activeServer &&
+      isBotConnectorApiUrl(activeServer.url) &&
+      activeBotConnectorAccess?.capabilities.files === true,
+  );
 
   const historicalFileIds = currentMessages.flatMap(current => {
     const attachments = current.metadata?.botconnectorFiles;
@@ -155,7 +159,11 @@ const prepareCompletion = async ({
     ? [...new Set([...historicalFileIds, ...currentFileIds])].slice(0, 10)
     : [];
 
-  const effectiveMultimodalEnabled = isMultimodalEnabled && allowRichFeatures;
+  const effectiveMultimodalEnabled =
+    isMultimodalEnabled &&
+    (activeBotConnectorAccess
+      ? activeBotConnectorAccess.capabilities.vision === true
+      : allowRichFeatures);
 
   // Check if we have images and if multimodal is enabled
   const hasImages = imageUris && imageUris.length > 0;

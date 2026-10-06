@@ -598,6 +598,29 @@ describe('input', () => {
       fireEvent.press(screen.getByTestId('internet-toggle'));
       expect(onInternetToggle).toHaveBeenCalledWith(true);
     });
+
+    it('keeps the globe visible but routes unavailable taps to the helper', () => {
+      const onInternetToggle = jest.fn();
+      const onInternetUnavailable = jest.fn();
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            onSendPress={jest.fn()}
+            showInternetToggle={true}
+            isInternetAvailable={false}
+            isInternetEnabled={false}
+            onInternetToggle={onInternetToggle}
+            onInternetUnavailable={onInternetUnavailable}
+          />
+        </UserContext.Provider>,
+      );
+
+      const globe = screen.getByTestId('internet-toggle');
+      expect(globe.props.accessibilityState).toEqual({selected: false});
+      fireEvent.press(globe);
+      expect(onInternetUnavailable).toHaveBeenCalledTimes(1);
+      expect(onInternetToggle).not.toHaveBeenCalled();
+    });
   });
 
   describe('Image Upload Functionality', () => {

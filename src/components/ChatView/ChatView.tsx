@@ -16,11 +16,7 @@ import dayjs from 'dayjs';
 import {observer} from 'mobx-react';
 import calendar from 'dayjs/plugin/calendar';
 import {Snackbar} from 'react-native-paper';
-import {
-  useIsFocused,
-  useNavigation,
-  NavigationProp,
-} from '@react-navigation/native';
+import {useIsFocused} from '@react-navigation/native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import {
@@ -58,8 +54,12 @@ import {t} from '../../locales';
 import {getModelMemoryRequirement} from '../../utils/memoryEstimator';
 import {CONTEXT_LADDER} from '../../utils/bannerVariantResolver';
 
-import {chatSessionStore, modelStore, uiStore} from '../../store';
-import {ROUTES} from '../../utils/navigationConstants';
+import {
+  botConnectorAuthStore,
+  chatSessionStore,
+  modelStore,
+  uiStore,
+} from '../../store';
 
 import {MessageType, User} from '../../utils/types';
 import {Pal} from '../../types/pal';
@@ -250,7 +250,6 @@ export const ChatView = observer(
     const styles = createStyles({theme});
     const insets = useSafeAreaInsets();
     const isFocused = useIsFocused();
-    const navigation = useNavigation<NavigationProp<any>>();
 
     // ============ REFS ============
     const animationRef = React.useRef(false);
@@ -1301,7 +1300,7 @@ export const ChatView = observer(
                 initialTab={uiStore.modelPickerTab}
                 onConnectAccount={() => {
                   setIsPickerVisible(false);
-                  navigation.navigate(ROUTES.MODELS);
+                  botConnectorAuthStore.startLogin().catch(() => undefined);
                 }}
                 onClose={() => setIsPickerVisible(false)}
                 onModelSelect={handleModelSelect}

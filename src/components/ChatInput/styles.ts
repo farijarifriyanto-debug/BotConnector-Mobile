@@ -38,6 +38,17 @@ export const createStyles = ({
       borderWidth: 1,
       marginRight: 8,
     },
+    internetToggle: {
+      height: 28,
+      width: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 100,
+      borderWidth: 1,
+    },
+    internetToggleUnavailable: {
+      opacity: 0.45,
+    },
     thinkingToggleLeft: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -32,7 +32,11 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
             borderColor: theme.colors.outlineVariant,
           },
         ]}>
-        <View style={styles.identity}>
+        <View
+          style={[
+            styles.identity,
+            compact ? styles.compactIdentity : styles.regularIdentity,
+          ]}>
           <Text
             variant={compact ? 'labelLarge' : 'titleMedium'}
             numberOfLines={1}>
@@ -78,6 +82,7 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
           mode={signedIn ? 'text' : 'contained-tonal'}
           loading={botConnectorAuthStore.isSigningIn}
           disabled={botConnectorAuthStore.isSigningIn}
+          style={!compact ? styles.regularAction : undefined}
           onPress={() => {
             const action = signedIn
               ? botConnectorAuthStore.logout()
@@ -99,18 +104,26 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
     gap: 12,
   },
   compact: {
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   identity: {
-    flex: 1,
     minWidth: 0,
     gap: 2,
+  },
+  regularIdentity: {
+    width: '100%',
+  },
+  compactIdentity: {
+    flex: 1,
+  },
+  regularAction: {
+    alignSelf: 'stretch',
   },
 });

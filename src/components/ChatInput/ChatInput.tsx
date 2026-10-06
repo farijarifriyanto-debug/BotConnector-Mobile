@@ -32,7 +32,7 @@ import {
   VideoRecorderIcon,
   PlusIcon,
   AtomIcon,
-  SearchIcon,
+  GlobeIcon,
   XSmIcon,
 } from '../../assets/icons';
 
@@ -41,6 +41,7 @@ import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 
 import {
+  botConnectorAuthStore,
   chatSessionStore,
   modelStore,
   palStore,
@@ -95,10 +96,14 @@ export interface ChatInputTopLevelProps {
   isVisionEnabled?: boolean;
   /** Whether to show the Internet search toggle button */
   showInternetToggle?: boolean;
+  /** Whether Internet search is available for the active account/model. */
+  isInternetAvailable?: boolean;
   /** Whether explicit Internet mode is currently enabled */
   isInternetEnabled?: boolean;
   /** Callback when explicit Internet mode is toggled */
   onInternetToggle?: (enabled: boolean) => void;
+  /** Called when the visible globe is pressed but Internet is unavailable. */
+  onInternetUnavailable?: () => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -126,10 +131,14 @@ export interface ChatInputAdditionalProps {
   showImageUpload?: boolean;
   /** Whether to show the Internet search toggle button */
   showInternetToggle?: boolean;
+  /** Whether Internet search is available for the active account/model. */
+  isInternetAvailable?: boolean;
   /** Whether explicit Internet mode is currently enabled */
   isInternetEnabled?: boolean;
   /** Callback when explicit Internet mode is toggled */
   onInternetToggle?: (enabled: boolean) => void;
+  /** Called when the visible globe is pressed but Internet is unavailable. */
+  onInternetUnavailable?: () => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -175,8 +184,10 @@ export const ChatInput = observer(
     defaultImages,
     onDefaultImagesChange,
     showInternetToggle = false,
+    isInternetAvailable = true,
     isInternetEnabled = false,
     onInternetToggle,
+    onInternetUnavailable,
     showThinkingToggle = false,
     isThinkingEnabled = false,
     onThinkingToggle,
@@ -610,6 +621,10 @@ export const ChatInput = observer(
     const handleSelectFiles = async () => {
       if (!activeServer || !botConnectorFilesEnabled) {
         setShowImageUploadMenu(false);
+        if (!botConnectorAuthStore.isSignedIn) {
+          botConnectorAuthStore.startLogin().catch(() => undefined);
+          return;
+        }
         Alert.alert(
           l10n.components.chatInput.fileUploadUnavailableTitle,
           l10n.components.chatInput.fileUploadUnavailableBody,
@@ -1118,42 +1133,39 @@ export const ChatInput = observer(
                 )}
               </View>
 
-              {/* Explicit Internet mode. Auto web tools remain available when
-                  consented; this chip means "search first" for this chat. */}
+              {/* Explicit Internet mode. Keep the globe visible so capability
+                  is discoverable; unavailable states explain themselves on tap. */}
               {showInternetToggle && !isCameraActive && (
                 <TouchableOpacity
                   hitSlop={8}
                   testID="internet-toggle"
                   style={[
-                    styles.thinkingToggleLeft,
+                    styles.internetToggle,
                     isInternetEnabled && {backgroundColor: onSurfaceColor},
                     {borderColor: onSurfaceColorVariant},
+                    !isInternetAvailable && styles.internetToggleUnavailable,
                   ]}
-                  onPress={() => onInternetToggle?.(!isInternetEnabled)}
+                  onPress={() =>
+                    isInternetAvailable
+                      ? onInternetToggle?.(!isInternetEnabled)
+                      : onInternetUnavailable?.()
+                  }
                   accessibilityLabel={
                     isInternetEnabled
                       ? l10n.components.chatInput.internetToggle.disable
                       : l10n.components.chatInput.internetToggle.enable
                   }
+                  accessibilityState={{selected: isInternetEnabled}}
                   accessibilityRole="button">
-                  <SearchIcon
-                    width={14}
-                    height={14}
+                  <GlobeIcon
+                    width={17}
+                    height={17}
                     stroke={
                       isInternetEnabled
                         ? inputBackgroundColor
                         : onSurfaceColorVariant
                     }
                   />
-                  <Text
-                    style={[
-                      styles.thinkingToggleText,
-                      isInternetEnabled
-                        ? {color: inputBackgroundColor}
-                        : {color: onSurfaceColorVariant},
-                    ]}>
-                    {l10n.components.chatInput.internetToggle.label}
-                  </Text>
                 </TouchableOpacity>
               )}
 
