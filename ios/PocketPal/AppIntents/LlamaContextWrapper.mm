@@ -6,6 +6,9 @@
 //
 
 #import "LlamaContextWrapper.h"
+#import <TargetConditionals.h>
+
+#if !TARGET_OS_MACCATALYST
 
 // Import the C++ headers from the rnllama framework
 #include <rnllama/rn-llama.h>
@@ -384,3 +387,67 @@
 }
 
 @end
+
+#else  // TARGET_OS_MACCATALYST
+
+// Mac Catalyst: llama.rn has no Catalyst slice and is not autolinked
+// (see react-native.config.js). Keep the Obj-C API so the Swift App Intents
+// still compile, but never reference the llama.rn headers. Local AI on Mac goes through the
+// Device Bridge/CLI, not in-process llama.cpp.
+
+static NSString *const kLlamaCatalystUnavailable = @"Local AI is not available on Mac Catalyst";
+
+@implementation LlamaContextWrapper
+
+- (nullable instancetype)initWithModelPath:(NSString *)modelPath
+                                parameters:(NSDictionary *)params
+                                onProgress:(nullable void (^)(NSUInteger progress))progressCallback
+                                     error:(NSError **)error {
+    if (error) {
+        *error = [NSError errorWithDomain:@"LlamaContextWrapper"
+                                     code:1000
+                                 userInfo:@{NSLocalizedDescriptionKey: kLlamaCatalystUnavailable}];
+    }
+    return nil;
+}
+
+- (BOOL)isModelLoaded {
+    return NO;
+}
+
+- (nullable NSDictionary *)completionWithParams:(NSDictionary *)params
+                                        onToken:(nullable void (^)(NSString *token))tokenCallback
+                                          error:(NSError **)error {
+    if (error) {
+        *error = [NSError errorWithDomain:@"LlamaContextWrapper"
+                                     code:1000
+                                 userInfo:@{NSLocalizedDescriptionKey: kLlamaCatalystUnavailable}];
+    }
+    return nil;
+}
+
+- (NSString *)getFormattedChat:(NSString *)messages
+              withChatTemplate:(nullable NSString *)chatTemplate {
+    return @"";
+}
+
+- (NSDictionary *)getFormattedChatWithJinja:(NSString *)messages
+                           withChatTemplate:(nullable NSString *)chatTemplate
+                          withEnableThinking:(BOOL)enableThinking {
+    return @{};
+}
+
+- (int)saveSession:(NSString *)path size:(int)size {
+    return 0;
+}
+
+- (NSDictionary *)loadSession:(NSString *)path {
+    return @{@"tokens_loaded": @0, @"prompt": @""};
+}
+
+- (void)invalidate {
+}
+
+@end
+
+#endif  // TARGET_OS_MACCATALYST
