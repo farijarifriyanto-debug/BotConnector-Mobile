@@ -57,9 +57,7 @@ describe('BotConnector Files API', () => {
       onProgress: progress,
     });
 
-    expect(result.id).toBe(
-      'file_bc_11111111-1111-1111-1111-111111111111',
-    );
+    expect(result.id).toBe('file_bc_11111111-1111-1111-1111-111111111111');
     expect(RNFS.uploadFiles).toHaveBeenCalledWith(
       expect.objectContaining({
         toUrl: 'https://api.botconnector.id/v1/client/files',

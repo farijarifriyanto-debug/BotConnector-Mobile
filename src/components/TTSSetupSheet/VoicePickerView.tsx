@@ -75,7 +75,9 @@ export const filterSystemVoices = (
   const wanted = new Set([appBase, 'en']);
   const seen = new Set<string>();
   const rank = (voice: Voice): number => {
-    const lang = String(voice.language ?? '').toLowerCase().replace('_', '-');
+    const lang = String(voice.language ?? '')
+      .toLowerCase()
+      .replace('_', '-');
     const base = lang.split('-')[0];
     const qualityPenalty = voice.quality === 'Enhanced' ? 0 : 10;
     if (lang === preferredLocale) {
@@ -625,10 +627,9 @@ export const VoicePickerView: React.FC = observer(() => {
           {l10n.voiceAndSpeech.voicesEmptyHint}
         </Text>
       )}
-      {(uiStore.language === 'id'
-        ? INDONESIAN_ENGINE_ORDER
-        : ENGINE_ORDER
-      ).map(renderEngineGroup)}
+      {(uiStore.language === 'id' ? INDONESIAN_ENGINE_ORDER : ENGINE_ORDER).map(
+        renderEngineGroup,
+      )}
     </Sheet.ScrollView>
   );
 });

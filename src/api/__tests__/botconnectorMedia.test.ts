@@ -113,9 +113,7 @@ describe('BotConnector media API', () => {
       }),
     } as any);
 
-    const referenceImages = [
-      'data:image/jpeg;base64,ZmFrZS1yZWZlcmVuY2U=',
-    ];
+    const referenceImages = ['data:image/jpeg;base64,ZmFrZS1yZWZlcmVuY2U='];
     await generateBotConnectorImage({
       serverUrl: 'https://api.botconnector.id',
       apiKey: 'bc_live_test',

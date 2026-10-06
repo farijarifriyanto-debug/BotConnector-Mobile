@@ -6,7 +6,7 @@
  */
 
 import {useEffect, useCallback} from 'react';
-import {Alert, Linking, Platform} from 'react-native';
+import {Alert, AppState, Linking, Platform} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {deepLinkService, DeepLinkParams} from '../services/DeepLinkService';
 import {isHubLink, parseHubRunURL} from '../services/hubRunLink';
@@ -143,6 +143,12 @@ export const useDeepLinking = () => {
     botConnectorAuthStore.restore().catch(() => {
       // The account card will surface the restore error; startup stays usable.
     });
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        botConnectorAuthStore.revalidate().catch(() => undefined);
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   // Android uses React Native Linking for the production callback. iOS and

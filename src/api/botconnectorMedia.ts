@@ -99,9 +99,7 @@ export async function generateBotConnectorImage({
           prompt,
           n: 1,
           size,
-          ...(referenceImages.length
-            ? {inputs: {referenceImages}}
-            : {}),
+          ...(referenceImages.length ? {inputs: {referenceImages}} : {}),
         }),
         signal: controller.signal,
       },
