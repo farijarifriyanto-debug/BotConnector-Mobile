@@ -247,6 +247,7 @@
     "failedToGenerate": "Gagal menghasilkan respons"
   },
   "models": {
+    "localUnavailableOnMac": "AI lokal belum tersedia di Mac. Gunakan BotConnector Cloud; model lokal di Mac akan lewat Device Bridge.",
     "fileManagement": {
       "fileAlreadyExists": "File sudah ada",
       "fileAlreadyExistsMessage": "File dengan nama ini sudah ada. Apa yang ingin Anda lakukan?",

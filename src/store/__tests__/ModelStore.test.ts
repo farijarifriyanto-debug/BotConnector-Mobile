@@ -143,6 +143,24 @@ describe('ModelStore', () => {
     showErrorSpy.mockRestore();
   });
 
+  describe('Mac Catalyst local inference gate', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('rejects local model init with a clear message and never touches llama.rn', async () => {
+      jest.spyOn(Platform as any, 'isMacCatalyst', 'get').mockReturnValue(true);
+      const nativeInit = initializeLlama as jest.Mock;
+      nativeInit.mockClear();
+
+      await expect(modelStore.initContext(basicModel)).rejects.toThrow(
+        /Device Bridge/,
+      );
+      expect(nativeInit).not.toHaveBeenCalled();
+      expect(modelStore.isContextLoading).toBe(false);
+    });
+  });
+
   describe('Hexagon load device resolution', () => {
     const originalInitContext = modelStore.initContext;
     const discover = getBackendDevicesInfo as jest.Mock;
