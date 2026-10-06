@@ -57,6 +57,17 @@
             <category android:name="android.intent.category.BROWSABLE" />
             <data android:scheme="botconnector" android:host="hub" />
         </intent-filter>
+        <!-- BotConnector account login callback. Keep this host-scoped so the
+             browser PKCE round-trip returns only to the native account flow. -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data
+                android:scheme="botconnector"
+                android:host="auth"
+                android:path="/callback" />
+        </intent-filter>
         <!-- Checkout callback for the in-app PalsHub purchase flow. Scoped to
              host=checkout so it is routed to AuthSessionModule, not the
              hub deep-link path. -->
