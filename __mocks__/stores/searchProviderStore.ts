@@ -7,12 +7,14 @@ class MockSearchProviderStore {
   activeProviderId: SearchProviderId = 'brave';
   resultCount = 5;
   hasConsentedToSearch = false;
+  forceInternetSearch = false;
 
   private keys: Partial<Record<SearchProviderId, string>> = {};
 
   setActiveProvider: jest.Mock;
   setResultCount: jest.Mock;
   setConsent: jest.Mock;
+  setForceInternetSearch: jest.Mock;
   setKey: jest.Mock;
   clearKey: jest.Mock;
 
@@ -21,6 +23,7 @@ class MockSearchProviderStore {
       setActiveProvider: false,
       setResultCount: false,
       setConsent: false,
+      setForceInternetSearch: false,
       setKey: false,
       clearKey: false,
     });
@@ -33,6 +36,12 @@ class MockSearchProviderStore {
     });
     this.setConsent = jest.fn((consented: boolean) => {
       this.hasConsentedToSearch = consented;
+      if (!consented) {
+        this.forceInternetSearch = false;
+      }
+    });
+    this.setForceInternetSearch = jest.fn((enabled: boolean) => {
+      this.forceInternetSearch = this.hasConsentedToSearch && enabled;
     });
     this.setKey = jest.fn(async (id: SearchProviderId, key: string) => {
       this.keys[id] = key;

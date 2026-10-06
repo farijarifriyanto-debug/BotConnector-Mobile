@@ -11,7 +11,7 @@ import {submitFeedback} from '../../api/feedback';
 
 import {CopyIcon, GithubIcon, ChevronRightIcon} from '../../assets/icons';
 
-import {Sheet, TextInput} from '../../components';
+import {BotConnectorAccountCard, Sheet, TextInput} from '../../components';
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 import {L10nContext} from '../../utils';
@@ -98,6 +98,7 @@ export const AboutScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
+        <BotConnectorAccountCard />
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.headerContent}>

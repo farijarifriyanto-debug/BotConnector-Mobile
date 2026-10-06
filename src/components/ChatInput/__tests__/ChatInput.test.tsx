@@ -299,10 +299,10 @@ describe('input', () => {
     expect(plusButton).toBeDefined();
   });
 
-  it('does not show plus button when showImageUpload is false', () => {
+  it('keeps the attachment entry point visible when image upload is disabled', () => {
     expect.assertions(1);
     const onSendPress = jest.fn();
-    const {queryByLabelText} = render(
+    const {getByLabelText} = render(
       <UserContext.Provider value={user}>
         <ChatInput
           {...{
@@ -314,8 +314,8 @@ describe('input', () => {
       </UserContext.Provider>,
     );
 
-    const plusButton = queryByLabelText('Add attachment');
-    expect(plusButton).toBeNull();
+    const plusButton = getByLabelText('Add attachment');
+    expect(plusButton).toBeDefined();
   });
 
   it('renders plus button correctly when vision is enabled', () => {
@@ -487,7 +487,7 @@ describe('input', () => {
     }
   });
 
-  it('disables plus button when vision is not enabled', () => {
+  it('keeps plus button enabled when vision is not enabled so File remains reachable', () => {
     expect.assertions(1);
     const onSendPress = jest.fn();
     const {getByLabelText} = render(
@@ -504,7 +504,7 @@ describe('input', () => {
     );
 
     const plusButton = getByLabelText('Add attachment');
-    expect(plusButton.props.accessibilityState.disabled).toBe(true);
+    expect(plusButton.props.accessibilityState.disabled).toBe(false);
   });
 
   it('enables plus button when vision is enabled', () => {
@@ -581,6 +581,25 @@ describe('input', () => {
     });
   });
 
+  describe('Internet toggle', () => {
+    it('renders in front controls and toggles explicit Internet mode', () => {
+      const onInternetToggle = jest.fn();
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            onSendPress={jest.fn()}
+            showInternetToggle={true}
+            isInternetEnabled={false}
+            onInternetToggle={onInternetToggle}
+          />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(screen.getByTestId('internet-toggle'));
+      expect(onInternetToggle).toHaveBeenCalledWith(true);
+    });
+  });
+
   describe('Image Upload Functionality', () => {
     beforeEach(() => {
       jest.clearAllMocks();
@@ -595,6 +614,68 @@ describe('input', () => {
         size: 1024,
         isFile: () => true,
         isDirectory: () => false,
+      });
+    });
+
+    it('keeps attachment control visible for BotConnector Files even without vision', () => {
+      runInAction(() => {
+        serverStore.servers = [
+          {
+            id: 'bc-files-visible',
+            name: 'BotConnector',
+            url: 'https://api.botconnector.id',
+            serverType: 'OpenAI',
+          },
+        ];
+        serverStore.botConnectorAccess = {
+          'bc-files-visible': {
+            object: 'botconnector.client_capabilities',
+            plan: 'plus',
+            access: 'full',
+            paid: true,
+            entitlement_sources: {
+              subscription: true,
+              payg: false,
+              family: false,
+            },
+            capabilities: {
+              chat: true,
+              web_search: true,
+              read_url: true,
+              tools: true,
+              vision: false,
+              media: true,
+              files: true,
+            },
+          },
+        };
+        modelStore.models = [
+          {
+            id: 'bc-files-visible/text-model',
+            origin: 'remote',
+            serverId: 'bc-files-visible',
+            remoteModelId: 'text-model',
+          } as any,
+        ];
+        modelStore.activeModelId = 'bc-files-visible/text-model';
+      });
+
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            onSendPress={jest.fn()}
+            showImageUpload={false}
+            isVisionEnabled={false}
+          />
+        </UserContext.Provider>,
+      );
+
+      expect(screen.getByLabelText('Add attachment')).toBeTruthy();
+
+      runInAction(() => {
+        serverStore.servers = [];
+        serverStore.botConnectorAccess = {};
+        modelStore.activeModelId = undefined;
       });
     });
 

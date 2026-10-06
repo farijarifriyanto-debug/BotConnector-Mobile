@@ -36,6 +36,7 @@ import {
 } from '../../assets/icons';
 
 import {
+  BotConnectorAccountCard,
   TextInput,
   Menu,
   Divider,
@@ -370,6 +371,7 @@ export const SettingsScreen: React.FC = observer(() => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
+          <BotConnectorAccountCard />
           {/* Model Initialization Settings */}
           <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />

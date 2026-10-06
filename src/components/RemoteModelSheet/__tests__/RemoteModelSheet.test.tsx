@@ -2,7 +2,6 @@ import React from 'react';
 import {render, fireEvent, waitFor} from '../../../../jest/test-utils';
 import {RemoteModelSheet} from '../RemoteModelSheet';
 import {botConnectorAuthStore, serverStore} from '../../../store';
-import {l10n} from '../../../locales';
 import {fetchModels, fetchModelsWithHeaders} from '../../../api/openai';
 import {detectServerType} from '../../../api/servers/detect';
 import {routerModelsBody} from '../../../../jest/fixtures/remoteModelList';
@@ -485,12 +484,14 @@ describe('RemoteModelSheet', () => {
       authStore.isSigningIn = false;
     });
 
-    it('signed out: the main button starts BotConnector login and never asks for an API key', async () => {
+    it('signed out: account card owns login and model selection never starts auth', async () => {
       const {getByTestId, queryByTestId} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
       );
 
-      fireEvent.press(getByTestId('botconnector-preset-button'));
+      expect(getByTestId('botconnector-account-card')).toBeTruthy();
+      expect(queryByTestId('botconnector-preset-button')).toBeNull();
+      fireEvent.press(getByTestId('botconnector-account-action'));
 
       await waitFor(() => {
         expect(authStore.startLogin).toHaveBeenCalledTimes(1);
@@ -500,19 +501,26 @@ describe('RemoteModelSheet', () => {
       expect(serverStore.setApiKey).not.toHaveBeenCalled();
     });
 
-    it('signed in: shows the plan, does not start another login, and offers sign out', async () => {
+    it('signed in: account identity is separate from Cloud selection and offers sign out', async () => {
       authStore.isSignedIn = true;
-      authStore.account = {plan: 'plus'};
+      authStore.account = {
+        plan: 'plus',
+        email: 'user@example.invalid',
+        display_name: 'Test User',
+      };
 
       const {getByTestId, getByText} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
       );
 
-      expect(getByText(/BotConnector · plus/)).toBeTruthy();
+      expect(getByText('Test User')).toBeTruthy();
+      expect(getByText('user@example.invalid')).toBeTruthy();
+      expect(getByText('PLUS')).toBeTruthy();
+      expect(getByText(/BotConnector Cloud · plus/)).toBeTruthy();
       fireEvent.press(getByTestId('botconnector-preset-button'));
       expect(authStore.startLogin).not.toHaveBeenCalled();
 
-      fireEvent.press(getByText(l10n.en.palsScreen.signOut));
+      fireEvent.press(getByTestId('botconnector-account-action'));
       await waitFor(() => {
         expect(authStore.logout).toHaveBeenCalledTimes(1);
       });

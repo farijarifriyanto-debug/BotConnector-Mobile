@@ -252,6 +252,7 @@ export async function* runAgent(
     messageId,
     maxTurns = DEFAULT_MAX_TURNS,
     signal,
+    forcedFirstToolCall,
   } = options;
 
   yield {type: 'run_started', messageId};
@@ -290,6 +291,33 @@ export async function* runAgent(
   const callIdSeed = Date.now();
 
   try {
+    // Explicit app modes may guarantee one tool action before asking the model.
+    // This is represented as a normal agent step so persistence/UI/tool-history
+    // stay identical to a model-requested call, while avoiding provider-specific
+    // tool_choice behavior.
+    if (forcedFirstToolCall && !signal?.aborted) {
+      yield {type: 'step_started', turn: 0, isFollowUp: false};
+      yield {type: 'tool_call_started', call: forcedFirstToolCall};
+      const forcedOutcome = await executeOne(
+        forcedFirstToolCall,
+        allowedTalentNames,
+        talentLookup,
+      );
+      yield {type: 'tool_call_finished', outcome: forcedOutcome};
+      yield {
+        type: 'step_finished',
+        turn: 0,
+        toolCalls: [forcedFirstToolCall],
+      };
+      messages = buildNextTurnMessages(
+        messages,
+        '',
+        [forcedFirstToolCall],
+        [forcedOutcome],
+      );
+      turn = 1;
+    }
+
     while (turn < maxTurns || forceFinal) {
       if (signal?.aborted) {
         break;
@@ -315,7 +343,7 @@ export async function* runAgent(
       // Bridge engine streaming callback into the iterator.
       const queue = new EventQueue<AgentEvent>();
       const turnParams: ApiCompletionParams = isForcedFinal
-        ? {...initialParams, messages, tools: undefined}
+        ? {...initialParams, messages, tools: undefined, tool_choice: undefined}
         : {...initialParams, messages};
 
       // Track engine failure separately so we can fully await the

@@ -17,6 +17,7 @@ import {t} from '../../locales';
 import type {Pal} from '../../types/pal';
 import {CloseIcon, SettingsIcon} from '../../assets/icons';
 import {ModelPickerList} from '../ModelPickerList';
+import {BotConnectorAccountCard} from '../BotConnectorAccountCard';
 
 type Tab = 'models' | 'pals';
 
@@ -329,6 +330,9 @@ export const ChatPalModelPickerSheet = observer(
         // children from the accessibility tree. Same fix as Sheet.tsx.
         // See: https://github.com/gorhom/react-native-bottom-sheet/issues/1141
         accessible={false}>
+        <View style={{paddingHorizontal: 16, paddingBottom: 8}}>
+          <BotConnectorAccountCard compact />
+        </View>
         <View style={styles.tabs}>
           {TABS.map((tab, index) => renderTab(tab.id, tab.label, index))}
         </View>

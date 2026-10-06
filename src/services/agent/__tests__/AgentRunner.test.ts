@@ -152,6 +152,63 @@ describe('runAgent', () => {
     expect((finished[0] as any).outcome.responseContent).toBe('4');
   });
 
+  it('runs an app-forced first tool before the model and passes its result as tool history', async () => {
+    const engine = makeScriptedEngine({
+      scripts: [
+        {
+          tokens: [{content: 'grounded answer'}],
+          result: {text: 'grounded answer', content: 'grounded answer'},
+        },
+      ],
+    });
+    const search = makeTalent('web_search', args => ({
+      type: 'text',
+      summary: `results for ${args.query}`,
+    }));
+    const forcedCall = {
+      id: 'forced-search-1',
+      type: 'function' as const,
+      function: {
+        name: 'web_search',
+        arguments: '{"query":"gold price today"}',
+      },
+    };
+
+    const events = await collect(
+      runAgent({
+        engine,
+        initialParams: {
+          ...baseParams,
+          messages: [{role: 'user', content: 'gold price today'}] as any,
+        },
+        allowedTalentNames: ['web_search'],
+        talentLookup: name => (name === 'web_search' ? search : undefined),
+        messageId: 'msg',
+        triggerMarkers: [],
+        forcedFirstToolCall: forcedCall,
+      }),
+    );
+
+    const params = (engine.completion as jest.Mock).mock.calls[0][0];
+    const tail = params.messages.slice(-2);
+    expect(tail[0]).toEqual(
+      expect.objectContaining({
+        role: 'assistant',
+        tool_calls: [expect.objectContaining({id: 'forced-search-1'})],
+      }),
+    );
+    expect(tail[1]).toEqual(
+      expect.objectContaining({
+        role: 'tool',
+        tool_call_id: 'forced-search-1',
+        content: 'results for gold price today',
+      }),
+    );
+    expect(events.filter(e => e.type === 'tool_call_started')).toHaveLength(1);
+    expect(events.filter(e => e.type === 'tool_call_finished')).toHaveLength(1);
+    expect(events[events.length - 1].type).toBe('run_finished');
+  });
+
   it('#3 tool call but second turn yields no further tool_calls → run finishes after follow-up', async () => {
     // Note: the runner does not consult `requiresModelResponse`; it always
     // performs a follow-up turn after tool calls and only exits the loop

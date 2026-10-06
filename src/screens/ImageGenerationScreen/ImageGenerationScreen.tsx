@@ -1,5 +1,12 @@
 import React from 'react';
-import {Alert, Image, ScrollView, View} from 'react-native';
+import {
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  View,
+} from 'react-native';
 import {launchImageLibrary} from 'react-native-image-picker';
 import * as RNFS from '@dr.pogodin/react-native-fs';
 import Share from 'react-native-share';
@@ -18,7 +25,7 @@ import {
   fetchBotConnectorImageModels,
   generateBotConnectorImage,
 } from '../../api/botconnectorMedia';
-import {TextInput} from '../../components';
+import {BotConnectorAccountCard, TextInput} from '../../components';
 import {Dropdown} from '../../components/ui';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {useTheme} from '../../hooks';
@@ -31,7 +38,7 @@ const COPY = {
       'Generate images with your BotConnector account. Free, plan, and PAYG access are enforced by your account quota.',
     connectTitle: 'Connect BotConnector first',
     connectBody:
-      'Open Models → Add Remote Model → Connect BotConnector, then paste your BotConnector API key.',
+      'Sign in with your BotConnector account below. No BotConnector API key is needed for normal app use.',
     model: 'Image model',
     prompt: 'Describe the image',
     promptPlaceholder:
@@ -53,7 +60,7 @@ const COPY = {
       'Buat gambar dengan akun BotConnector. Akses gratis, paket, dan PAYG mengikuti kuota akun Anda.',
     connectTitle: 'Hubungkan BotConnector terlebih dahulu',
     connectBody:
-      'Buka Model → Tambahkan Model Remote → Hubungkan BotConnector, lalu tempel API key BotConnector.',
+      'Masuk dengan akun BotConnector di bawah. Penggunaan aplikasi normal tidak memerlukan API key BotConnector.',
     model: 'Model gambar',
     prompt: 'Jelaskan gambar yang ingin dibuat',
     promptPlaceholder:
@@ -117,6 +124,21 @@ export const ImageGenerationScreen = observer(() => {
   const [resultAccess, setResultAccess] = React.useState<string | undefined>();
   const [quotaText, setQuotaText] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const contentRef = React.useRef<ScrollView>(null);
+  const promptYRef = React.useRef(0);
+  const handlePromptFocus = React.useCallback(() => {
+    // Wait for the iOS keyboard animation, then place the prompt near the top
+    // of the visible viewport. Do not scrollToEnd: an old generated image may
+    // live below the composer and would otherwise pull focus away from input.
+    setTimeout(
+      () =>
+        contentRef.current?.scrollTo({
+          y: Math.max(0, promptYRef.current - 12),
+          animated: true,
+        }),
+      180,
+    );
+  }, []);
 
   const loadModels = React.useCallback(async () => {
     if (!botConnectorServer) {
@@ -306,6 +328,9 @@ export const ImageGenerationScreen = observer(() => {
   if (!botConnectorServer || !apiKey) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+        <View style={{paddingHorizontal: 16, paddingTop: 12}}>
+          <BotConnectorAccountCard />
+        </View>
         <View style={styles.centerState}>
           <Text variant="titleMedium">{copy.connectTitle}</Text>
           <Text style={styles.muted}>{copy.connectBody}</Text>
@@ -319,138 +344,159 @@ export const ImageGenerationScreen = observer(() => {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <Text style={styles.intro}>{copy.intro}</Text>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoiding}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          ref={contentRef}
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={
+            Platform.OS === 'ios' ? 'interactive' : 'on-drag'
+          }>
+          <BotConnectorAccountCard compact />
+          <Text style={styles.intro}>{copy.intro}</Text>
 
-        <View style={styles.field}>
-          <Text variant="labelLarge">{copy.model}</Text>
-          {loadingModels ? (
-            <ActivityIndicator />
-          ) : models.length > 0 ? (
-            <Dropdown
-              testID="image-model-dropdown"
-              value={selectedModel}
-              options={models.map(model => ({
-                value: model.id,
-                label: `${model.name} · ${model.botconnector_access.toUpperCase()}`,
-              }))}
-              onChange={setSelectedModel}
+          <View style={styles.field}>
+            <Text variant="labelLarge">{copy.model}</Text>
+            {loadingModels ? (
+              <ActivityIndicator />
+            ) : models.length > 0 ? (
+              <Dropdown
+                testID="image-model-dropdown"
+                value={selectedModel}
+                options={models.map(model => ({
+                  value: model.id,
+                  label: `${model.name} · ${model.botconnector_access.toUpperCase()}`,
+                }))}
+                onChange={setSelectedModel}
+              />
+            ) : (
+              <View style={styles.emptyModels}>
+                <Text style={styles.muted}>{copy.noModels}</Text>
+                <Button mode="text" onPress={() => loadModels()}>
+                  {copy.retry}
+                </Button>
+              </View>
+            )}
+
+            {selected ? (
+              <View style={styles.modelMeta}>
+                <Chip compact>{selected.developer}</Chip>
+                <Chip compact>
+                  {selected.botconnector_access.toUpperCase()}
+                </Chip>
+                {supportsReferenceImages ? (
+                  <Chip compact>Image → Image</Chip>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          <View
+            style={styles.field}
+            onLayout={event => {
+              promptYRef.current = event.nativeEvent.layout.y;
+            }}>
+            <Text variant="labelLarge">{copy.prompt}</Text>
+            <TextInput
+              testID="image-prompt-input"
+              value={prompt}
+              onChangeText={setPrompt}
+              onFocus={handlePromptFocus}
+              placeholder={copy.promptPlaceholder}
+              multiline
+              numberOfLines={4}
             />
-          ) : (
-            <View style={styles.emptyModels}>
-              <Text style={styles.muted}>{copy.noModels}</Text>
-              <Button mode="text" onPress={() => loadModels()}>
-                {copy.retry}
+          </View>
+
+          <View style={styles.referenceSection}>
+            <View style={styles.sectionHeader}>
+              <Text variant="labelLarge" style={styles.sectionHeaderText}>
+                {copy.reference}
+              </Text>
+              <Button
+                compact
+                mode="outlined"
+                icon="image-plus"
+                disabled={
+                  !supportsReferenceImages ||
+                  referenceImages.length >= MAX_REFERENCE_IMAGES
+                }
+                onPress={() => addReferenceImages().catch(() => undefined)}>
+                {copy.addReference}
               </Button>
             </View>
-          )}
+            <Text style={styles.referenceHint}>
+              {supportsReferenceImages
+                ? copy.referenceHint
+                : copy.referenceUnsupported}
+            </Text>
+            {referenceImages.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.referenceList}>
+                {referenceImages.map((image, index) => (
+                  <View
+                    key={`${image.uri}:${index}`}
+                    style={styles.referenceItem}>
+                    <Image
+                      source={{uri: image.uri}}
+                      style={styles.referenceImage}
+                    />
+                    <IconButton
+                      icon="close-circle"
+                      size={20}
+                      style={styles.referenceRemove}
+                      onPress={() =>
+                        setReferenceImages(current =>
+                          current.filter((_, itemIndex) => itemIndex !== index),
+                        )
+                      }
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : null}
+          </View>
 
-          {selected ? (
-            <View style={styles.modelMeta}>
-              <Chip compact>{selected.developer}</Chip>
-              <Chip compact>{selected.botconnector_access.toUpperCase()}</Chip>
-              {supportsReferenceImages ? (
-                <Chip compact>Image → Image</Chip>
-              ) : null}
+          <Button
+            mode="contained"
+            testID="generate-image-button"
+            loading={generating}
+            disabled={generating || !selectedModel || !prompt.trim()}
+            onPress={() => generate().catch(() => undefined)}>
+            {generating ? copy.generating : copy.generate}
+          </Button>
+
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+
+          {resultUri ? (
+            <View style={styles.resultCard}>
+              <View style={styles.resultHeader}>
+                <Text variant="titleMedium">{copy.generated}</Text>
+                {resultAccess ? (
+                  <Chip compact>{resultAccess.toUpperCase()}</Chip>
+                ) : null}
+              </View>
+              <Image
+                testID="generated-image"
+                source={{uri: resultUri}}
+                resizeMode="contain"
+                style={styles.resultImage}
+              />
+              {quotaText ? <Text style={styles.muted}>{quotaText}</Text> : null}
+              <Button
+                mode="outlined"
+                icon="share-variant"
+                onPress={shareResult}>
+                {copy.share}
+              </Button>
             </View>
           ) : null}
-        </View>
-
-        <View style={styles.referenceSection}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionHeaderText}>
-              <Text variant="labelLarge">{copy.reference}</Text>
-              <Text style={styles.referenceHint}>
-                {supportsReferenceImages
-                  ? copy.referenceHint
-                  : copy.referenceUnsupported}
-              </Text>
-            </View>
-            <Button
-              compact
-              mode="outlined"
-              icon="image-plus"
-              disabled={
-                !supportsReferenceImages ||
-                referenceImages.length >= MAX_REFERENCE_IMAGES
-              }
-              onPress={() => addReferenceImages().catch(() => undefined)}>
-              {copy.addReference}
-            </Button>
-          </View>
-          {referenceImages.length > 0 ? (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.referenceList}>
-              {referenceImages.map((image, index) => (
-                <View
-                  key={`${image.uri}:${index}`}
-                  style={styles.referenceItem}>
-                  <Image
-                    source={{uri: image.uri}}
-                    style={styles.referenceImage}
-                  />
-                  <IconButton
-                    icon="close-circle"
-                    size={20}
-                    style={styles.referenceRemove}
-                    onPress={() =>
-                      setReferenceImages(current =>
-                        current.filter((_, itemIndex) => itemIndex !== index),
-                      )
-                    }
-                  />
-                </View>
-              ))}
-            </ScrollView>
-          ) : null}
-        </View>
-
-        <View style={styles.field}>
-          <Text variant="labelLarge">{copy.prompt}</Text>
-          <TextInput
-            testID="image-prompt-input"
-            value={prompt}
-            onChangeText={setPrompt}
-            placeholder={copy.promptPlaceholder}
-            multiline
-            numberOfLines={5}
-          />
-        </View>
-
-        <Button
-          mode="contained"
-          testID="generate-image-button"
-          loading={generating}
-          disabled={generating || !selectedModel || !prompt.trim()}
-          onPress={() => generate().catch(() => undefined)}>
-          {generating ? copy.generating : copy.generate}
-        </Button>
-
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {resultUri ? (
-          <View style={styles.resultCard}>
-            <View style={styles.resultHeader}>
-              <Text variant="titleMedium">{copy.generated}</Text>
-              {resultAccess ? (
-                <Chip compact>{resultAccess.toUpperCase()}</Chip>
-              ) : null}
-            </View>
-            <Image
-              testID="generated-image"
-              source={{uri: resultUri}}
-              resizeMode="contain"
-              style={styles.resultImage}
-            />
-            {quotaText ? <Text style={styles.muted}>{quotaText}</Text> : null}
-            <Button mode="outlined" icon="share-variant" onPress={shareResult}>
-              {copy.share}
-            </Button>
-          </View>
-        ) : null}
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 });

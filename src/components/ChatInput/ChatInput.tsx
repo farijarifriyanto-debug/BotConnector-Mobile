@@ -32,6 +32,7 @@ import {
   VideoRecorderIcon,
   PlusIcon,
   AtomIcon,
+  SearchIcon,
   XSmIcon,
 } from '../../assets/icons';
 
@@ -92,6 +93,12 @@ export interface ChatInputTopLevelProps {
   /** Whether to show the image upload button */
   showImageUpload?: boolean;
   isVisionEnabled?: boolean;
+  /** Whether to show the Internet search toggle button */
+  showInternetToggle?: boolean;
+  /** Whether explicit Internet mode is currently enabled */
+  isInternetEnabled?: boolean;
+  /** Callback when explicit Internet mode is toggled */
+  onInternetToggle?: (enabled: boolean) => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -117,6 +124,12 @@ export interface ChatInputAdditionalProps {
   onPromptTextChange?: (text: string) => void;
   /** Whether to show the image upload button */
   showImageUpload?: boolean;
+  /** Whether to show the Internet search toggle button */
+  showInternetToggle?: boolean;
+  /** Whether explicit Internet mode is currently enabled */
+  isInternetEnabled?: boolean;
+  /** Callback when explicit Internet mode is toggled */
+  onInternetToggle?: (enabled: boolean) => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -158,10 +171,12 @@ export const ChatInput = observer(
     onStartCamera,
     promptText,
     onPromptTextChange,
-    showImageUpload = false,
     isVisionEnabled = false,
     defaultImages,
     onDefaultImagesChange,
+    showInternetToggle = false,
+    isInternetEnabled = false,
+    onInternetToggle,
     showThinkingToggle = false,
     isThinkingEnabled = false,
     onThinkingToggle,
@@ -594,12 +609,20 @@ export const ChatInput = observer(
 
     const handleSelectFiles = async () => {
       if (!activeServer || !botConnectorFilesEnabled) {
+        setShowImageUploadMenu(false);
+        Alert.alert(
+          l10n.components.chatInput.fileUploadUnavailableTitle,
+          l10n.components.chatInput.fileUploadUnavailableBody,
+        );
         return;
       }
 
       const apiKey = await serverStore.getApiKey(activeServer.id);
       if (!apiKey) {
-        Alert.alert('File upload failed', 'BotConnector API key is required');
+        Alert.alert(
+          l10n.components.chatInput.fileUploadUnavailableTitle,
+          l10n.components.chatInput.sessionUnavailableBody,
+        );
         return;
       }
 
@@ -790,9 +813,9 @@ export const ChatInput = observer(
 
     const onSurfaceColor = currentActivePal?.color?.[0] || theme.colors.text;
     const onSurfaceColorVariant = onSurfaceColor + '55'; // for disabled state or placeholder text
-    // // Plus button state
-    const isPlusButtonEnabled =
-      !isStreaming && (isVisionEnabled || botConnectorFilesEnabled);
+    // Keep the attachment entry point visible. Availability is explained
+    // inside the menu instead of making the entire control disappear.
+    const isPlusButtonEnabled = !isStreaming;
     const plusColor = isPlusButtonEnabled
       ? onSurfaceColor
       : onSurfaceColorVariant;
@@ -986,8 +1009,9 @@ export const ChatInput = observer(
           <View style={styles.controlBar}>
             {/* Left Controls */}
             <View style={styles.leftControls}>
-              {/* Plus Button for Image Upload (only for regular chat) */}
-              {showImageUpload && !isVideoCapable && (
+              {/* Attachment entry point stays visible; each option explains
+                  capability requirements instead of disappearing. */}
+              {!isVideoCapable && (
                 <Menu
                   visible={showImageUploadMenu}
                   onDismiss={() => setShowImageUploadMenu(false)}
@@ -1019,13 +1043,14 @@ export const ChatInput = observer(
                     labelStyle={!isVisionEnabled && styles.menuItemUnavailable}
                     onPress={requireVision(handleSelectImages)}
                   />
-                  {botConnectorFilesEnabled && (
-                    <Menu.Item
-                      label="File"
-                      icon="file-document-outline"
-                      onPress={handleSelectFiles}
-                    />
-                  )}
+                  <Menu.Item
+                    label="File"
+                    icon="file-document-outline"
+                    labelStyle={
+                      !botConnectorFilesEnabled && styles.menuItemUnavailable
+                    }
+                    onPress={handleSelectFiles}
+                  />
                 </Menu>
               )}
 
@@ -1092,6 +1117,45 @@ export const ChatInput = observer(
                   </>
                 )}
               </View>
+
+              {/* Explicit Internet mode. Auto web tools remain available when
+                  consented; this chip means "search first" for this chat. */}
+              {showInternetToggle && !isCameraActive && (
+                <TouchableOpacity
+                  hitSlop={8}
+                  testID="internet-toggle"
+                  style={[
+                    styles.thinkingToggleLeft,
+                    isInternetEnabled && {backgroundColor: onSurfaceColor},
+                    {borderColor: onSurfaceColorVariant},
+                  ]}
+                  onPress={() => onInternetToggle?.(!isInternetEnabled)}
+                  accessibilityLabel={
+                    isInternetEnabled
+                      ? l10n.components.chatInput.internetToggle.disable
+                      : l10n.components.chatInput.internetToggle.enable
+                  }
+                  accessibilityRole="button">
+                  <SearchIcon
+                    width={14}
+                    height={14}
+                    stroke={
+                      isInternetEnabled
+                        ? inputBackgroundColor
+                        : onSurfaceColorVariant
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.thinkingToggleText,
+                      isInternetEnabled
+                        ? {color: inputBackgroundColor}
+                        : {color: onSurfaceColorVariant},
+                    ]}>
+                    {l10n.components.chatInput.internetToggle.label}
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               {/* Thinking Toggle Button. Graded models (axis-2) cycle
                   off -> low -> medium -> high; effortless models toggle

@@ -85,6 +85,8 @@ const EXCHANGE = {
 };
 const ACCOUNT = {
   user_id: EXCHANGE.user_id,
+  email: 'user@example.invalid',
+  display_name: 'Test User',
   created_at: 1,
   expires_at: EXCHANGE.expires_at,
   plan: 'plus',
@@ -193,6 +195,8 @@ describe('BotConnectorAuthStore', () => {
     expect(serverStore.fetchModelsForServer).toHaveBeenCalledWith('srv-bc');
     expect(botConnectorAuthStore.isSignedIn).toBe(true);
     expect(botConnectorAuthStore.account?.plan).toBe('plus');
+    expect(botConnectorAuthStore.account?.display_name).toBe('Test User');
+    expect(botConnectorAuthStore.account?.email).toBe('user@example.invalid');
   });
 
   it('never exchanges the same code twice (concurrent and repeated delivery)', async () => {

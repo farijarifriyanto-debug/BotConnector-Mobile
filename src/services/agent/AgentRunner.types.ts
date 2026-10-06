@@ -113,4 +113,7 @@ export interface AgentRunOptions {
   messageId: string;
   maxTurns?: number;
   signal?: AbortSignal;
+  /** Optional app-forced first tool step. Used by explicit composer modes such
+   * as Internet so reliability does not depend on a model choosing a tool. */
+  forcedFirstToolCall?: AgentToolCall;
 }

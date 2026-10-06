@@ -34,6 +34,8 @@ class SearchProviderStore {
   activeProviderId: SearchProviderId = DEFAULT_PROVIDER;
   resultCount: number = DEFAULT_RESULT_COUNT;
   hasConsentedToSearch = false;
+  /** Explicit composer mode: force a live web search on the first turn. */
+  forceInternetSearch = false;
 
   /** In-memory mirror of each provider's BYOK key (source of truth: Keychain). */
   private keys: Partial<Record<SearchProviderId, string>> = {};
@@ -43,7 +45,12 @@ class SearchProviderStore {
 
     makePersistable(this, {
       name: 'SearchProviderStore',
-      properties: ['activeProviderId', 'resultCount', 'hasConsentedToSearch'],
+      properties: [
+        'activeProviderId',
+        'resultCount',
+        'hasConsentedToSearch',
+        'forceInternetSearch',
+      ],
       storage: AsyncStorage,
     }).then(() => this.normalizeHydratedPrefs());
 
@@ -66,10 +73,13 @@ class SearchProviderStore {
           )
         : DEFAULT_RESULT_COUNT;
     const consent = (this.hasConsentedToSearch as unknown) === true;
+    const forceInternetSearch =
+      consent && (this.forceInternetSearch as unknown) === true;
     runInAction(() => {
       this.activeProviderId = provider;
       this.resultCount = count;
       this.hasConsentedToSearch = consent;
+      this.forceInternetSearch = forceInternetSearch;
     });
   }
 
@@ -134,6 +144,16 @@ class SearchProviderStore {
   setConsent(consented: boolean) {
     runInAction(() => {
       this.hasConsentedToSearch = consented;
+      if (!consented) {
+        this.forceInternetSearch = false;
+      }
+    });
+    resetSearchCache();
+  }
+
+  setForceInternetSearch(enabled: boolean) {
+    runInAction(() => {
+      this.forceInternetSearch = this.hasConsentedToSearch && enabled;
     });
     resetSearchCache();
   }

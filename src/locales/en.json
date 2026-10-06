@@ -635,7 +635,16 @@
         "thinkingDisabled": "Thinking mode disabled",
         "thinkText": "Think",
         "cycleEffort": "Reasoning effort: {{level}}. Double tap to cycle effort level"
-      }
+      },
+      "internetToggle": {
+        "label": "Internet",
+        "enable": "Turn on Internet search",
+        "disable": "Turn off Internet search",
+        "enabled": "Internet mode is on"
+      },
+      "fileUploadUnavailableTitle": "File upload unavailable",
+      "fileUploadUnavailableBody": "Sign in to BotConnector and use a Cloud model with Files enabled, then try again.",
+      "sessionUnavailableBody": "Your BotConnector session is unavailable. Sign in again and retry."
     },
     "contentReportSheet": {
       "title": "Report Content",
@@ -1037,12 +1046,7 @@
         "total": "Total: ",
         "usage": "Usage: "
       },
-      "byteSizes": [
-        "Bytes",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Bytes", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {

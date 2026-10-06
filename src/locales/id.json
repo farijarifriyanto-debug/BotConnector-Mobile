@@ -614,7 +614,16 @@
         "thinkingDisabled": "Mode berpikir dinonaktifkan",
         "thinkText": "Berpikir",
         "cycleEffort": "Tingkat penalaran: {{level}}. Ketuk dua kali untuk mengganti tingkat penalaran"
-      }
+      },
+      "internetToggle": {
+        "label": "Internet",
+        "enable": "Aktifkan pencarian Internet",
+        "disable": "Nonaktifkan pencarian Internet",
+        "enabled": "Mode Internet aktif"
+      },
+      "fileUploadUnavailableTitle": "Upload file belum tersedia",
+      "fileUploadUnavailableBody": "Masuk ke BotConnector dan gunakan model Cloud yang mendukung Files, lalu coba lagi.",
+      "sessionUnavailableBody": "Sesi BotConnector tidak tersedia. Masuk kembali lalu coba lagi."
     },
     "contentReportSheet": {
       "title": "Laporkan Konten",
@@ -1009,12 +1018,7 @@
         "total": "Total: ",
         "usage": "Penggunaan: "
       },
-      "byteSizes": [
-        "Byte",
-        "KB",
-        "MB",
-        "GB"
-      ]
+      "byteSizes": ["Byte", "KB", "MB", "GB"]
     },
     "chatView": {
       "menuItems": {

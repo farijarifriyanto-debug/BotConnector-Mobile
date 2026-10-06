@@ -135,7 +135,8 @@ export class WebSearchEngine implements TalentEngine {
       ? ' and open pages with read_url'
       : '';
     return (
-      `Today's date is ${today}. You can search the web with web_search${readUrl}. ` +
+      `Today's date is ${today}. This session has live web access through web_search${readUrl}. ` +
+      `Never claim that you cannot access the internet or the web while these tools are available. ` +
       `For time-sensitive or factual questions, search first; usually one or two searches suffice — ` +
       `you have a budget of ${budget} tool calls. Answer using the facts in the results and cite ` +
       'source URLs. If the results do not contain the answer, say so rather than guessing.'

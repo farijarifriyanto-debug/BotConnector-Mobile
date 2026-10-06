@@ -1,4 +1,5 @@
 import React, {useRef, ReactNode, useState} from 'react';
+import {Alert} from 'react-native';
 
 import {observer} from 'mobx-react';
 import {runInAction} from 'mobx';
@@ -19,6 +20,7 @@ import {
   modelStore,
   chatSessionStore,
   palStore,
+  searchProviderStore,
   serverStore,
   uiStore,
 } from '../../store';
@@ -27,6 +29,7 @@ import {hasVideoCapability} from '../../utils/pal-capabilities';
 import {L10nContext} from '../../utils';
 import {resolveReasoningCapability} from '../../utils/reasoningCapability';
 import {richFeaturesAllowed} from '../../utils/mobileFeatureAccess';
+import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {MessageType} from '../../utils/types';
 import {ErrorState} from '../../utils/errors';
 import {user, assistant} from '../../utils/chat';
@@ -112,6 +115,49 @@ export const ChatScreen: React.FC = observer(() => {
   );
   const visionEnabled =
     richFeaturesEnabled && modelStore.activeModelCaps.visionActive;
+  const activeServer = modelStore.activeModel?.serverId
+    ? serverStore.servers.find(
+        server => server.id === modelStore.activeModel?.serverId,
+      )
+    : undefined;
+  const activeBotConnectorAccess =
+    activeServer && isBotConnectorApiUrl(activeServer.url)
+      ? serverStore.botConnectorAccess[activeServer.id]
+      : undefined;
+  const internetAvailable = Boolean(
+    richFeaturesEnabled &&
+      activeBotConnectorAccess?.capabilities.web_search === true,
+  );
+  const internetForced =
+    internetAvailable && searchProviderStore.forceInternetSearch;
+
+  const handleInternetToggle = React.useCallback(
+    (enabled: boolean) => {
+      if (!enabled) {
+        searchProviderStore.setForceInternetSearch(false);
+        return;
+      }
+      if (searchProviderStore.hasConsentedToSearch) {
+        searchProviderStore.setForceInternetSearch(true);
+        return;
+      }
+      Alert.alert(
+        l10n.settings.internetSearch.consentTitle,
+        l10n.settings.internetSearch.consentDescription,
+        [
+          {text: l10n.common.cancel, style: 'cancel'},
+          {
+            text: l10n.settings.internetSearch.consentAccept,
+            onPress: () => {
+              searchProviderStore.setConsent(true);
+              searchProviderStore.setForceInternetSearch(true);
+            },
+          },
+        ],
+      );
+    },
+    [l10n],
+  );
 
   // Resolver is the single source of truth for reasoning capability.
   // Pill is reachable whenever the model is not known to be non-reasoning
@@ -279,6 +325,9 @@ export const ChatScreen: React.FC = observer(() => {
         initialInputText={pendingMessage || undefined}
         onInitialTextConsumed={clearPendingMessage}
         inputProps={{
+          showInternetToggle: internetAvailable,
+          isInternetEnabled: internetForced,
+          onInternetToggle: handleInternetToggle,
           showThinkingToggle: thinkingSupported,
           isThinkingEnabled: thinkingEnabled,
           onThinkingToggle: handleThinkingToggle,

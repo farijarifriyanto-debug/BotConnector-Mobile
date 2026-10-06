@@ -225,6 +225,14 @@ const prepareCompletion = async ({
     now: new Date(),
     maxToolTurns: DEFAULT_MAX_TURNS,
   });
+  const forceWebSearch =
+    searchProviderStore.forceInternetSearch &&
+    sessionToolNames.includes('web_search');
+  if (forceWebSearch) {
+    systemPromptFragments.push(
+      'Internet mode is explicitly ON for this user turn. You MUST call web_search before answering. After search results arrive, answer from those results; use read_url only when a result page needs more detail.',
+    );
+  }
 
   const messages = assembleMessages(systemMessages, systemPromptFragments, [
     ...chatMessages,
@@ -310,7 +318,7 @@ const prepareCompletion = async ({
     sessionId: chatSessionStore.activeSessionId!,
   };
 
-  return {cleanCompletionParams, messageInfo};
+  return {cleanCompletionParams, messageInfo, forceWebSearch};
 };
 
 // Per-run TTS streaming state. The runner emits CUMULATIVE content/
@@ -667,17 +675,18 @@ export const useChatSession = (
       model: modelStore.activeModel,
     });
 
-    const {cleanCompletionParams, messageInfo} = await prepareCompletion({
-      imageUris: imageUris || [],
-      message,
-      systemMessages,
-      contextId,
-      assistant,
-      conversationIdRef: conversationIdRef.current,
-      isMultimodalEnabled,
-      l10n,
-      currentMessages,
-    });
+    const {cleanCompletionParams, messageInfo, forceWebSearch} =
+      await prepareCompletion({
+        imageUris: imageUris || [],
+        message,
+        systemMessages,
+        contextId,
+        assistant,
+        conversationIdRef: conversationIdRef.current,
+        isMultimodalEnabled,
+        l10n,
+        currentMessages,
+      });
 
     currentMessageInfo.current = messageInfo;
 
@@ -750,6 +759,18 @@ export const useChatSession = (
         triggerMarkers,
         messageId: messageInfo.id,
         signal: abortRef.current.signal,
+        forcedFirstToolCall: forceWebSearch
+          ? {
+              id: `forced_web_search_${Date.now()}`,
+              type: 'function',
+              function: {
+                name: 'web_search',
+                arguments: JSON.stringify({
+                  query: message.text.trim().slice(0, 240),
+                }),
+              },
+            }
+          : undefined,
       });
 
       // The chunk-cycle would otherwise run entirely via microtask

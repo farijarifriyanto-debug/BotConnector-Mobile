@@ -38,6 +38,8 @@ export type BotConnectorNativeSession = {
 
 export type BotConnectorAccount = {
   user_id: string;
+  email?: string | null;
+  display_name?: string | null;
   created_at: number;
   expires_at: number;
   plan: string;

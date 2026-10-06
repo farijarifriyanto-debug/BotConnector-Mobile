@@ -8,6 +8,9 @@ export const createStyles = (theme: Theme) =>
       flex: 1,
       backgroundColor: theme.colors.background,
     },
+    keyboardAvoiding: {
+      flex: 1,
+    },
     container: {
       padding: theme.spacing.default,
       paddingBottom: theme.spacing.default * 3,

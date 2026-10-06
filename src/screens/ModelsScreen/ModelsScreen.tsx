@@ -17,6 +17,7 @@ import {createStyles} from './styles';
 import {HFModelSearch} from './HFModelSearch';
 import {ModelAccordion} from './ModelAccordion';
 import {
+  BotConnectorAccountCard,
   DownloadErrorDialog,
   ErrorSnackbar,
   ModelSettingsSheet,
@@ -402,6 +403,11 @@ export const ModelsScreen: React.FC = observer(() => {
         data={flatListModels}
         keyExtractor={item => item.type}
         extraData={activeModelId}
+        ListHeaderComponent={
+          <View style={{paddingBottom: 12}}>
+            <BotConnectorAccountCard />
+          </View>
+        }
         renderItem={renderGroupHeader}
         refreshControl={
           <RefreshControl

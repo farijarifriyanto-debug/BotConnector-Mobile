@@ -10,7 +10,12 @@ import {Text, Button, Card, ActivityIndicator, Icon} from 'react-native-paper';
 
 import {submitBenchmark} from '../../api/benchmark';
 
-import {Menu, Dialog, Checkbox} from '../../components';
+import {
+  BotConnectorAccountCard,
+  Menu,
+  Dialog,
+  Checkbox,
+} from '../../components';
 
 import {useTheme} from '../../hooks';
 import {L10nContext} from '../../utils';
@@ -538,6 +543,7 @@ export const BenchmarkScreen: React.FC = observer(() => {
       <ScrollView style={styles.scrollView}>
         <Card elevation={0} style={styles.card}>
           <Card.Content>
+            <BotConnectorAccountCard />
             <DeviceInfoCard onDeviceInfo={handleDeviceInfo} />
             {renderModelSelector()}
 

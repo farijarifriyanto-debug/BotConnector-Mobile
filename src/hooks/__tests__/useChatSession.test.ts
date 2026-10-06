@@ -12,12 +12,17 @@ import {
 } from '../../../jest/fixtures/models';
 
 import {useChatSession} from '../useChatSession';
-import {isReadUrlAllowed} from '../../services/talents';
+import {
+  deriveToolSchemas,
+  isReadUrlAllowed,
+  talentRegistry,
+} from '../../services/talents';
 
 import {
   chatSessionStore,
   modelStore,
   palStore,
+  searchProviderStore,
   serverStore,
   ttsStore,
   uiStore,
@@ -824,6 +829,47 @@ describe('useChatSession', () => {
       const today = new Date().toISOString().slice(0, 10);
       expect(systemMessages[0].content).toContain(`Today's date is ${today}`);
       expect(systemMessages[0].content).toContain('web_search');
+    });
+
+    it('executes web_search before the model when explicit Internet mode is on', async () => {
+      useSessionWithPal('');
+      await activateSearchTools();
+      deriveToolSchemas(['web_search']);
+      const webSearch = talentRegistry.get('web_search')!;
+      const executeSpy = jest.spyOn(webSearch, 'execute').mockResolvedValue({
+        type: 'search',
+        query: textMessage.text,
+        results: [
+          {
+            title: 'Current result',
+            url: 'https://example.com/current',
+            snippet: 'Fresh web fact',
+          },
+        ],
+        summary: 'forced web result',
+      });
+      searchProviderStore.setConsent(true);
+      searchProviderStore.setForceInternetSearch(true);
+      const captured = captureMessages();
+
+      await send();
+
+      expect(executeSpy).toHaveBeenCalledWith({query: textMessage.text});
+      expect(
+        captured.messages.some(
+          msg => msg.role === 'tool' && msg.content === 'forced web result',
+        ),
+      ).toBe(true);
+      const systemMessage = captured.messages.find(
+        msg => msg.role === 'system',
+      );
+      expect(systemMessage?.content).toContain(
+        'Internet mode is explicitly ON',
+      );
+
+      executeSpy.mockRestore();
+      searchProviderStore.setForceInternetSearch(false);
+      searchProviderStore.setConsent(false);
     });
 
     it('leaves the pal system message alone when no search tools are active', async () => {

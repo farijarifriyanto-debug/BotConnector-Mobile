@@ -21,7 +21,7 @@ import {observer} from 'mobx-react';
 import {runInAction} from 'mobx';
 import debounce from 'lodash/debounce';
 
-import {Sheet, TextInput} from '..';
+import {BotConnectorAccountCard, Sheet, TextInput} from '..';
 import {useTheme} from '../../hooks';
 import {botConnectorAuthStore, serverStore} from '../../store';
 import {L10nContext} from '../../utils';
@@ -296,8 +296,9 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     }, []);
 
     const handleBotConnectorPreset = useCallback(async () => {
+      // Authentication is owned by BotConnectorAccountCard. Model selection
+      // must never start a browser login as a side effect.
       if (!botConnectorAuthStore.isSignedIn) {
-        await botConnectorAuthStore.startLogin();
         return;
       }
 
@@ -433,51 +434,35 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
           )}
 
           <View style={styles.inputSpacing}>
-            <Button
-              testID="botconnector-preset-button"
-              mode={
-                botConnectorAuthStore.isSignedIn || isBotConnectorPreset
-                  ? 'contained-tonal'
-                  : 'outlined'
-              }
-              icon={
-                botConnectorAuthStore.isSignedIn
-                  ? 'account-check-outline'
-                  : 'account-arrow-right-outline'
-              }
-              loading={botConnectorAuthStore.isSigningIn}
-              disabled={botConnectorAuthStore.isSigningIn}
-              onPress={() => {
-                handleBotConnectorPreset().catch(() => undefined);
-              }}>
-              {botConnectorAuthStore.isSignedIn
-                ? `${BOTCONNECTOR_NAME} · ${botConnectorAuthStore.account?.plan ?? ''}`
-                : l10n.settings.connectBotConnector}
-            </Button>
-            <Text style={styles.apiKeyDescription}>
-              {botConnectorAuthStore.isSignedIn
-                ? `${l10n.settings.connected} · ${botConnectorAuthStore.account?.plan ?? BOTCONNECTOR_NAME}`
-                : l10n.settings.connectBotConnectorDescription}
-            </Text>
-            {botConnectorAuthStore.error ? (
-              <Text style={styles.errorText}>
-                {botConnectorAuthStore.error}
-              </Text>
-            ) : null}
-            {botConnectorAuthStore.isSignedIn ? (
-              <Button
-                compact
-                mode="text"
-                onPress={() => {
-                  botConnectorAuthStore
-                    .logout()
-                    .then(handleDeselectChip)
-                    .catch(() => undefined);
-                }}>
-                {l10n.palsScreen.signOut}
-              </Button>
-            ) : null}
+            <BotConnectorAccountCard />
           </View>
+
+          {botConnectorAuthStore.isSignedIn ? (
+            <View style={styles.inputSpacing}>
+              <Button
+                testID="botconnector-preset-button"
+                mode={
+                  botConnectorAuthStore.isSignedIn || isBotConnectorPreset
+                    ? 'contained-tonal'
+                    : 'outlined'
+                }
+                icon={
+                  botConnectorAuthStore.isSignedIn
+                    ? 'account-check-outline'
+                    : 'account-arrow-right-outline'
+                }
+                loading={botConnectorAuthStore.isSigningIn}
+                disabled={botConnectorAuthStore.isSigningIn}
+                onPress={() => {
+                  handleBotConnectorPreset().catch(() => undefined);
+                }}>
+                {`${BOTCONNECTOR_NAME} Cloud · ${botConnectorAuthStore.account?.plan ?? ''}`}
+              </Button>
+              <Text style={styles.apiKeyDescription}>
+                {l10n.settings.connected} · {BOTCONNECTOR_NAME} Cloud
+              </Text>
+            </View>
+          ) : null}
 
           {/* The Cloud form stays Cloud-only; the direct Local connection is
               an advanced option shown when the Cloud preset is not active. */}

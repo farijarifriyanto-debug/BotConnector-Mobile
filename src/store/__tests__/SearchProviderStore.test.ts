@@ -32,6 +32,7 @@ describe('SearchProviderStore', () => {
       expect(store.activeProviderId).toBe('brave');
       expect(store.resultCount).toBe(5);
       expect(store.hasConsentedToSearch).toBe(false);
+      expect(store.forceInternetSearch).toBe(false);
     });
 
     it('lists Parallel as gated (not selectable)', () => {
@@ -57,6 +58,7 @@ describe('SearchProviderStore', () => {
         'activeProviderId',
         'resultCount',
         'hasConsentedToSearch',
+        'forceInternetSearch',
       ]);
       expect(config.properties).not.toContain('keys');
       expect(JSON.stringify(config.properties)).not.toMatch(/key/i);
@@ -139,6 +141,19 @@ describe('SearchProviderStore', () => {
       store.setConsent(true);
       expect(store.hasConsentedToSearch).toBe(true);
     });
+
+    it('only enables explicit Internet mode after consent and clears it on revoke', async () => {
+      const store = await newStore();
+      store.setForceInternetSearch(true);
+      expect(store.forceInternetSearch).toBe(false);
+
+      store.setConsent(true);
+      store.setForceInternetSearch(true);
+      expect(store.forceInternetSearch).toBe(true);
+
+      store.setConsent(false);
+      expect(store.forceInternetSearch).toBe(false);
+    });
   });
 
   describe('post-hydration normalization (persisted prefs bypass setters)', () => {
@@ -165,10 +180,12 @@ describe('SearchProviderStore', () => {
       store.activeProviderId = 'tavily';
       store.resultCount = 4;
       store.hasConsentedToSearch = true;
+      store.forceInternetSearch = true;
       store.normalizeHydratedPrefs();
       expect(store.activeProviderId).toBe('tavily');
       expect(store.resultCount).toBe(4);
       expect(store.hasConsentedToSearch).toBe(true);
+      expect(store.forceInternetSearch).toBe(true);
     });
 
     it('treats a non-boolean persisted consent as no consent', async () => {
@@ -176,6 +193,7 @@ describe('SearchProviderStore', () => {
       (store as any).hasConsentedToSearch = 'false'; // truthy string from tampered storage
       store.normalizeHydratedPrefs();
       expect(store.hasConsentedToSearch).toBe(false);
+      expect(store.forceInternetSearch).toBe(false);
       expect(store.canSearch).toBe(false);
     });
 
