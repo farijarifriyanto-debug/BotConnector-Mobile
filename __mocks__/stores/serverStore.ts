@@ -7,17 +7,35 @@ import {
 } from '../../src/utils/types';
 import {ReasoningCapability} from '../../src/utils/reasoningCapability';
 import {deriveListCapsMap} from '../../src/api/servers';
+import {isBotConnectorApiUrl} from '../../src/config/botconnector';
+import {catalogSupportsVision} from '../../src/utils/botconnectorModels';
 
 class MockServerStore {
   servers: ServerConfig[] = [];
   serverModels: Map<string, RemoteModelInfo[]> = observable.map();
 
-  // Derived from the live mock state, exactly as the real store derives it, so
-  // a suite that mutates `servers` or `serverModels` exercises the real
-  // derivation and stays reactive. A fixed answer here would let the card
-  // scenarios pass with the derivation broken.
+  // Mirrors the real ServerStore.listCaps: the derived map plus the
+  // BotConnector catalog vision merge, so suites exercising catalog-driven
+  // vision run against the same derivation the app ships with.
   get listCaps() {
-    return deriveListCapsMap(this.servers, this.serverModels);
+    const map = deriveListCapsMap(this.servers, this.serverModels);
+    for (const server of this.servers) {
+      if (!isBotConnectorApiUrl(server.url)) {
+        continue;
+      }
+      for (const row of this.serverModels.get(server.id) ?? []) {
+        const vision = catalogSupportsVision(row, this.botConnectorCatalog);
+        if (vision !== undefined) {
+          const key = `${server.id}/${row.id}`;
+          map[key] = {
+            ...(map[key] ?? {tier: 'list'}),
+            supportsVision: vision,
+            authoritative: true,
+          };
+        }
+      }
+    }
+    return map;
   }
 
   botConnectorAccess: Record<string, any> = {};
@@ -35,8 +53,6 @@ class MockServerStore {
   remoteDisplayName(_serverId: string, remoteModelId: string): string {
     return remoteModelId;
   }
-
-  refreshBotConnectorCatalog = jest.fn().mockResolvedValue(undefined);
 
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   remoteReasoning: Record<string, ReasoningCapability> = {};
@@ -63,6 +79,8 @@ class MockServerStore {
   getUserSelectedModelsForServer: jest.Mock;
   recordRemoteReasoningObserved: jest.Mock;
   setRemoteReasoningOverride: jest.Mock;
+  refreshBotConnectorCatalog: jest.Mock;
+  refreshBotConnectorAccess: jest.Mock;
 
   constructor() {
     makeAutoObservable(this, {
@@ -84,6 +102,8 @@ class MockServerStore {
       getUserSelectedModelsForServer: false,
       recordRemoteReasoningObserved: false,
       setRemoteReasoningOverride: false,
+      refreshBotConnectorCatalog: false,
+      refreshBotConnectorAccess: false,
     });
     this.addServer = jest.fn().mockReturnValue('mock-server-id');
     this.updateServer = jest.fn().mockReturnValue(false);
@@ -105,6 +125,8 @@ class MockServerStore {
     this.getUserSelectedModelsForServer = jest.fn().mockReturnValue([]);
     this.recordRemoteReasoningObserved = jest.fn();
     this.setRemoteReasoningOverride = jest.fn();
+    this.refreshBotConnectorCatalog = jest.fn().mockResolvedValue(undefined);
+    this.refreshBotConnectorAccess = jest.fn().mockResolvedValue(undefined);
   }
 }
 

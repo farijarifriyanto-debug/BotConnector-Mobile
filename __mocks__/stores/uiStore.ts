@@ -24,6 +24,12 @@ export const mockUiStore = {
   language: 'en',
   supportedLanguages: [...supportedLanguages],
   l10n: l10n.en,
+  // Mirrors the real UIStore model-picker surface so suites can assert the
+  // picker open/close contract instead of the fields being absent.
+  modelPickerVisible: false,
+  modelPickerTab: 'models' as 'models' | 'pals',
+  openModelPicker: jest.fn(),
+  closeModelPicker: jest.fn(),
   setValue: jest.fn(),
   displayMemUsage: false,
   setAutoNavigateToChat: jest.fn(),
@@ -54,3 +60,13 @@ export const mockUiStore = {
   dismissDownloadBanner: jest.fn(),
   clearDownloadBannerDismissal: jest.fn(),
 };
+
+mockUiStore.openModelPicker.mockImplementation(
+  (tab: 'models' | 'pals' = 'models') => {
+    mockUiStore.modelPickerTab = tab;
+    mockUiStore.modelPickerVisible = true;
+  },
+);
+mockUiStore.closeModelPicker.mockImplementation(() => {
+  mockUiStore.modelPickerVisible = false;
+});

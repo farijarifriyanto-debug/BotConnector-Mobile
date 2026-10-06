@@ -137,20 +137,66 @@ export const ChatScreen: React.FC = observer(() => {
   const internetForced =
     internetAvailable && searchProviderStore.forceInternetSearch;
 
+  const isSignedIn = botConnectorAuthStore.isSignedIn;
+  const accessMissing = activeBotConnectorAccess === undefined;
+  const accessPlan = activeBotConnectorAccess?.plan;
+  const catalogEmpty =
+    Object.keys(serverStore.botConnectorCatalog).length === 0;
+  const capabilityHealInFlight = React.useRef(false);
+  React.useEffect(() => {
+    if (
+      !activeServer ||
+      !isBotConnectorApiUrl(activeServer.url) ||
+      !isSignedIn
+    ) {
+      return;
+    }
+    if (
+      (accessMissing || accessPlan === 'unknown') &&
+      !capabilityHealInFlight.current
+    ) {
+      capabilityHealInFlight.current = true;
+      serverStore
+        .refreshBotConnectorAccess(activeServer.id)
+        .catch(() => undefined)
+        .finally(() => {
+          capabilityHealInFlight.current = false;
+        });
+    }
+    if (catalogEmpty) {
+      serverStore.refreshBotConnectorCatalog().catch(() => undefined);
+    }
+  }, [activeServer, isSignedIn, accessMissing, accessPlan, catalogEmpty]);
+
   const handleInternetUnavailable = React.useCallback(() => {
     if (!botConnectorAuthStore.isSignedIn) {
-      botConnectorAuthStore.startLogin().catch(() => undefined);
+      Alert.alert(
+        l10n.components.chatInput.internetSignIn.title,
+        l10n.components.chatInput.internetSignIn.body,
+        [
+          {text: l10n.common.cancel, style: 'cancel'},
+          {
+            text: l10n.settings.connectBotConnector,
+            onPress: () => {
+              botConnectorAuthStore.startLogin().catch(() => undefined);
+            },
+          },
+        ],
+      );
       return;
     }
     Alert.alert(
-      uiStore.language === 'id'
-        ? 'Internet belum tersedia'
-        : 'Internet unavailable',
-      uiStore.language === 'id'
-        ? 'Pilih model BotConnector Cloud yang mendukung Web Search.'
-        : 'Choose a BotConnector Cloud model that supports Web Search.',
+      l10n.components.chatInput.internetUnavailable.title,
+      l10n.components.chatInput.internetUnavailable.body,
+      [
+        {text: l10n.common.cancel, style: 'cancel'},
+        {
+          text: l10n.camera.chooseVisionModel,
+          onPress: () => uiStore.openModelPicker('models'),
+        },
+      ],
     );
-  }, []);
+  }, [l10n]);
 
   const handleInternetToggle = React.useCallback(
     (enabled: boolean) => {

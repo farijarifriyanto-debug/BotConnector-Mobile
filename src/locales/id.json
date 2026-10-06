@@ -31,6 +31,7 @@
     "close": "Tutup",
     "clear": "Bersihkan",
     "gallery": "Galeri",
+    "file": "File",
     "stop": "Berhenti",
     "noResults": "Tidak ada hasil"
   },
@@ -619,11 +620,23 @@
         "label": "Internet",
         "enable": "Aktifkan pencarian Internet",
         "disable": "Nonaktifkan pencarian Internet",
-        "enabled": "Mode Internet aktif"
+        "enabled": "Mode Internet aktif",
+        "unavailableHint": "Tidak tersedia untuk akun/model ini. Ketuk untuk mengetahui alasannya."
       },
       "fileUploadUnavailableTitle": "Upload file belum tersedia",
       "fileUploadUnavailableBody": "Masuk ke BotConnector dan gunakan model Cloud yang mendukung Files, lalu coba lagi.",
-      "sessionUnavailableBody": "Sesi BotConnector tidak tersedia. Masuk kembali lalu coba lagi."
+      "fileUploadUnavailableAccountBody": "Files tidak diaktifkan untuk akun BotConnector ini. Periksa paket Anda atau pilih model Cloud lain, lalu coba lagi.",
+      "fileUploadErrorTitle": "Unggah file gagal",
+      "fileUploadErrorBody": "Tidak dapat mengunggah file.",
+      "sessionUnavailableBody": "Sesi BotConnector tidak tersedia. Masuk kembali lalu coba lagi.",
+      "internetSignIn": {
+        "title": "Pencarian Internet",
+        "body": "Pencarian Internet membutuhkan akun BotConnector. Masuk untuk mengaktifkannya."
+      },
+      "internetUnavailable": {
+        "title": "Internet tidak tersedia",
+        "body": "Pencarian web tidak tersedia untuk akun/model ini."
+      }
     },
     "contentReportSheet": {
       "title": "Laporkan Konten",

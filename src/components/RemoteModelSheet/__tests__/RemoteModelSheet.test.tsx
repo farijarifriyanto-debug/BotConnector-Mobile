@@ -1,4 +1,5 @@
 import React from 'react';
+import {Alert} from 'react-native';
 import {render, fireEvent, waitFor} from '../../../../jest/test-utils';
 import {RemoteModelSheet} from '../RemoteModelSheet';
 import {botConnectorAuthStore, serverStore} from '../../../store';
@@ -520,10 +521,19 @@ describe('RemoteModelSheet', () => {
       fireEvent.press(getByTestId('botconnector-preset-button'));
       expect(authStore.startLogin).not.toHaveBeenCalled();
 
+      // Sign-out is destructive: the first press only asks for confirmation.
+      const alertSpy = jest
+        .spyOn(Alert, 'alert')
+        .mockImplementation(() => undefined);
       fireEvent.press(getByTestId('botconnector-account-action'));
+      expect(authStore.logout).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      const buttons = alertSpy.mock.calls[0][2] as any[];
+      buttons.find((b: any) => b.style === 'destructive').onPress();
       await waitFor(() => {
         expect(authStore.logout).toHaveBeenCalledTimes(1);
       });
+      alertSpy.mockRestore();
     });
 
     it('other providers keep the API-key form (Custom / Advanced)', async () => {

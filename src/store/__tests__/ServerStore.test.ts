@@ -72,6 +72,7 @@ describe('ServerStore', () => {
       serverStore.remoteReasoning = {};
       serverStore.remoteCaps = {};
       serverStore.botConnectorAccess = {};
+      serverStore.botConnectorCatalog = {};
     });
   });
 
@@ -654,6 +655,77 @@ describe('ServerStore', () => {
         'remoteReasoning',
         'remoteCaps',
       ]);
+    });
+
+    it('answers authoritative vision from the real Cloud catalog', () => {
+      const id = serverStore.addServer({
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI',
+      });
+      runInAction(() => {
+        serverStore.botConnectorCatalog = {
+          'mimo-v2.5': {
+            id: 'mimo-v2.5',
+            name: 'MiMo V2.5',
+            capabilities: [
+              'Tools',
+              'Vision',
+              'Video',
+              'Reasoning',
+              'Structured Output',
+            ],
+          },
+          'gemini-2.5-flash-lite': {
+            id: 'gemini-2.5-flash-lite',
+            name: 'Gemini 2.5 Flash Lite',
+            capabilities: [
+              'Tools',
+              'Vision',
+              'Reasoning',
+              'Structured Output',
+              'Coding',
+            ],
+          },
+          'ling-3.0-flash': {
+            id: 'ling-3.0-flash',
+            name: 'Ling 3.0 Flash',
+            capabilities: ['Tools', 'Reasoning'],
+          },
+          'glm-5.2': {
+            id: 'glm-5.2',
+            name: 'GLM 5.2',
+            capabilities: ['Tools', 'Reasoning', 'Coding'],
+          },
+        };
+        serverStore.serverModels.set(id, [
+          {id: 'mimo-v2.5', object: 'model', owned_by: ''},
+          {id: 'gemini-2.5-flash-lite', object: 'model', owned_by: ''},
+          {id: 'ling-3.0-flash', object: 'model', owned_by: ''},
+          {id: 'payg:somevendor:glm-5.2', object: 'model', owned_by: ''},
+        ]);
+      });
+
+      expect(serverStore.listCaps[`${id}/mimo-v2.5`]).toEqual({
+        tier: 'list',
+        supportsVision: true,
+        authoritative: true,
+      });
+      expect(serverStore.listCaps[`${id}/gemini-2.5-flash-lite`]).toEqual({
+        tier: 'list',
+        supportsVision: true,
+        authoritative: true,
+      });
+      expect(serverStore.listCaps[`${id}/ling-3.0-flash`]).toEqual({
+        tier: 'list',
+        supportsVision: false,
+        authoritative: true,
+      });
+      expect(serverStore.listCaps[`${id}/payg:somevendor:glm-5.2`]).toEqual({
+        tier: 'list',
+        supportsVision: false,
+        authoritative: true,
+      });
     });
   });
 

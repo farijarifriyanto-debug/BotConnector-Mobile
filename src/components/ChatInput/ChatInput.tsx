@@ -618,17 +618,8 @@ export const ChatInput = observer(
       }
     };
 
-    const handleSelectFiles = async () => {
-      if (!activeServer || !botConnectorFilesEnabled) {
-        setShowImageUploadMenu(false);
-        if (!botConnectorAuthStore.isSignedIn) {
-          botConnectorAuthStore.startLogin().catch(() => undefined);
-          return;
-        }
-        Alert.alert(
-          l10n.components.chatInput.fileUploadUnavailableTitle,
-          l10n.components.chatInput.fileUploadUnavailableBody,
-        );
+    const openFilePicker = async () => {
+      if (!activeServer) {
         return;
       }
 
@@ -759,7 +750,9 @@ export const ChatInput = observer(
             updateSelectedFile(file.uri, {
               status: 'failed',
               error:
-                error instanceof Error ? error.message : 'File upload failed',
+                error instanceof Error
+                  ? error.message
+                  : l10n.components.chatInput.fileUploadErrorTitle,
             });
           }
         }
@@ -771,10 +764,43 @@ export const ChatInput = observer(
           return;
         }
         Alert.alert(
-          'File upload failed',
-          error instanceof Error ? error.message : 'Unable to upload file.',
+          l10n.components.chatInput.fileUploadErrorTitle,
+          error instanceof Error
+            ? error.message
+            : l10n.components.chatInput.fileUploadErrorBody,
         );
       }
+    };
+
+    const handleSelectFiles = async () => {
+      if (activeServer && botConnectorFilesEnabled) {
+        await openFilePicker();
+        return;
+      }
+
+      setShowImageUploadMenu(false);
+      if (!botConnectorAuthStore.isSignedIn) {
+        botConnectorAuthStore.startLogin().catch(() => undefined);
+        return;
+      }
+      if (activeServer && isBotConnectorApiUrl(activeServer.url)) {
+        const fresh = await serverStore
+          .refreshBotConnectorAccess(activeServer.id)
+          .catch(() => undefined);
+        if (fresh?.access === 'full' && fresh.capabilities.files === true) {
+          await openFilePicker();
+          return;
+        }
+        Alert.alert(
+          l10n.components.chatInput.fileUploadUnavailableTitle,
+          l10n.components.chatInput.fileUploadUnavailableAccountBody,
+        );
+        return;
+      }
+      Alert.alert(
+        l10n.components.chatInput.fileUploadUnavailableTitle,
+        l10n.components.chatInput.fileUploadUnavailableBody,
+      );
     };
 
     const handleRemoveFile = (uri: string) => {
@@ -1050,19 +1076,34 @@ export const ChatInput = observer(
                     label={l10n.camera?.takePhoto || 'Camera'}
                     icon="camera"
                     labelStyle={!isVisionEnabled && styles.menuItemUnavailable}
+                    accessibilityLabel={
+                      isVisionEnabled
+                        ? undefined
+                        : `${l10n.camera?.takePhoto || 'Camera'} — ${l10n.camera.noVisionTitle}`
+                    }
                     onPress={requireVision(handleTakePhoto)}
                   />
                   <Menu.Item
                     label={l10n.common?.gallery || 'Gallery'}
                     icon="image"
                     labelStyle={!isVisionEnabled && styles.menuItemUnavailable}
+                    accessibilityLabel={
+                      isVisionEnabled
+                        ? undefined
+                        : `${l10n.common?.gallery || 'Gallery'} — ${l10n.camera.noVisionTitle}`
+                    }
                     onPress={requireVision(handleSelectImages)}
                   />
                   <Menu.Item
-                    label="File"
+                    label={l10n.common?.file || 'File'}
                     icon="file-document-outline"
                     labelStyle={
                       !botConnectorFilesEnabled && styles.menuItemUnavailable
+                    }
+                    accessibilityLabel={
+                      botConnectorFilesEnabled
+                        ? undefined
+                        : `${l10n.common?.file || 'File'} — ${l10n.components.chatInput.fileUploadUnavailableTitle}`
                     }
                     onPress={handleSelectFiles}
                   />
@@ -1154,6 +1195,11 @@ export const ChatInput = observer(
                     isInternetEnabled
                       ? l10n.components.chatInput.internetToggle.disable
                       : l10n.components.chatInput.internetToggle.enable
+                  }
+                  accessibilityHint={
+                    !isInternetAvailable
+                      ? l10n.components.chatInput.internetToggle.unavailableHint
+                      : undefined
                   }
                   accessibilityState={{selected: isInternetEnabled}}
                   accessibilityRole="button">

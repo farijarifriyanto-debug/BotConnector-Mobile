@@ -32,6 +32,7 @@
     "close": "Close",
     "clear": "Clear All",
     "gallery": "Gallery",
+    "file": "File",
     "noResults": "No results"
   },
   "settings": {
@@ -640,11 +641,23 @@
         "label": "Internet",
         "enable": "Turn on Internet search",
         "disable": "Turn off Internet search",
-        "enabled": "Internet mode is on"
+        "enabled": "Internet mode is on",
+        "unavailableHint": "Unavailable for this account or model. Tap to learn why."
       },
       "fileUploadUnavailableTitle": "File upload unavailable",
       "fileUploadUnavailableBody": "Sign in to BotConnector and use a Cloud model with Files enabled, then try again.",
-      "sessionUnavailableBody": "Your BotConnector session is unavailable. Sign in again and retry."
+      "fileUploadUnavailableAccountBody": "Files are not enabled for this BotConnector account. Check your plan or pick another Cloud model, then try again.",
+      "fileUploadErrorTitle": "File upload failed",
+      "fileUploadErrorBody": "Unable to upload file.",
+      "sessionUnavailableBody": "Your BotConnector session is unavailable. Sign in again and retry.",
+      "internetSignIn": {
+        "title": "Internet search",
+        "body": "Internet search needs a BotConnector account. Sign in to turn it on."
+      },
+      "internetUnavailable": {
+        "title": "Internet unavailable",
+        "body": "Internet search is not available for this account/model."
+      }
     },
     "contentReportSheet": {
       "title": "Report Content",

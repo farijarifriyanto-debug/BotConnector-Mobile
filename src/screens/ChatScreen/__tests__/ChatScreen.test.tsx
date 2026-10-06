@@ -1,6 +1,6 @@
 import React from 'react';
 import {runInAction} from 'mobx';
-import {StyleSheet} from 'react-native';
+import {Alert, StyleSheet} from 'react-native';
 
 import {LlamaContext} from 'llama.rn';
 import {
@@ -12,7 +12,14 @@ import {
 } from '../../../../jest/test-utils';
 import {ChatScreen} from '../ChatScreen';
 
-import {chatSessionStore, modelStore, serverStore} from '../../../store';
+import {
+  botConnectorAuthStore,
+  chatSessionStore,
+  modelStore,
+  searchProviderStore,
+  serverStore,
+  uiStore,
+} from '../../../store';
 
 import {l10n} from '../../../locales';
 import {mockLlamaContextParams} from '../../../../jest/fixtures/models';
@@ -986,6 +993,353 @@ describe('ChatScreen remote vision reactivity', () => {
         serverStore.remoteCaps['srv-1/gemma-3-4b'] = {supportsVision: true};
       });
     });
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+
+    expect(isDimmed(await openGallery(screen))).toBe(true);
+  });
+});
+
+describe('ChatScreen internet helper & capability healing', () => {
+  const bcServer = {
+    id: 'bc-net',
+    name: 'BotConnector',
+    url: 'https://api.botconnector.id',
+    serverType: 'OpenAI',
+  } as any;
+  const modelId = 'bc-net/text-model';
+  let savedModels: any[];
+  let alertSpy: jest.SpyInstance;
+  let startLoginSpy: jest.SpyInstance;
+  let openPickerSpy: jest.SpyInstance;
+  let accessRefreshSpy: jest.SpyInstance;
+  let catalogRefreshSpy: jest.SpyInstance;
+
+  const signedInEntry = (capabilities: Record<string, boolean>) =>
+    ({
+      object: 'botconnector.client_capabilities',
+      plan: 'plus',
+      access: 'full',
+      paid: true,
+      entitlement_sources: {
+        subscription: true,
+        payg: false,
+        family: false,
+      },
+      capabilities: {
+        chat: true,
+        web_search: true,
+        read_url: true,
+        tools: true,
+        vision: true,
+        media: true,
+        files: true,
+        ...capabilities,
+      },
+    }) as any;
+
+  const activateCloudModel = (access: any) =>
+    runInAction(() => {
+      serverStore.servers = [bcServer];
+      serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess =
+        access === undefined ? {} : {'bc-net': access};
+      modelStore.models = [
+        ...savedModels,
+        {
+          id: modelId,
+          origin: ModelOrigin.REMOTE,
+          serverId: 'bc-net',
+          remoteModelId: 'text-model',
+        },
+      ];
+      modelStore.activeModelId = modelId;
+      modelStore.context = undefined;
+      modelStore.engine = {
+        completion: jest.fn(),
+        stopCompletion: jest.fn(),
+      } as any;
+    });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
+    startLoginSpy = jest
+      .spyOn(botConnectorAuthStore, 'startLogin')
+      .mockResolvedValue(undefined);
+    openPickerSpy = jest
+      .spyOn(uiStore, 'openModelPicker')
+      .mockImplementation(() => undefined);
+    accessRefreshSpy = jest
+      .spyOn(serverStore, 'refreshBotConnectorAccess')
+      .mockResolvedValue(undefined);
+    catalogRefreshSpy = jest
+      .spyOn(serverStore, 'refreshBotConnectorCatalog')
+      .mockResolvedValue(undefined);
+    savedModels = modelStore.models;
+    (botConnectorAuthStore as any).account = null;
+    (botConnectorAuthStore as any).hasStoredSession = false;
+    (botConnectorAuthStore as any).isSignedIn = false;
+    runInAction(() => {
+      serverStore.botConnectorCatalog = {};
+    });
+  });
+
+  afterEach(() => {
+    alertSpy.mockRestore();
+    startLoginSpy.mockRestore();
+    openPickerSpy.mockRestore();
+    accessRefreshSpy.mockRestore();
+    catalogRefreshSpy.mockRestore();
+    modelStore.models = savedModels;
+    runInAction(() => {
+      modelStore.activeModelId = undefined;
+      modelStore.context = undefined;
+      serverStore.servers = [];
+      serverStore.serverModels.clear();
+      serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess = {};
+      serverStore.botConnectorCatalog = {};
+      searchProviderStore.setConsent(false);
+      searchProviderStore.setForceInternetSearch(false);
+      uiStore.modelPickerVisible = false;
+    });
+    (botConnectorAuthStore as any).account = null;
+    (botConnectorAuthStore as any).hasStoredSession = false;
+    (botConnectorAuthStore as any).isSignedIn = false;
+  });
+
+  it('explains Internet sign-in instead of a dead end, then starts native login', async () => {
+    activateCloudModel(undefined);
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+    const globe = await screen.findByTestId('internet-toggle');
+    fireEvent.press(globe);
+
+    const call = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
+    expect(call[0]).toBe(l10n.en.components.chatInput.internetSignIn.title);
+    expect(call[1]).toBe(l10n.en.components.chatInput.internetSignIn.body);
+    const signInButton = call[2].find(
+      (button: any) => button.text === l10n.en.settings.connectBotConnector,
+    );
+    expect(signInButton).toBeTruthy();
+    signInButton.onPress();
+    expect(startLoginSpy).toHaveBeenCalledTimes(1);
+    expect(accessRefreshSpy).not.toHaveBeenCalled();
+  });
+
+  it('routes an unavailable Internet toggle to model selection when signed in', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    activateCloudModel(signedInEntry({web_search: false}));
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+    const globe = await screen.findByTestId('internet-toggle');
+    fireEvent.press(globe);
+
+    const call = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
+    expect(call[0]).toBe(
+      l10n.en.components.chatInput.internetUnavailable.title,
+    );
+    expect(call[1]).toBe(l10n.en.components.chatInput.internetUnavailable.body);
+    const chooseModelButton = call[2].find(
+      (button: any) => button.text === l10n.en.camera.chooseVisionModel,
+    );
+    expect(chooseModelButton).toBeTruthy();
+    chooseModelButton.onPress();
+    expect(openPickerSpy).toHaveBeenCalledWith('models');
+  });
+
+  it('toggles explicit Internet mode when the account has Web Search', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    activateCloudModel(signedInEntry({web_search: true}));
+    searchProviderStore.setConsent(true);
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+    const globe = await screen.findByTestId('internet-toggle');
+
+    fireEvent.press(globe);
+    expect(searchProviderStore.forceInternetSearch).toBe(true);
+
+    fireEvent.press(globe);
+    expect(searchProviderStore.forceInternetSearch).toBe(false);
+  });
+
+  it('revalidates a missing capability entry from the chat screen', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    activateCloudModel(undefined);
+
+    render(<ChatScreen />, {withNavigation: true});
+
+    await waitFor(() => {
+      expect(accessRefreshSpy).toHaveBeenCalledTimes(1);
+      expect(catalogRefreshSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('stays idle while signed out', async () => {
+    activateCloudModel(undefined);
+
+    render(<ChatScreen />, {withNavigation: true});
+
+    expect(accessRefreshSpy).not.toHaveBeenCalled();
+    expect(catalogRefreshSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe('ChatScreen vision from the live Cloud catalog', () => {
+  const bcServer = {
+    id: 'bc-vision',
+    name: 'BotConnector',
+    url: 'https://api.botconnector.id',
+    serverType: 'OpenAI',
+  } as any;
+  const catalogFixture = {
+    'mimo-v2.5': {
+      id: 'mimo-v2.5',
+      name: 'MiMo V2.5',
+      capabilities: [
+        'Tools',
+        'Vision',
+        'Video',
+        'Reasoning',
+        'Structured Output',
+      ],
+    },
+    'gemini-2.5-flash-lite': {
+      id: 'gemini-2.5-flash-lite',
+      name: 'Gemini 2.5 Flash Lite',
+      capabilities: [
+        'Tools',
+        'Vision',
+        'Reasoning',
+        'Structured Output',
+        'Coding',
+      ],
+    },
+    'ling-3.0-flash': {
+      id: 'ling-3.0-flash',
+      name: 'Ling 3.0 Flash',
+      capabilities: ['Tools', 'Reasoning'],
+    },
+  };
+  let savedModels: any[];
+  let accessRefreshSpy: jest.SpyInstance;
+  let catalogRefreshSpy: jest.SpyInstance;
+
+  const openGallery = async (screen: ReturnType<typeof render>) => {
+    const plus = screen.getByLabelText('Add attachment');
+    expect(plus.props.accessibilityState.disabled).toBe(false);
+    fireEvent.press(plus);
+    return screen.findByText(l10n.en.common.gallery);
+  };
+  const isDimmed = (node: {props: {style?: unknown}}) =>
+    StyleSheet.flatten(node.props.style as any)?.opacity === 0.45;
+
+  const activateCloudModel = (remoteModelId: string) =>
+    runInAction(() => {
+      serverStore.servers = [bcServer];
+      serverStore.remoteCaps = {};
+      serverStore.botConnectorCatalog = catalogFixture;
+      serverStore.serverModels.set('bc-vision', [
+        {id: 'mimo-v2.5', object: 'model', owned_by: ''},
+        {id: 'gemini-2.5-flash-lite', object: 'model', owned_by: ''},
+        {id: 'ling-3.0-flash', object: 'model', owned_by: ''},
+      ]);
+      serverStore.botConnectorAccess = {
+        'bc-vision': {
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          access: 'full',
+          paid: true,
+          entitlement_sources: {
+            subscription: true,
+            payg: false,
+            family: false,
+          },
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+            files: true,
+          },
+        } as any,
+      };
+      modelStore.models = [
+        ...savedModels,
+        {
+          id: `bc-vision/${remoteModelId}`,
+          origin: ModelOrigin.REMOTE,
+          serverId: 'bc-vision',
+          remoteModelId,
+        },
+      ];
+      modelStore.activeModelId = `bc-vision/${remoteModelId}`;
+      modelStore.context = undefined;
+      modelStore.engine = {
+        completion: jest.fn(),
+        stopCompletion: jest.fn(),
+      } as any;
+    });
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    savedModels = modelStore.models;
+    accessRefreshSpy = jest
+      .spyOn(serverStore, 'refreshBotConnectorAccess')
+      .mockResolvedValue(undefined);
+    catalogRefreshSpy = jest
+      .spyOn(serverStore, 'refreshBotConnectorCatalog')
+      .mockResolvedValue(undefined);
+    (botConnectorAuthStore as any).account = null;
+    (botConnectorAuthStore as any).hasStoredSession = true;
+  });
+
+  afterEach(() => {
+    accessRefreshSpy.mockRestore();
+    catalogRefreshSpy.mockRestore();
+    modelStore.models = savedModels;
+    runInAction(() => {
+      modelStore.activeModelId = undefined;
+      modelStore.context = undefined;
+      serverStore.servers = [];
+      serverStore.serverModels.clear();
+      serverStore.remoteCaps = {};
+      serverStore.botConnectorAccess = {};
+      serverStore.botConnectorCatalog = {};
+    });
+    (botConnectorAuthStore as any).hasStoredSession = false;
+  });
+
+  it('keeps Gallery enabled for MiMo V2.5 (real catalog Vision)', async () => {
+    activateCloudModel('mimo-v2.5');
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+
+    expect(isDimmed(await openGallery(screen))).toBe(false);
+  });
+
+  it('keeps Gallery enabled for Gemini 2.5 Flash Lite (real catalog Vision)', async () => {
+    activateCloudModel('gemini-2.5-flash-lite');
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+
+    expect(isDimmed(await openGallery(screen))).toBe(false);
+  });
+
+  it('keeps Gallery dimmed for a non-vision Cloud model (Ling 3.0 Flash)', async () => {
+    activateCloudModel('ling-3.0-flash');
 
     const screen = render(<ChatScreen />, {withNavigation: true});
 

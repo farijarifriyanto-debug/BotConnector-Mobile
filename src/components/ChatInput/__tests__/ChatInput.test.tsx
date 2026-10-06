@@ -16,6 +16,7 @@ import {
   chatSessionStore,
   modelStore,
   serverStore,
+  botConnectorAuthStore,
 } from '../../../store';
 import {uploadBotConnectorFile} from '../../../api/botconnectorFiles';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
@@ -597,6 +598,9 @@ describe('input', () => {
 
       fireEvent.press(screen.getByTestId('internet-toggle'));
       expect(onInternetToggle).toHaveBeenCalledWith(true);
+      expect(
+        screen.getByTestId('internet-toggle').props.accessibilityHint,
+      ).toBeUndefined();
     });
 
     it('keeps the globe visible but routes unavailable taps to the helper', () => {
@@ -617,6 +621,10 @@ describe('input', () => {
 
       const globe = screen.getByTestId('internet-toggle');
       expect(globe.props.accessibilityState).toEqual({selected: false});
+      // Unavailable state must be announced to screen readers before the tap.
+      expect(globe.props.accessibilityHint).toBe(
+        l10n.en.components.chatInput.internetToggle.unavailableHint,
+      );
       fireEvent.press(globe);
       expect(onInternetUnavailable).toHaveBeenCalledTimes(1);
       expect(onInternetToggle).not.toHaveBeenCalled();
@@ -626,6 +634,7 @@ describe('input', () => {
   describe('Image Upload Functionality', () => {
     beforeEach(() => {
       jest.clearAllMocks();
+      (botConnectorAuthStore as any).isSignedIn = false;
       (keepLocalCopy as jest.Mock).mockImplementation(async ({files}) => [
         {
           status: 'success',
@@ -700,6 +709,230 @@ describe('input', () => {
         serverStore.botConnectorAccess = {};
         modelStore.activeModelId = undefined;
       });
+    });
+
+    it('offers native sign-in when a signed-out user taps File', async () => {
+      runInAction(() => {
+        serverStore.servers = [
+          {
+            id: 'bc-signedout-files',
+            name: 'BotConnector',
+            url: 'https://api.botconnector.id',
+            serverType: 'OpenAI',
+          },
+        ];
+        serverStore.botConnectorAccess = {};
+        modelStore.models = [
+          {
+            id: 'bc-signedout-files/text-model',
+            origin: 'remote',
+            serverId: 'bc-signedout-files',
+            remoteModelId: 'text-model',
+          } as any,
+        ];
+        modelStore.activeModelId = 'bc-signedout-files/text-model';
+      });
+      (botConnectorAuthStore as any).account = null;
+      (botConnectorAuthStore as any).hasStoredSession = false;
+      const loginSpy = jest
+        .spyOn(botConnectorAuthStore, 'startLogin')
+        .mockResolvedValue(undefined);
+
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput onSendPress={jest.fn()} showImageUpload={true} />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(screen.getByLabelText('Add attachment'));
+      fireEvent.press(await screen.findByText('File'));
+
+      await waitFor(() => {
+        expect(loginSpy).toHaveBeenCalledTimes(1);
+      });
+      expect(Alert.alert).not.toHaveBeenCalledWith(
+        l10n.en.components.chatInput.fileUploadUnavailableTitle,
+        l10n.en.components.chatInput.fileUploadUnavailableBody,
+      );
+
+      loginSpy.mockRestore();
+      runInAction(() => {
+        serverStore.servers = [];
+        serverStore.botConnectorAccess = {};
+        modelStore.activeModelId = undefined;
+      });
+    });
+
+    it('revalidates capabilities and opens the picker when Files come back', async () => {
+      runInAction(() => {
+        serverStore.servers = [
+          {
+            id: 'bc-stale-files',
+            name: 'BotConnector',
+            url: 'https://api.botconnector.id',
+            serverType: 'OpenAI',
+          },
+        ];
+        serverStore.botConnectorAccess = {};
+        modelStore.models = [
+          {
+            id: 'bc-stale-files/text-model',
+            origin: 'remote',
+            serverId: 'bc-stale-files',
+            remoteModelId: 'text-model',
+          } as any,
+        ];
+        modelStore.activeModelId = 'bc-stale-files/text-model';
+      });
+      (botConnectorAuthStore as any).account = null;
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+      const refreshSpy = jest
+        .spyOn(serverStore, 'refreshBotConnectorAccess')
+        .mockResolvedValue({
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          access: 'full',
+          paid: true,
+          entitlement_sources: {
+            subscription: true,
+            payg: false,
+            family: false,
+          },
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+            files: true,
+          },
+        } as any);
+      const keySpy = jest
+        .spyOn(serverStore, 'getApiKey')
+        .mockResolvedValue('bc_live_test');
+      (pick as jest.Mock).mockResolvedValue([
+        {
+          uri: 'file:///tmp/report.pdf',
+          name: 'report.pdf',
+          size: 1024,
+          type: 'application/pdf',
+        },
+      ]);
+      (uploadBotConnectorFile as jest.Mock).mockResolvedValue({
+        id: 'file_bc_22222222-1111-1111-1111-111111111111',
+        object: 'file',
+        bytes: 1024,
+        filename: 'report.pdf',
+        media_type: 'application/pdf',
+        status: 'ready',
+        route: 'retrieval',
+      });
+
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            onSendPress={jest.fn()}
+            showImageUpload={true}
+            isVisionEnabled={false}
+          />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(screen.getByLabelText('Add attachment'));
+      fireEvent.press(await screen.findByText('File'));
+
+      await waitFor(() => {
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
+        expect(pick).toHaveBeenCalledTimes(1);
+      });
+      await waitFor(() => {
+        expect(uploadBotConnectorFile).toHaveBeenCalledTimes(1);
+      });
+
+      refreshSpy.mockRestore();
+      keySpy.mockRestore();
+      runInAction(() => {
+        serverStore.servers = [];
+        serverStore.botConnectorAccess = {};
+        modelStore.activeModelId = undefined;
+      });
+      (botConnectorAuthStore as any).hasStoredSession = false;
+    });
+
+    it('blames the account capability, not the session, when Files stay off', async () => {
+      runInAction(() => {
+        serverStore.servers = [
+          {
+            id: 'bc-nofiles',
+            name: 'BotConnector',
+            url: 'https://api.botconnector.id',
+            serverType: 'OpenAI',
+          },
+        ];
+        serverStore.botConnectorAccess = {};
+        modelStore.models = [
+          {
+            id: 'bc-nofiles/text-model',
+            origin: 'remote',
+            serverId: 'bc-nofiles',
+            remoteModelId: 'text-model',
+          } as any,
+        ];
+        modelStore.activeModelId = 'bc-nofiles/text-model';
+      });
+      (botConnectorAuthStore as any).account = null;
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+      const refreshSpy = jest
+        .spyOn(serverStore, 'refreshBotConnectorAccess')
+        .mockResolvedValue({
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          access: 'full',
+          paid: true,
+          entitlement_sources: {
+            subscription: true,
+            payg: false,
+            family: false,
+          },
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+            files: false,
+          },
+        } as any);
+
+      const screen = render(
+        <UserContext.Provider value={user}>
+          <ChatInput onSendPress={jest.fn()} showImageUpload={true} />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(screen.getByLabelText('Add attachment'));
+      fireEvent.press(await screen.findByText('File'));
+
+      await waitFor(() => {
+        expect(refreshSpy).toHaveBeenCalledTimes(1);
+        expect(Alert.alert).toHaveBeenCalledWith(
+          l10n.en.components.chatInput.fileUploadUnavailableTitle,
+          l10n.en.components.chatInput.fileUploadUnavailableAccountBody,
+        );
+      });
+      expect(pick).not.toHaveBeenCalled();
+
+      refreshSpy.mockRestore();
+      runInAction(() => {
+        serverStore.servers = [];
+        serverStore.botConnectorAccess = {};
+        modelStore.activeModelId = undefined;
+      });
+      (botConnectorAuthStore as any).hasStoredSession = false;
     });
 
     it('uploads and sends a ready BotConnector file without typed text', async () => {
@@ -941,6 +1174,39 @@ describe('input', () => {
 
       // Menu should be visible after pressing plus button
       // This would need to be tested with the actual menu implementation
+    });
+
+    it('announces why attachment rows are unavailable to accessibility', () => {
+      const {getByLabelText, queryByLabelText} = render(
+        <UserContext.Provider value={user}>
+          <ChatInput
+            {...{
+              onSendPress: jest.fn(),
+              showImageUpload: true,
+              isVisionEnabled: false,
+              sendButtonVisibilityMode: 'editing',
+            }}
+          />
+        </UserContext.Provider>,
+      );
+
+      fireEvent.press(getByLabelText('Add attachment'));
+
+      expect(
+        queryByLabelText(
+          `${l10n.en.camera.takePhoto} — ${l10n.en.camera.noVisionTitle}`,
+        ),
+      ).toBeTruthy();
+      expect(
+        queryByLabelText(
+          `${l10n.en.common.gallery} — ${l10n.en.camera.noVisionTitle}`,
+        ),
+      ).toBeTruthy();
+      expect(
+        queryByLabelText(
+          `${l10n.en.common.file} — ${l10n.en.components.chatInput.fileUploadUnavailableTitle}`,
+        ),
+      ).toBeTruthy();
     });
 
     it('handles camera photo capture successfully', async () => {

@@ -179,6 +179,23 @@ describe('ChatPalModelPickerSheet', () => {
     expect(botConnectorAuthStore.startLogin).toHaveBeenCalledTimes(1);
   });
 
+  it('forwards the model list connect-account tap to the caller', () => {
+    const onConnectAccount = jest.fn();
+    const {getByText} = render(
+      <UserContext.Provider value={user}>
+        <L10nContext.Provider value={l10n.en}>
+          <ChatPalModelPickerSheet
+            {...defaultProps}
+            onConnectAccount={onConnectAccount}
+          />
+        </L10nContext.Provider>
+      </UserContext.Provider>,
+    );
+
+    fireEvent.press(getByText(l10n.en.components.modelPicker.connectAccount));
+    expect(onConnectAccount).toHaveBeenCalledTimes(1);
+  });
+
   it('does not render when not visible', () => {
     const {queryByTestId} = render(
       <UserContext.Provider value={user}>

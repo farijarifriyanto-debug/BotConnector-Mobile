@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
+import {Alert, StyleSheet, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import {observer} from 'mobx-react';
 
@@ -17,6 +17,8 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
     const l10n = React.useContext(L10nContext);
     const account = botConnectorAuthStore.account;
     const signedIn = botConnectorAuthStore.isSignedIn;
+    const accountBusy =
+      botConnectorAuthStore.isSigningIn || botConnectorAuthStore.isRestoring;
     const displayName = account?.display_name?.trim() || '';
     const email = account?.email?.trim() || '';
     const plan = account?.plan?.trim() || '';
@@ -80,14 +82,29 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
           testID="botconnector-account-action"
           compact
           mode={signedIn ? 'text' : 'contained-tonal'}
-          loading={botConnectorAuthStore.isSigningIn}
-          disabled={botConnectorAuthStore.isSigningIn}
+          loading={accountBusy}
+          disabled={accountBusy}
           style={!compact ? styles.regularAction : undefined}
           onPress={() => {
-            const action = signedIn
-              ? botConnectorAuthStore.logout()
-              : botConnectorAuthStore.startLogin();
-            action.catch(() => undefined);
+            if (!signedIn) {
+              botConnectorAuthStore.startLogin().catch(() => undefined);
+              return;
+            }
+            // Sign-out drops the session: confirm first (destructive action).
+            Alert.alert(
+              l10n.palsScreen.signOut,
+              l10n.palsScreen.signOutConfirmation,
+              [
+                {text: l10n.common.cancel, style: 'cancel'},
+                {
+                  text: l10n.palsScreen.signOut,
+                  style: 'destructive',
+                  onPress: () => {
+                    botConnectorAuthStore.logout().catch(() => undefined);
+                  },
+                },
+              ],
+            );
           }}>
           {signedIn
             ? l10n.palsScreen.signOut
