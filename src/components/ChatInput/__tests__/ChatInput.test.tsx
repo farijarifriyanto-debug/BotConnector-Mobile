@@ -1555,6 +1555,132 @@ describe('input', () => {
       }
     });
 
+    describe('polling keeps going until the server says failed', () => {
+      const {BotConnectorFileStatusError} = jest.requireActual(
+        '../../../api/botconnectorFiles',
+      );
+      const FILE_ID = 'file_bc_55555555-1111-1111-1111-111111111111';
+      const fileBody = (status: string) => ({
+        id: FILE_ID,
+        object: 'file',
+        bytes: 1024,
+        filename: 'scan.pdf',
+        media_type: 'application/pdf',
+        status,
+        route: 'retrieval',
+        poll_after_ms: null,
+      });
+
+      const attachFile = async () => {
+        (pick as jest.Mock).mockResolvedValue([
+          {
+            uri: 'file:///tmp/scan.pdf',
+            name: 'scan.pdf',
+            size: 1024,
+            type: 'application/pdf',
+          },
+        ]);
+        (uploadBotConnectorFile as jest.Mock).mockResolvedValue(
+          fileBody('queued'),
+        );
+        const screen = render(
+          <UserContext.Provider value={user}>
+            <ChatInput
+              onSendPress={jest.fn()}
+              showImageUpload={true}
+              isVisionEnabled={false}
+            />
+          </UserContext.Provider>,
+        );
+        fireEvent.press(screen.getByLabelText('Add attachment'));
+        fireEvent.press(await screen.findByText('File'));
+        await waitFor(() => {
+          expect(uploadBotConnectorFile).toHaveBeenCalledTimes(1);
+        });
+        return screen;
+      };
+
+      it('does not fail on a status this app does not know yet', async () => {
+        jest.useFakeTimers();
+        try {
+          setupFilesServerFor('bc-poll-unknown');
+          const keySpy = jest
+            .spyOn(serverStore, 'getApiKey')
+            .mockResolvedValue('bc_live_test');
+          (getBotConnectorFile as jest.Mock)
+            .mockResolvedValueOnce(fileBody('archiving_soon'))
+            .mockResolvedValueOnce(fileBody('archiving_soon'))
+            .mockResolvedValue(fileBody('ready'));
+
+          const screen = await attachFile();
+          await act(async () => {
+            await jest.advanceTimersByTimeAsync(30000);
+          });
+
+          expect(getBotConnectorFile).toHaveBeenCalledTimes(3);
+          expect(screen.queryByText(/unknown file status/i)).toBeNull();
+          keySpy.mockRestore();
+        } finally {
+          jest.useRealTimers();
+          cleanupFilesServer();
+        }
+      });
+
+      it('rides out repeated network/5xx errors instead of failing after three', async () => {
+        jest.useFakeTimers();
+        try {
+          setupFilesServerFor('bc-poll-transient');
+          const keySpy = jest
+            .spyOn(serverStore, 'getApiKey')
+            .mockResolvedValue('bc_live_test');
+          (getBotConnectorFile as jest.Mock)
+            .mockRejectedValueOnce(new TypeError('Network request failed'))
+            .mockRejectedValueOnce(new BotConnectorFileStatusError('bad', 502))
+            .mockRejectedValueOnce(new BotConnectorFileStatusError('bad', 503))
+            .mockRejectedValueOnce(new TypeError('Network request failed'))
+            .mockResolvedValue(fileBody('ready'));
+
+          const screen = await attachFile();
+          await act(async () => {
+            await jest.advanceTimersByTimeAsync(60000);
+          });
+
+          expect(getBotConnectorFile).toHaveBeenCalledTimes(5);
+          expect(screen.queryByText('Network request failed')).toBeNull();
+          expect(screen.queryByText('bad')).toBeNull();
+          keySpy.mockRestore();
+        } finally {
+          jest.useRealTimers();
+          cleanupFilesServer();
+        }
+      });
+
+      it('still gives up on a repeated 404 before the deadline', async () => {
+        jest.useFakeTimers();
+        try {
+          setupFilesServerFor('bc-poll-404');
+          const keySpy = jest
+            .spyOn(serverStore, 'getApiKey')
+            .mockResolvedValue('bc_live_test');
+          (getBotConnectorFile as jest.Mock).mockRejectedValue(
+            new BotConnectorFileStatusError('File not found', 404),
+          );
+
+          const screen = await attachFile();
+          await act(async () => {
+            await jest.advanceTimersByTimeAsync(60000);
+          });
+
+          expect(getBotConnectorFile).toHaveBeenCalledTimes(3);
+          expect(screen.getByText('File not found')).toBeTruthy();
+          keySpy.mockRestore();
+        } finally {
+          jest.useRealTimers();
+          cleanupFilesServer();
+        }
+      });
+    });
+
     it('says the capability check failed instead of blaming the plan when Files cannot be verified', async () => {
       runInAction(() => {
         serverStore.servers = [

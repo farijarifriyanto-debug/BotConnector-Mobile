@@ -698,14 +698,10 @@ export const ChatInput = observer(
             previousDelay: delay,
           });
           if (!isKnownBotConnectorFileStatus(latest.status)) {
-            // A status the app cannot render would otherwise spin forever.
-            updateSelectedFile(localKey, {
-              status: 'failed',
-              error: t(l10n.components.chatInput.fileUnknownStatusBody, {
-                status: String(latest.status),
-              }),
-            });
-            return;
+            // A status newer than this app is not a failure: only the server
+            // saying `failed` (or the deadline) may fail an attachment. Keep
+            // the last known status on screen and keep polling.
+            continue;
           }
           knownStatus = latest.status;
           updateSelectedFile(localKey, {
@@ -750,7 +746,15 @@ export const ChatInput = observer(
             previousDelay: delay,
             status: knownStatus,
           });
-          if (consecutiveErrors < BOTCONNECTOR_FILE_POLL_ERROR_LIMIT) {
+          // Network drops and 5xx/408 are transient: keep polling until the
+          // deadline. Only a definite client error (401/403/404...) that
+          // repeats gives up early.
+          const isTransient =
+            statusCode === undefined || statusCode >= 500 || statusCode === 408;
+          if (
+            isTransient ||
+            consecutiveErrors < BOTCONNECTOR_FILE_POLL_ERROR_LIMIT
+          ) {
             continue;
           }
           updateSelectedFile(localKey, {
