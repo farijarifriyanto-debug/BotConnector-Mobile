@@ -284,3 +284,68 @@ workflows:
     publishing:
       app_store_connect:
         auth: integration
+
+  android-release:
+    name: BotConnector Android Release
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    environment:
+      node: 22.21.0
+      java: 17
+      vars:
+        PACKAGE_NAME: "id.botconnector.app"
+
+    cache:
+      cache_paths:
+        - $HOME/.gradle/caches
+        - $HOME/.gradle/wrapper
+        - $CM_BUILD_DIR/node_modules
+
+    scripts:
+      - name: Install JavaScript dependencies
+        script: |
+          npm install --global yarn@1.22.22
+          yarn install --frozen-lockfile
+
+      - name: Create Android CI placeholders
+        script: |
+          mkdir -p android/app
+          cat > android/app/google-services.json <<'JSON'
+          {
+            "project_info": {
+              "project_number": "000000000000",
+              "project_id": "botconnector-ci",
+              "storage_bucket": "botconnector-ci.appspot.com"
+            },
+            "client": [{
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000",
+                "android_client_info": {
+                  "package_name": "id.botconnector.app"
+                }
+              },
+              "api_key": [{
+                "current_key": "ci-placeholder-api-key"
+              }]
+            }]
+          }
+          JSON
+          cat > .env <<'ENV'
+          APP_URL=botconnector://app
+          ENV
+
+      - name: Set Android SDK location
+        script: |
+          echo "sdk.dir=$ANDROID_SDK_ROOT" > "$CM_BUILD_DIR/android/local.properties"
+
+      - name: Build Android Release APK
+        script: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          export EXTRA_PACKAGER_ARGS="--max-workers 2"
+          cd android
+          ./gradlew assembleProdRelease
+
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/mapping/**/*.txt
