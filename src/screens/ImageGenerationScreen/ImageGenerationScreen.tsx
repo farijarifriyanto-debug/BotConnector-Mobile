@@ -26,6 +26,7 @@ import {
   generateBotConnectorImage,
 } from '../../api/botconnectorMedia';
 import {BotConnectorAccountCard, TextInput} from '../../components';
+import {BicoMascot} from '../../components/BicoMascot';
 import {ModelArtwork} from '../../components/ModelArtwork';
 import {Dropdown} from '../../components/ui';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
@@ -50,6 +51,13 @@ import {
   resolveAllowedImageSizes,
   sizeForRatio,
 } from '../../utils/imageGenerationSize';
+import {
+  aspectOfSize,
+  buildImagePrompt,
+  IMAGE_STYLES,
+  ImageStyleId,
+} from '../../utils/imageGenerationStyles';
+import {RatioTile} from './components/RatioTile';
 import {createStyles} from './styles';
 
 type ReferenceImage = {
@@ -129,6 +137,9 @@ export const ImageGenerationScreen = observer(() => {
   const [resultMime, setResultMime] = React.useState('image/png');
   const [resultAccess, setResultAccess] = React.useState<string | undefined>();
   const [quotaText, setQuotaText] = React.useState<string | null>(null);
+  const [style, setStyle] = React.useState<ImageStyleId | null>(null);
+  const [resultSize, setResultSize] = React.useState('1024x1024');
+  const [elapsed, setElapsed] = React.useState(0);
   const [error, setError] = React.useState<string | null>(null);
   const [history, setHistory] = React.useState<ImageHistoryEntry[]>([]);
   const [selectedHistoryId, setSelectedHistoryId] = React.useState<
@@ -142,6 +153,19 @@ export const ImageGenerationScreen = observer(() => {
     period?: string;
   } | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
+
+  React.useEffect(() => {
+    if (!generating) {
+      setElapsed(0);
+      return undefined;
+    }
+    const startedAt = Date.now();
+    const timer = setInterval(
+      () => setElapsed(Math.floor((Date.now() - startedAt) / 1000)),
+      1000,
+    );
+    return () => clearInterval(timer);
+  }, [generating]);
   const contentRef = React.useRef<ScrollView>(null);
   const promptYRef = React.useRef(0);
   const handlePromptFocus = React.useCallback(() => {
@@ -333,7 +357,7 @@ export const ImageGenerationScreen = observer(() => {
         serverUrl: botConnectorServer.url,
         apiKey,
         model: selectedModel,
-        prompt: prompt.trim(),
+        prompt: buildImagePrompt(prompt, style),
         size: selectedSize,
         referenceImages: referenceImages.map(image => image.dataUri),
         signal: controller.signal,
@@ -348,6 +372,7 @@ export const ImageGenerationScreen = observer(() => {
         size: selectedSize,
       });
       setResultUri(entry.fileUri);
+      setResultSize(selectedSize);
       setResultMime(result.mimeType);
       setResultAccess(result.access);
       setHistory(await listImageHistory());
@@ -467,7 +492,7 @@ export const ImageGenerationScreen = observer(() => {
     setSelectedHistoryId(null);
   };
 
-  const useHistoryAsReference = async (entry: ImageHistoryEntry) => {
+  const addHistoryAsReference = async (entry: ImageHistoryEntry) => {
     if (
       !supportsReferenceImages ||
       referenceImages.length >= MAX_REFERENCE_IMAGES
@@ -500,6 +525,19 @@ export const ImageGenerationScreen = observer(() => {
     } catch {
       Alert.alert('BotConnector', copy.referenceHint);
     }
+  };
+
+  const editWithResult = async () => {
+    const latest = history.find(entry => entry.fileUri === resultUri);
+    if (!latest) {
+      return;
+    }
+    if (!supportsReferenceImages) {
+      Alert.alert('BotConnector', copy.editUnsupported);
+      return;
+    }
+    await addHistoryAsReference(latest);
+    contentRef.current?.scrollTo({y: 0, animated: true});
   };
 
   const quotaLine = React.useMemo(() => {
@@ -542,6 +580,8 @@ export const ImageGenerationScreen = observer(() => {
     );
   }
 
+  const resultAspect = aspectOfSize(resultSize);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <KeyboardAvoidingView
@@ -554,18 +594,214 @@ export const ImageGenerationScreen = observer(() => {
           keyboardDismissMode={
             Platform.OS === 'ios' ? 'interactive' : 'on-drag'
           }>
-          {/* Compact account + plan status (quota is enforced server-side). */}
-          <BotConnectorAccountCard compact />
+          {/* Hero: what this screen does, with the mascot and the quota pill. */}
+          <View style={styles.hero}>
+            <View style={styles.heroText}>
+              <Text variant="titleLarge" style={styles.heroTitle}>
+                {copy.hero.title}
+              </Text>
+              <Text style={styles.heroSubtitle}>{copy.hero.subtitle}</Text>
+              {quotaLine ? (
+                <View style={styles.quotaPill}>
+                  <Icon
+                    source="ticket-outline"
+                    size={14}
+                    color={theme.colors.primary}
+                  />
+                  <Text
+                    testID="image-quota-line"
+                    style={styles.quotaPillText}
+                    numberOfLines={2}>
+                    {quotaLine}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+            <BicoMascot variant="auto" width={88} />
+          </View>
 
-          {/* Last known image quota (from botconnector.image_quota). */}
-          {quotaLine ? (
-            <Text testID="image-quota-line" style={styles.muted}>
-              {quotaLine}
+          {/* Prompt card: idea, look, examples, reference photos. */}
+          <View
+            style={styles.card}
+            onLayout={event => {
+              promptYRef.current = event.nativeEvent.layout.y;
+            }}>
+            <Text variant="titleSmall">{copy.prompt}</Text>
+            <TextInput
+              testID="image-prompt-input"
+              value={prompt}
+              onChangeText={setPrompt}
+              onFocus={handlePromptFocus}
+              placeholder={copy.promptPlaceholder}
+              multiline
+              numberOfLines={4}
+            />
+            {prompt.length > 0 ? (
+              <Text
+                testID="image-prompt-count"
+                style={[
+                  styles.promptCount,
+                  prompt.length > PROMPT_WARN_LENGTH && styles.promptCountWarn,
+                ]}>
+                {t(copy.promptCount, {count: prompt.length})}
+              </Text>
+            ) : null}
+
+            <Text style={styles.sectionLabel}>{copy.style.label}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillRow}
+              testID="image-styles">
+              <Pressable
+                testID="image-style-none"
+                accessibilityRole="button"
+                accessibilityLabel={copy.style.none}
+                accessibilityState={{selected: style === null}}
+                onPress={() => setStyle(null)}
+                style={[styles.pill, style === null && styles.pillSelected]}>
+                <Text
+                  style={[
+                    styles.pillText,
+                    style === null && styles.pillTextSelected,
+                  ]}>
+                  {copy.style.none}
+                </Text>
+              </Pressable>
+              {IMAGE_STYLES.map(preset => (
+                <Pressable
+                  key={preset.id}
+                  testID={`image-style-${preset.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.style[preset.id]}
+                  accessibilityState={{selected: style === preset.id}}
+                  onPress={() =>
+                    setStyle(current =>
+                      current === preset.id ? null : preset.id,
+                    )
+                  }
+                  style={[
+                    styles.pill,
+                    style === preset.id && styles.pillSelected,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.pillText,
+                      style === preset.id && styles.pillTextSelected,
+                    ]}>
+                    {copy.style[preset.id]}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <Text style={styles.sectionLabel}>{copy.tryLabel}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillRow}
+              testID="image-examples">
+              {EXAMPLE_KEYS.map((key, index) => (
+                <Pressable
+                  key={key}
+                  testID={`image-example-${index}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={copy.examples[key]}
+                  onPress={() => applyExample(copy.examples[key])}
+                  style={[styles.pill, styles.examplePill]}>
+                  <Icon
+                    source="lightbulb-on-outline"
+                    size={14}
+                    color={theme.colors.onSurfaceVariant}
+                  />
+                  <Text style={styles.pillText} numberOfLines={1}>
+                    {copy.examples[key]}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+
+            <View style={styles.referenceHeader}>
+              <Text style={styles.sectionLabel}>{copy.reference}</Text>
+              {referenceImages.length > 0 ? (
+                <Text style={styles.countText}>
+                  {t(copy.referenceCount, {
+                    current: referenceImages.length,
+                    max: MAX_REFERENCE_IMAGES,
+                  })}
+                </Text>
+              ) : null}
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.referenceList}>
+              <Pressable
+                testID="add-reference-button"
+                accessibilityRole="button"
+                accessibilityLabel={copy.addReference}
+                accessibilityHint={
+                  supportsReferenceImages
+                    ? referenceImages.length >= MAX_REFERENCE_IMAGES
+                      ? copy.referenceHint
+                      : undefined
+                    : copy.referenceUnsupported
+                }
+                accessibilityState={{
+                  disabled:
+                    !supportsReferenceImages ||
+                    referenceImages.length >= MAX_REFERENCE_IMAGES,
+                }}
+                disabled={
+                  !supportsReferenceImages ||
+                  referenceImages.length >= MAX_REFERENCE_IMAGES
+                }
+                onPress={() => addReferenceImages().catch(() => undefined)}
+                style={[
+                  styles.addTile,
+                  (!supportsReferenceImages ||
+                    referenceImages.length >= MAX_REFERENCE_IMAGES) &&
+                    styles.addTileDisabled,
+                ]}>
+                <Icon
+                  source="image-plus"
+                  size={22}
+                  color={theme.colors.primary}
+                />
+                <Text style={styles.addTileText}>{copy.addReference}</Text>
+              </Pressable>
+              {referenceImages.map((image, index) => (
+                <View
+                  key={`${image.uri}:${index}`}
+                  style={styles.referenceItem}>
+                  <Image
+                    source={{uri: image.uri}}
+                    style={styles.referenceImage}
+                  />
+                  <IconButton
+                    icon="close-circle"
+                    size={20}
+                    style={styles.referenceRemove}
+                    hitSlop={10}
+                    accessibilityLabel={copy.removeReference}
+                    onPress={() =>
+                      setReferenceImages(current =>
+                        current.filter((_, itemIndex) => itemIndex !== index),
+                      )
+                    }
+                  />
+                </View>
+              ))}
+            </ScrollView>
+            <Text style={styles.referenceHint} numberOfLines={2}>
+              {supportsReferenceImages
+                ? copy.referenceHint
+                : copy.referenceUnsupported}
             </Text>
-          ) : null}
+          </View>
 
-          {/* Model selector: artwork + compact dropdown, one meta line. */}
-          <View style={styles.field}>
+          {/* Options card: model and shape. */}
+          <View style={styles.card}>
             <View style={styles.fieldHeader}>
               <Text variant="titleSmall">{copy.model}</Text>
               <View style={styles.metaCluster}>
@@ -601,7 +837,7 @@ export const ImageGenerationScreen = observer(() => {
                     name: selected?.name,
                     modelId: selected?.id,
                   }}
-                  size={20}
+                  size={22}
                   color={theme.colors.onSurfaceVariant}
                 />
                 <Dropdown
@@ -624,160 +860,42 @@ export const ImageGenerationScreen = observer(() => {
                 </Button>
               </View>
             )}
-          </View>
 
-          {/* Aspect ratio / size (narrowed per model). */}
-          <View style={styles.field}>
-            <Text variant="titleSmall">{copy.size.label}</Text>
-            <View style={styles.sizeRow}>
-              {RATIOS.map(candidate => {
-                const available = ratioAvailable(candidate, allowedSizes);
-                const selectedChip = activeRatio === candidate;
-                return (
-                  <Chip
-                    key={candidate}
-                    mode={selectedChip ? 'flat' : 'outlined'}
-                    selected={selectedChip}
-                    disabled={!available}
-                    style={styles.controlChip}
-                    testID={`size-ratio-${candidate}`}
-                    accessibilityLabel={copy.size[candidate]}
-                    onPress={() => setRatio(candidate)}>
-                    {copy.size[candidate]}
-                  </Chip>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* Prompt */}
-          <View
-            style={styles.field}
-            onLayout={event => {
-              promptYRef.current = event.nativeEvent.layout.y;
-            }}>
-            <Text variant="titleSmall">{copy.prompt}</Text>
-            <TextInput
-              testID="image-prompt-input"
-              value={prompt}
-              onChangeText={setPrompt}
-              onFocus={handlePromptFocus}
-              placeholder={copy.promptPlaceholder}
-              multiline
-              numberOfLines={3}
-            />
-            {prompt.length > 0 ? (
-              <Text
-                testID="image-prompt-count"
-                style={[
-                  styles.promptCount,
-                  prompt.length > PROMPT_WARN_LENGTH && styles.promptCountWarn,
-                ]}>
-                {t(copy.promptCount, {count: prompt.length})}
-              </Text>
-            ) : null}
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.exampleList}
-              testID="image-examples">
-              {EXAMPLE_KEYS.map((key, index) => (
-                <Chip
-                  key={key}
-                  mode="outlined"
-                  compact
-                  style={styles.controlChip}
-                  testID={`image-example-${index}`}
-                  accessibilityLabel={copy.examples[key]}
-                  onPress={() => applyExample(copy.examples[key])}>
-                  {copy.examples[key]}
-                </Chip>
+            <Text style={styles.sectionLabel}>{copy.size.label}</Text>
+            <View style={styles.ratioRow}>
+              {RATIOS.map(candidate => (
+                <RatioTile
+                  key={candidate}
+                  testID={`size-ratio-${candidate}`}
+                  ratio={candidate}
+                  label={copy.size[candidate]}
+                  selected={activeRatio === candidate}
+                  disabled={!ratioAvailable(candidate, allowedSizes)}
+                  onPress={() => setRatio(candidate)}
+                />
               ))}
-            </ScrollView>
-          </View>
-
-          {/* Reference photo flow */}
-          <View style={styles.referenceSection}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleCluster}>
-                <Text variant="titleSmall">{copy.reference}</Text>
-                {referenceImages.length > 0 ? (
-                  <Text style={styles.countText}>
-                    {t(copy.referenceCount, {
-                      current: referenceImages.length,
-                      max: MAX_REFERENCE_IMAGES,
-                    })}
-                  </Text>
-                ) : null}
-              </View>
-              <Button
-                compact
-                mode="text"
-                icon="image-plus"
-                disabled={
-                  !supportsReferenceImages ||
-                  referenceImages.length >= MAX_REFERENCE_IMAGES
-                }
-                accessibilityHint={
-                  supportsReferenceImages
-                    ? referenceImages.length >= MAX_REFERENCE_IMAGES
-                      ? copy.referenceHint
-                      : undefined
-                    : copy.referenceUnsupported
-                }
-                onPress={() => addReferenceImages().catch(() => undefined)}>
-                {copy.addReference}
-              </Button>
             </View>
-            <Text style={styles.referenceHint} numberOfLines={2}>
-              {supportsReferenceImages
-                ? copy.referenceHint
-                : copy.referenceUnsupported}
-            </Text>
-            {referenceImages.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.referenceList}>
-                {referenceImages.map((image, index) => (
-                  <View
-                    key={`${image.uri}:${index}`}
-                    style={styles.referenceItem}>
-                    <Image
-                      source={{uri: image.uri}}
-                      style={styles.referenceImage}
-                    />
-                    <IconButton
-                      icon="close-circle"
-                      size={20}
-                      style={styles.referenceRemove}
-                      hitSlop={10}
-                      accessibilityLabel={copy.removeReference}
-                      onPress={() =>
-                        setReferenceImages(current =>
-                          current.filter((_, itemIndex) => itemIndex !== index),
-                        )
-                      }
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-            ) : null}
           </View>
 
-          {/* Primary action: becomes Cancel while a generation runs; the
-              screen keeps scrolling and stays interactive (no lock). */}
+          {/* Primary action: becomes progress + Cancel while a generation
+              runs; the screen keeps scrolling and stays interactive. */}
           {generating ? (
-            <View style={styles.field}>
-              <View style={styles.stateRow} testID="image-generating-progress">
+            <View style={styles.progressCard}>
+              <View
+                style={styles.progressRow}
+                testID="image-generating-progress">
                 <ActivityIndicator size="small" />
-                <Text style={styles.muted}>{copy.generating}</Text>
+                <Text style={styles.progressTitle}>{copy.generating}</Text>
+                <Text style={styles.progressTime}>
+                  {t(copy.elapsed, {seconds: elapsed})}
+                </Text>
               </View>
+              <Text style={styles.muted}>{copy.generatingHint}</Text>
               <Button
                 mode="outlined"
                 icon="close"
                 testID="cancel-generate-button"
-                style={styles.actionButton}
+                style={styles.cancelButton}
                 accessibilityLabel={copy.cancel}
                 onPress={cancelGenerate}>
                 {copy.cancel}
@@ -786,8 +904,11 @@ export const ImageGenerationScreen = observer(() => {
           ) : (
             <Button
               mode="contained"
+              icon="creation"
               testID="generate-image-button"
-              style={styles.actionButton}
+              style={styles.generateButton}
+              contentStyle={styles.generateContent}
+              labelStyle={styles.generateLabel}
               disabled={!selectedModel || !prompt.trim()}
               accessibilityHint={
                 selectedModel && prompt.trim()
@@ -813,63 +934,94 @@ export const ImageGenerationScreen = observer(() => {
             </View>
           ) : null}
 
-          {/* Result state */}
+          {/* Result: large image first, then what you can do with it. */}
           {resultUri ? (
             <View style={styles.resultCard}>
               <Image
                 testID="generated-image"
                 source={{uri: resultUri}}
-                resizeMode="contain"
-                style={styles.resultImage}
+                resizeMode="cover"
+                style={[styles.resultImage, {aspectRatio: resultAspect}]}
               />
-              <View style={styles.resultFooter}>
-                <View style={styles.resultMeta}>
-                  <Text variant="labelMedium" numberOfLines={1}>
-                    {copy.generated}
-                    {resultAccess ? ` · ${formatAccess(resultAccess)}` : ''}
+              <View style={styles.resultMeta}>
+                <Text variant="titleSmall">{copy.resultTitle}</Text>
+                <Text style={styles.muted} numberOfLines={1}>
+                  {copy.generated}
+                  {resultAccess ? ` · ${formatAccess(resultAccess)}` : ''}
+                </Text>
+                {quotaText ? (
+                  <Text style={styles.muted} numberOfLines={1}>
+                    {quotaText}
                   </Text>
-                  {quotaText ? (
-                    <Text style={styles.muted} numberOfLines={1}>
-                      {quotaText}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.resultActions}>
-                  <IconButton
-                    testID="save-generated-image"
-                    icon="download"
-                    size={20}
-                    hitSlop={10}
-                    accessibilityLabel={copy.save.action}
-                    onPress={() => saveResultToGallery()}
-                  />
-                  <IconButton
-                    testID="share-generated-image"
-                    icon="share-variant"
-                    size={20}
-                    hitSlop={10}
-                    accessibilityLabel={copy.share}
-                    onPress={shareResult}
-                  />
-                </View>
+                ) : null}
+              </View>
+              <View style={styles.actionRow}>
+                <Button
+                  testID="save-generated-image"
+                  mode="contained-tonal"
+                  icon="download"
+                  compact
+                  style={styles.actionPill}
+                  accessibilityLabel={copy.save.action}
+                  onPress={() => saveResultToGallery()}>
+                  {copy.save.action}
+                </Button>
+                <Button
+                  testID="share-generated-image"
+                  mode="contained-tonal"
+                  icon="share-variant"
+                  compact
+                  style={styles.actionPill}
+                  accessibilityLabel={copy.share}
+                  onPress={shareResult}>
+                  {copy.share}
+                </Button>
+                <Button
+                  testID="edit-with-result"
+                  mode="contained-tonal"
+                  icon="image-edit-outline"
+                  compact
+                  style={styles.actionPill}
+                  accessibilityLabel={copy.editWithResult}
+                  onPress={() => editWithResult().catch(() => undefined)}>
+                  {copy.editWithResult}
+                </Button>
+                <Button
+                  testID="generate-again"
+                  mode="contained-tonal"
+                  icon="refresh"
+                  compact
+                  disabled={generating || !prompt.trim()}
+                  style={styles.actionPill}
+                  accessibilityLabel={copy.generateAgain}
+                  onPress={() => generate().catch(() => undefined)}>
+                  {copy.generateAgain}
+                </Button>
               </View>
             </View>
           ) : null}
 
-          {/* Local history: favorites, reopen, reuse, delete. */}
+          {/* History: a gallery grid; tap a picture for its actions. */}
           <View style={styles.field}>
             <View style={styles.fieldHeader}>
-              <Text variant="titleSmall">{copy.history.title}</Text>
-              {history.length === 0 ? (
-                <Text style={styles.muted}>{copy.history.empty}</Text>
+              <Text variant="titleMedium">{copy.history.title}</Text>
+              {history.length > 0 ? (
+                <Text style={styles.countText}>
+                  {t(copy.historyCount, {count: history.length})}
+                </Text>
               ) : null}
             </View>
-            {history.length > 0 ? (
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.historyList}
-                testID="image-history-list">
+            {history.length === 0 ? (
+              <View style={styles.emptyHistory}>
+                <Icon
+                  source="image-multiple-outline"
+                  size={28}
+                  color={theme.colors.onSurfaceVariant}
+                />
+                <Text style={styles.muted}>{copy.history.empty}</Text>
+              </View>
+            ) : (
+              <View style={styles.historyGrid} testID="image-history-list">
                 {history.map((entry, index) => (
                   <Pressable
                     key={entry.id}
@@ -887,7 +1039,7 @@ export const ImageGenerationScreen = observer(() => {
                       selected: selectedHistoryId === entry.id,
                     }}
                     style={[
-                      styles.historyThumbWrap,
+                      styles.historyCell,
                       selectedHistoryId === entry.id &&
                         styles.historyThumbSelected,
                     ]}>
@@ -906,62 +1058,81 @@ export const ImageGenerationScreen = observer(() => {
                     ) : null}
                   </Pressable>
                 ))}
-              </ScrollView>
-            ) : null}
+              </View>
+            )}
             {selectedHistory ? (
               <View style={styles.historyActions} testID="history-actions">
-                <Button
-                  compact
-                  icon="eye"
-                  style={styles.actionButton}
-                  accessibilityLabel={copy.history.open}
-                  onPress={() => setViewerVisible(true)}>
-                  {copy.history.open}
-                </Button>
-                <Button
-                  compact
-                  icon={selectedHistory.favorite ? 'star-off' : 'star'}
-                  style={styles.actionButton}
-                  accessibilityLabel={
-                    selectedHistory.favorite
+                <Text style={styles.historyPrompt} numberOfLines={2}>
+                  {selectedHistory.prompt}
+                </Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.pillRow}>
+                  <Button
+                    compact
+                    mode="contained-tonal"
+                    icon="eye"
+                    style={styles.actionPill}
+                    accessibilityLabel={copy.history.open}
+                    onPress={() => setViewerVisible(true)}>
+                    {copy.history.open}
+                  </Button>
+                  <Button
+                    compact
+                    mode="contained-tonal"
+                    icon={selectedHistory.favorite ? 'star-off' : 'star'}
+                    style={styles.actionPill}
+                    accessibilityLabel={
+                      selectedHistory.favorite
+                        ? copy.history.unfavorite
+                        : copy.history.favorite
+                    }
+                    onPress={() => toggleFavorite(selectedHistory.id)}>
+                    {selectedHistory.favorite
                       ? copy.history.unfavorite
-                      : copy.history.favorite
-                  }
-                  onPress={() => toggleFavorite(selectedHistory.id)}>
-                  {selectedHistory.favorite
-                    ? copy.history.unfavorite
-                    : copy.history.favorite}
-                </Button>
-                <Button
-                  compact
-                  icon="delete-outline"
-                  style={styles.actionButton}
-                  accessibilityLabel={copy.history.delete}
-                  onPress={() => deleteHistoryEntry(selectedHistory)}>
-                  {copy.history.delete}
-                </Button>
-                <Button
-                  compact
-                  icon="refresh"
-                  style={styles.actionButton}
-                  accessibilityLabel={copy.history.regenerate}
-                  onPress={() => regenerateFromHistory(selectedHistory)}>
-                  {copy.history.regenerate}
-                </Button>
-                <Button
-                  compact
-                  icon="image-plus"
-                  style={styles.actionButton}
-                  disabled={
-                    !supportsReferenceImages ||
-                    referenceImages.length >= MAX_REFERENCE_IMAGES
-                  }
-                  accessibilityLabel={copy.history.useAsReference}
-                  onPress={() => useHistoryAsReference(selectedHistory)}>
-                  {copy.history.useAsReference}
-                </Button>
+                      : copy.history.favorite}
+                  </Button>
+                  <Button
+                    compact
+                    mode="contained-tonal"
+                    icon="refresh"
+                    style={styles.actionPill}
+                    accessibilityLabel={copy.history.regenerate}
+                    onPress={() => regenerateFromHistory(selectedHistory)}>
+                    {copy.history.regenerate}
+                  </Button>
+                  <Button
+                    compact
+                    mode="contained-tonal"
+                    icon="image-plus"
+                    style={styles.actionPill}
+                    disabled={
+                      !supportsReferenceImages ||
+                      referenceImages.length >= MAX_REFERENCE_IMAGES
+                    }
+                    accessibilityLabel={copy.history.useAsReference}
+                    onPress={() => addHistoryAsReference(selectedHistory)}>
+                    {copy.history.useAsReference}
+                  </Button>
+                  <Button
+                    compact
+                    mode="contained-tonal"
+                    icon="delete-outline"
+                    style={styles.actionPill}
+                    accessibilityLabel={copy.history.delete}
+                    onPress={() => deleteHistoryEntry(selectedHistory)}>
+                    {copy.history.delete}
+                  </Button>
+                </ScrollView>
               </View>
             ) : null}
+          </View>
+
+          {/* Account / plan status lives at the bottom: useful, not the focus. */}
+          <View style={styles.field}>
+            <Text style={styles.sectionLabel}>{copy.accountTitle}</Text>
+            <BotConnectorAccountCard compact />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

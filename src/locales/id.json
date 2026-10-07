@@ -1426,6 +1426,33 @@
       "unauthorized": "Sesi telah berakhir — masuk kembali.",
       "timeout": "Permintaan melebihi batas waktu 240 detik — coba lagi."
     },
+    "hero": {
+      "title": "Buat gambar dengan AI",
+      "subtitle": "Tulis idenya, pilih gaya, lalu buat. Edit hasil apa pun dengan menjadikannya referensi."
+    },
+    "style": {
+      "label": "Gaya",
+      "none": "Otomatis",
+      "photo": "Foto",
+      "cinematic": "Sinematik",
+      "anime": "Anime",
+      "3d": "3D",
+      "illustration": "Ilustrasi",
+      "logo": "Logo",
+      "watercolor": "Cat air",
+      "pixel": "Pixel art"
+    },
+    "tryLabel": "Coba",
+    "optionsTitle": "Model dan bentuk",
+    "elapsed": "{{seconds}} dtk",
+    "generatingHint": "Kebanyakan gambar selesai dalam 10 sampai 20 detik. Anda boleh memakai app lain.",
+    "resultTitle": "Gambar Anda",
+    "generateAgain": "Buat lagi",
+    "editWithResult": "Edit dengan ini",
+    "editUnsupported": "Pilih model yang mendukung foto referensi untuk mengedit gambar ini.",
+    "historyCount": "{{count}} tersimpan di perangkat ini",
+    "accountTitle": "Akun",
+    "referenceAdd": "Tambah",
     "access": {
       "free": "Gratis",
       "plan": "Termasuk",
