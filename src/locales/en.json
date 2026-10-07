@@ -1435,6 +1435,33 @@
       "unauthorized": "Your session expired — sign in again.",
       "timeout": "The request timed out after 240 seconds — try again."
     },
+    "hero": {
+      "title": "Create images with AI",
+      "subtitle": "Describe it, pick a look, and generate. Edit any result by using it as a reference."
+    },
+    "style": {
+      "label": "Style",
+      "none": "Auto",
+      "photo": "Photo",
+      "cinematic": "Cinematic",
+      "anime": "Anime",
+      "3d": "3D",
+      "illustration": "Illustration",
+      "logo": "Logo",
+      "watercolor": "Watercolor",
+      "pixel": "Pixel art"
+    },
+    "tryLabel": "Try",
+    "optionsTitle": "Model and shape",
+    "elapsed": "{{seconds}}s",
+    "generatingHint": "Most images take 10 to 20 seconds. You can keep using the app.",
+    "resultTitle": "Your image",
+    "generateAgain": "Generate again",
+    "editWithResult": "Edit with this",
+    "editUnsupported": "Pick a model marked as supporting reference photos to edit this image.",
+    "historyCount": "{{count}} saved on this device",
+    "accountTitle": "Account",
+    "referenceAdd": "Add",
     "access": {
       "free": "Free",
       "plan": "Included",
