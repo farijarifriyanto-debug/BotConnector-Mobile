@@ -10,12 +10,21 @@ export interface BotConnectorMediaModel {
   botconnector_modality: 'image' | 'audio' | string;
   botconnector_access: BotConnectorMediaAccess;
   supports_reference_images?: boolean;
+  /** Sizes this model accepts (from GET /v1/media/models), e.g. ["auto","1024x1024"]. */
+  botconnector_sizes?: string[];
   variants?: string[];
 }
 
 interface BotConnectorMediaModelsResponse {
   object: 'list';
   data: BotConnectorMediaModel[];
+}
+
+export interface BotConnectorImageQuota {
+  tier?: string;
+  remaining?: number;
+  limit?: number;
+  period?: string;
 }
 
 interface BotConnectorImageResponse {
@@ -26,32 +35,114 @@ interface BotConnectorImageResponse {
     model?: string;
     mime_type?: string;
     access?: BotConnectorMediaAccess;
-    image_quota?: {
-      remaining?: number;
-      limit?: number;
-      period?: string;
-      tier?: string;
-    };
+    image_quota?: BotConnectorImageQuota;
   };
 }
 
-const parseError = async (response: Response): Promise<string> => {
-  const payload: any = await response.json().catch(() => ({}));
-  const message =
-    payload?.error?.message || payload?.detail || payload?.message;
-  if (message) {
-    return message;
+export type BotConnectorImageErrorKind =
+  | 'quota_exhausted'
+  | 'plan_required'
+  | 'balance_required'
+  | 'rate_limited'
+  | 'unauthorized'
+  | 'timeout'
+  | 'aborted'
+  | 'server';
+
+/**
+ * Typed media failure. The UI maps `kind` to a local (i18n) string — the raw
+ * server message is deliberately never exposed so screens cannot render
+ * untranslated server text.
+ */
+export class BotConnectorImageError extends Error {
+  readonly kind: BotConnectorImageErrorKind;
+  readonly statusCode?: number;
+  readonly retryAfterSeconds?: number;
+
+  constructor(
+    kind: BotConnectorImageErrorKind,
+    options?: {statusCode?: number; retryAfterSeconds?: number},
+  ) {
+    super(`BotConnector image request failed (${kind})`);
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'BotConnectorImageError';
+    this.kind = kind;
+    this.statusCode = options?.statusCode;
+    this.retryAfterSeconds = options?.retryAfterSeconds;
   }
-  // Server quota refusals get a clear explanation of their own — these are
-  // quota limits, not model capability problems.
-  if (response.status === 429) {
-    return 'Rate limit reached — the server is limiting requests right now. Try again in a few minutes.';
+}
+
+export function classifyImageGenerationError(options: {
+  status: number;
+  code?: string;
+}): BotConnectorImageErrorKind {
+  const {status, code} = options;
+  if (
+    code === 'image_quota_reached' ||
+    code === 'free_daily_budget_exhausted'
+  ) {
+    return 'quota_exhausted';
   }
-  if (response.status === 402) {
-    return 'Quota or balance needed — this request is not covered by the current plan or PAYG balance.';
+  if (code === 'image_plan_required') {
+    return 'plan_required';
   }
-  return `BotConnector media request failed (${response.status})`;
-};
+  if (code === 'payg_balance_required' || status === 402) {
+    return 'balance_required';
+  }
+  if (status === 429) {
+    return 'rate_limited';
+  }
+  if (status === 401) {
+    return 'unauthorized';
+  }
+  return 'server';
+}
+
+/** Reads `{error:{code}}` (contract) with a flat `{code}` fallback. */
+function extractErrorCode(payload: unknown): string | undefined {
+  if (payload && typeof payload === 'object') {
+    const body = payload as {code?: unknown; error?: {code?: unknown}};
+    if (typeof body.error?.code === 'string') {
+      return body.error.code;
+    }
+    if (typeof body.code === 'string') {
+      return body.code;
+    }
+  }
+  return undefined;
+}
+
+/** Parses a Retry-After header: delta-seconds first, HTTP-date as fallback. */
+function parseRetryAfter(value: string | null | undefined): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.ceil(seconds);
+  }
+  const dateMs = Date.parse(value);
+  if (!Number.isNaN(dateMs)) {
+    return Math.max(0, Math.ceil((dateMs - Date.now()) / 1000));
+  }
+  return undefined;
+}
+
+async function throwClassified(response: Response): Promise<never> {
+  const payload = await response.json().catch(() => ({}));
+  const kind = classifyImageGenerationError({
+    status: response.status,
+    code: extractErrorCode(payload),
+  });
+  const retryAfterSeconds =
+    kind === 'rate_limited'
+      ? parseRetryAfter(response.headers?.get?.('Retry-After'))
+      : undefined;
+  throw new BotConnectorImageError(kind, {
+    statusCode: response.status,
+    retryAfterSeconds,
+  });
+}
 
 export async function fetchBotConnectorImageModels({
   serverUrl,
@@ -65,13 +156,15 @@ export async function fetchBotConnectorImageModels({
     headers: buildHeaders(apiKey),
   });
   if (!response.ok) {
-    throw new Error(await parseError(response));
+    await throwClassified(response);
   }
   const payload = (await response.json()) as BotConnectorMediaModelsResponse;
   return Array.isArray(payload?.data)
     ? payload.data.filter(model => model.botconnector_modality === 'image')
     : [];
 }
+
+export const IMAGE_GENERATION_TIMEOUT_MS = 240_000;
 
 export async function generateBotConnectorImage({
   serverUrl,
@@ -80,6 +173,8 @@ export async function generateBotConnectorImage({
   prompt,
   size = '1024x1024',
   referenceImages = [],
+  signal,
+  timeoutMs = IMAGE_GENERATION_TIMEOUT_MS,
 }: {
   serverUrl: string;
   apiKey: string;
@@ -87,15 +182,29 @@ export async function generateBotConnectorImage({
   prompt: string;
   size?: string;
   referenceImages?: string[];
+  /** Caller cancellation (Cancel button): rejects with kind `aborted`. */
+  signal?: AbortSignal;
+  timeoutMs?: number;
 }): Promise<{
   b64: string;
   mimeType: string;
   access?: BotConnectorMediaAccess;
-  quotaRemaining?: number;
-  quotaLimit?: number;
+  quota?: BotConnectorImageQuota;
 }> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 180_000);
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
+  const onExternalAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      controller.abort();
+    } else {
+      signal.addEventListener('abort', onExternalAbort);
+    }
+  }
   try {
     const response = await fetch(
       `${normalizeUrl(serverUrl)}/v1/images/generations`,
@@ -113,21 +222,32 @@ export async function generateBotConnectorImage({
       },
     );
     if (!response.ok) {
-      throw new Error(await parseError(response));
+      await throwClassified(response);
     }
     const payload = (await response.json()) as BotConnectorImageResponse;
     const b64 = payload?.data?.[0]?.b64_json;
     if (!b64) {
-      throw new Error('BotConnector tidak mengembalikan data gambar.');
+      throw new BotConnectorImageError('server');
     }
     return {
       b64,
       mimeType: payload.botconnector?.mime_type || 'image/png',
       access: payload.botconnector?.access,
-      quotaRemaining: payload.botconnector?.image_quota?.remaining,
-      quotaLimit: payload.botconnector?.image_quota?.limit,
+      quota: payload.botconnector?.image_quota,
     };
+  } catch (e) {
+    if (e instanceof BotConnectorImageError) {
+      throw e;
+    }
+    const aborted =
+      controller.signal.aborted ||
+      (e instanceof Error && e.name === 'AbortError');
+    if (aborted) {
+      throw new BotConnectorImageError(timedOut ? 'timeout' : 'aborted');
+    }
+    throw new BotConnectorImageError('server');
   } finally {
     clearTimeout(timeout);
+    signal?.removeEventListener('abort', onExternalAbort);
   }
 }

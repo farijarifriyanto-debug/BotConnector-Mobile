@@ -155,4 +155,82 @@ export const createStyles = (theme: Theme) =>
       padding: theme.spacing.default * 2,
       gap: theme.spacing.default,
     },
+    metaCluster: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      flexShrink: 1,
+      gap: theme.spacing.default / 2,
+    },
+    accessBadge: {
+      margin: 0,
+      minHeight: 28,
+    },
+    sizeRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing.default / 2,
+    },
+    controlChip: {
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    exampleList: {
+      flexDirection: 'row',
+      gap: theme.spacing.default / 2,
+      paddingTop: theme.spacing.default / 4,
+    },
+    promptCount: {
+      alignSelf: 'flex-end',
+      fontSize: 12,
+      lineHeight: 16,
+      color: theme.colors.onSurfaceVariant,
+    },
+    promptCountWarn: {
+      color: theme.colors.error,
+    },
+    historyList: {
+      flexDirection: 'row',
+      gap: theme.spacing.default / 2,
+      paddingTop: theme.spacing.default / 4,
+    },
+    historyThumbWrap: {
+      width: 64,
+      height: 64,
+      borderRadius: theme.borders.default,
+      overflow: 'hidden',
+      borderWidth: 2,
+      borderColor: 'transparent',
+      backgroundColor: theme.colors.surfaceContainerHighest,
+    },
+    historyThumbSelected: {
+      borderColor: theme.colors.primary,
+    },
+    historyThumb: {
+      width: '100%',
+      height: '100%',
+    },
+    historyStar: {
+      position: 'absolute',
+      top: 3,
+      right: 3,
+      backgroundColor: theme.colors.surface,
+      borderRadius: 8,
+      padding: 1,
+    },
+    historyActions: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: theme.spacing.default / 2,
+      paddingTop: theme.spacing.default / 4,
+    },
+    actionButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    resultActions: {
+      flexDirection: 'row',
+      justifyContent: 'flex-end',
+      gap: theme.spacing.default / 4,
+    },
   });

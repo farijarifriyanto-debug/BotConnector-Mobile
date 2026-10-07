@@ -1385,9 +1385,59 @@
     "errorLoadModels": "Unable to load image models.",
     "errorGenerate": "Image generation failed.",
     "errorShare": "Unable to share image.",
+    "size": {
+      "label": "Aspect ratio",
+      "square": "Square",
+      "landscape": "Landscape",
+      "portrait": "Portrait"
+    },
+    "examples": {
+      "label": "Prompt ideas",
+      "product": "Studio product photo of a matte black speaker on concrete",
+      "scenic": "Foggy mountain lake at dawn, soft pastel colors",
+      "mascot": "Friendly robot mascot waving, flat illustration style",
+      "logo": "Minimal wordmark logo for a coffee shop, letter B, black on white",
+      "anime": "Anime portrait with silver hair, neon city background"
+    },
+    "promptCount": "{{count}} characters",
+    "cancel": "Cancel",
+    "quota": {
+      "line": "Image quota: {{remaining}}/{{limit}} · {{period}}",
+      "tier": "tier {{tier}}",
+      "periods": {
+        "day": "day",
+        "week": "week",
+        "month": "month"
+      }
+    },
+    "history": {
+      "title": "Recent images",
+      "empty": "Generated images will show up here.",
+      "open": "Open",
+      "favorite": "Favorite",
+      "unfavorite": "Unfavorite",
+      "delete": "Delete",
+      "regenerate": "Use again",
+      "useAsReference": "Use as reference",
+      "thumbLabel": "Generated image {{n}}"
+    },
+    "save": {
+      "action": "Save to gallery",
+      "done": "Saved to gallery.",
+      "error": "Unable to save to the gallery."
+    },
+    "errors": {
+      "quotaExhausted": "Image quota used up — try again later.",
+      "planRequired": "This image model needs a paid plan.",
+      "balance": "Not enough PAYG balance — top up to continue.",
+      "rateLimited": "Too many requests — try again in {{seconds}} seconds.",
+      "rateLimitedNow": "The server is busy — try again shortly.",
+      "unauthorized": "Your session expired — sign in again.",
+      "timeout": "The request timed out after 240 seconds — try again."
+    },
     "access": {
       "free": "Free",
-      "plan": "Plan",
+      "plan": "Included",
       "payg": "PAYG"
     }
   },
