@@ -74,6 +74,77 @@ workflows:
       - build/ios-simulator/Build/Products/Debug-iphonesimulator/*.app
       - /tmp/xcodebuild_logs/*.log
 
+  macos-catalyst-smoke:
+    name: BotConnector macOS Catalyst Smoke
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+
+    environment:
+      vars:
+        XCODE_WORKSPACE: ios/PocketPal.xcworkspace
+        XCODE_SCHEME: PocketPal
+      node: 22.21.0
+      ruby: 3.2.3
+      xcode: latest
+
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/CocoaPods
+        - $HOME/.cocoapods
+        - $CM_BUILD_DIR/node_modules
+        - $CM_BUILD_DIR/vendor/bundle
+
+    scripts:
+      - name: Install JavaScript dependencies
+        script: |
+          npm install --global yarn@1.22.22
+          yarn install --frozen-lockfile
+
+      - name: Install Ruby and CocoaPods dependencies
+        script: |
+          bundle config set path vendor/bundle
+          bundle install --jobs 4 --retry 3
+          cd ios
+          bundle exec pod install
+
+      - name: Create unsigned CI placeholders
+        script: |
+          cat > ios/GoogleService-Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CLIENT_ID</key><string>ci-placeholder.apps.googleusercontent.com</string>
+          <key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.ci-placeholder</string>
+          <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000</string>
+          <key>GCM_SENDER_ID</key><string>000000000000</string>
+          <key>API_KEY</key><string>ci-placeholder</string>
+          <key>PROJECT_ID</key><string>botconnector-ci</string>
+          <key>BUNDLE_ID</key><string>id.botconnector.app</string>
+          </dict></plist>
+          PLIST
+          cat > ios/Config/Env.xcconfig <<'EOF'
+          GOOGLE_WEB_CLIENT_ID = ci-placeholder.apps.googleusercontent.com
+          REVERSED_GOOGLE_IOS_CLIENT_ID = com.googleusercontent.apps.ci-placeholder
+          EOF
+
+      - name: Build unsigned Mac Catalyst app
+        script: |
+          export NODE_OPTIONS="--max-old-space-size=4096"
+          export EXTRA_PACKAGER_ARGS="--max-workers 2"
+          xcodebuild \
+            -workspace "$XCODE_WORKSPACE" \
+            -scheme "$XCODE_SCHEME" \
+            -configuration Debug \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -derivedDataPath build/macos-catalyst \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            build
+
+    artifacts:
+      - build/macos-catalyst/Build/Products/Debug-maccatalyst/*.app
+      - /tmp/xcodebuild_logs/*.log
+
   ios-testflight:
     name: BotConnector iOS TestFlight
     instance_type: mac_mini_m2
