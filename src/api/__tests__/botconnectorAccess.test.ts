@@ -126,11 +126,11 @@ describe('BotConnector client capabilities API', () => {
     ).resolves.toEqual(payload);
   });
 
-  it('passes through reasons, capability_scope and payg from the server', async () => {
+  it('passes through reasons, the per-axis capability_scope map and payg', async () => {
     const payload = {
       object: 'botconnector.client_capabilities',
       plan: 'starter',
-      capability_scope: 'plan',
+      capability_scope: {chat: 'quota', files: 'plan', vision: 'model'},
       reasons: {files: 'paid_plan_required'},
       payg: {state: 'active', available_micros: 5_000_000},
       capabilities: {
@@ -154,7 +154,11 @@ describe('BotConnector client capabilities API', () => {
       'bc_live_test',
     );
     expect(result.reasons?.files).toBe('paid_plan_required');
-    expect(result.capability_scope).toBe('plan');
+    // Contract: the server sends a per-axis map (Record<axis, scope>), never
+    // a single scope string. The typed binding below must keep compiling.
+    const scope: Record<string, 'quota' | 'model' | 'plan'> =
+      result.capability_scope ?? {};
+    expect(scope).toEqual({chat: 'quota', files: 'plan', vision: 'model'});
     expect(result.payg).toEqual({state: 'active', available_micros: 5_000_000});
   });
 

@@ -1,9 +1,10 @@
 /**
  * Local-devices contract (spec item 4): the mobile app is the client of
- * /v1/client/devices. Auth is the NATIVE session token only — API keys are
- * rejected by the server (403 device_access_requires_app_login) and must never
- * be sent from here. The method whitelist is enforced client-side: this app
- * never offers install/pull/delete of any kind.
+ * /v1/client/devices. Auth is the `accessToken` (bc_live_mobile_…) stored in
+ * the native-auth Keychain entry — the server rejects the sessionToken of the
+ * same entry with 401 invalid_api_key, and a foreign/ordinary API key with 403
+ * device_access_requires_app_login. The method whitelist is enforced
+ * client-side: this app never offers install/pull/delete of any kind.
  */
 import * as Keychain from 'react-native-keychain';
 
@@ -12,7 +13,7 @@ import {
   ClientDeviceError,
   assertClientDeviceMethod,
   createClientDeviceSseParser,
-  getClientDeviceSessionToken,
+  getClientDeviceAccessToken,
   listClientDevices,
   pairClientDevice,
   parseRetryAfterSeconds,
@@ -23,6 +24,7 @@ import {
 
 const BASE = 'https://api.botconnector.id/v1/client/devices';
 const SESSION_TOKEN = 'sess-native-abc';
+const ACCESS_TOKEN = 'bc_live_mobile_test123';
 
 const jsonResponse = (
   status: number,
@@ -43,7 +45,7 @@ const signInKeychain = () => {
     username: 'session',
     password: JSON.stringify({
       sessionToken: SESSION_TOKEN,
-      accessToken: 'access-token-never-used-here',
+      accessToken: ACCESS_TOKEN,
       userId: 'usr_1',
       expiresAt: Math.floor(Date.now() / 1000) + 3600,
     }),
@@ -74,7 +76,7 @@ describe('client devices API', () => {
       last_seen: '2026-10-07T10:00:00Z',
     };
 
-    it('GETs /v1/client/devices with the native session token', async () => {
+    it('GETs /v1/client/devices with the access token, never the session token', async () => {
       const payload = {object: 'list', data: [device]};
       (global.fetch as jest.Mock).mockResolvedValue(jsonResponse(200, payload));
 
@@ -83,7 +85,7 @@ describe('client devices API', () => {
       expect(global.fetch).toHaveBeenCalledWith(`${BASE}`, {
         method: 'GET',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${SESSION_TOKEN}`,
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
         }),
         signal: expect.anything(),
       });
@@ -120,7 +122,7 @@ describe('client devices API', () => {
       expect(global.fetch).toHaveBeenCalledWith(`${BASE}/pair`, {
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${SESSION_TOKEN}`,
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         }),
         body: expect.any(String),
@@ -171,7 +173,7 @@ describe('client devices API', () => {
       expect(global.fetch).toHaveBeenCalledWith(`${BASE}/dev-1/request`, {
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${SESSION_TOKEN}`,
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         }),
         body: JSON.stringify({
@@ -214,7 +216,7 @@ describe('client devices API', () => {
       expect(global.fetch).toHaveBeenCalledWith(`${BASE}/dev-9/revoke`, {
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: `Bearer ${SESSION_TOKEN}`,
+          Authorization: `Bearer ${ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         }),
         body: expect.any(String),
@@ -250,6 +252,36 @@ describe('client devices API', () => {
       expect(error).toBeInstanceOf(ClientDeviceError);
       expect(error.kind).toBe('requires_app_login');
       expect(error.statusCode).toBe(403);
+    });
+
+    it('reads the code from a wrapped {error:{code}} payload', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(
+        jsonResponse(403, {
+          error: {code: 'device_access_requires_app_login', message: 'no'},
+        }),
+      );
+
+      const error = await listClientDevices().catch(e => e);
+
+      expect(error).toBeInstanceOf(ClientDeviceError);
+      expect(error.kind).toBe('requires_app_login');
+      expect(error.statusCode).toBe(403);
+    });
+
+    it('reads the code from a wrapped 429 payload with Retry-After', async () => {
+      (global.fetch as jest.Mock).mockResolvedValue(
+        jsonResponse(
+          429,
+          {error: {code: 'pair_rate_limited', message: 'slow down'}},
+          {'retry-after': '7'},
+        ),
+      );
+
+      const error = await pairClientDevice().catch(e => e);
+
+      expect(error).toBeInstanceOf(ClientDeviceError);
+      expect(error.kind).toBe('rate_limited');
+      expect(error.retryAfterSeconds).toBe(7);
     });
 
     it('maps anything else to server', async () => {
@@ -380,7 +412,7 @@ describe('client devices API', () => {
       global.XMLHttpRequest = realXHR;
     });
 
-    it('POSTs chat.completions to /{id}/stream with the session token and yields SSE events', async () => {
+    it('POSTs chat.completions to /{id}/stream with the access token and yields SSE events', async () => {
       const events: object[] = [];
       const pending = streamClientDeviceChat({
         deviceId: 'dev-1',
@@ -397,7 +429,7 @@ describe('client devices API', () => {
         method: 'POST',
         url: `${BASE}/dev-1/stream`,
       });
-      expect(xhr.requestHeaders.Authorization).toBe(`Bearer ${SESSION_TOKEN}`);
+      expect(xhr.requestHeaders.Authorization).toBe(`Bearer ${ACCESS_TOKEN}`);
       const body = JSON.parse(xhr.body);
       expect(body.method).toBe('chat.completions');
       expect(body.params.model).toBe('local-llama');
@@ -429,14 +461,62 @@ describe('client devices API', () => {
       expect(error).toBeInstanceOf(ClientDeviceError);
       expect(error.kind).toBe('device_offline');
     });
+
+    it('parses the error code from the stream handshake body', async () => {
+      const pending = streamClientDeviceChat({
+        deviceId: 'dev-1',
+        params: {},
+      }).catch(e => e);
+      await flushed();
+
+      const xhr = FakeXHR.last;
+      xhr.status = 403;
+      xhr.responseText = JSON.stringify({
+        error: {code: 'device_access_requires_app_login', message: 'no'},
+      });
+      xhr.onload?.();
+
+      const error = await pending;
+      expect(error).toBeInstanceOf(ClientDeviceError);
+      expect(error.kind).toBe('requires_app_login');
+      expect(error.statusCode).toBe(403);
+    });
+
+    it('falls back to status mapping when the stream body is not JSON', async () => {
+      const pending = streamClientDeviceChat({
+        deviceId: 'dev-1',
+        params: {},
+      }).catch(e => e);
+      await flushed();
+
+      const xhr = FakeXHR.last;
+      xhr.status = 503;
+      xhr.responseText = '<html>bad gateway</html>';
+      xhr.onload?.();
+
+      const error = await pending;
+      expect(error).toBeInstanceOf(ClientDeviceError);
+      expect(error.kind).toBe('relay_unavailable');
+    });
   });
 
-  describe('getClientDeviceSessionToken', () => {
-    it('reads the same Keychain entry the auth store writes', async () => {
-      await expect(getClientDeviceSessionToken()).resolves.toBe(SESSION_TOKEN);
+  describe('getClientDeviceAccessToken', () => {
+    it('reads the accessToken from the Keychain entry the auth store writes', async () => {
+      await expect(getClientDeviceAccessToken()).resolves.toBe(ACCESS_TOKEN);
       expect(Keychain.getGenericPassword).toHaveBeenCalledWith({
         service: 'botconnector-native-auth-v1',
       });
+    });
+
+    it('never returns the sessionToken the server rejects with 401', async () => {
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValue({
+        password: JSON.stringify({
+          sessionToken: SESSION_TOKEN,
+          expiresAt: Math.floor(Date.now() / 1000) + 3600,
+        }),
+      });
+
+      await expect(getClientDeviceAccessToken()).resolves.toBeNull();
     });
 
     it('never mutates stored credentials', async () => {
@@ -444,7 +524,7 @@ describe('client devices API', () => {
         password: 'not-json',
       });
 
-      await expect(getClientDeviceSessionToken()).resolves.toBeNull();
+      await expect(getClientDeviceAccessToken()).resolves.toBeNull();
       expect(Keychain.resetGenericPassword).not.toHaveBeenCalled();
       expect(Keychain.setGenericPassword).not.toHaveBeenCalled();
     });
@@ -453,11 +533,12 @@ describe('client devices API', () => {
       (Keychain.getGenericPassword as jest.Mock).mockResolvedValue({
         password: JSON.stringify({
           sessionToken: 'stale',
+          accessToken: 'stale-access',
           expiresAt: Math.floor(Date.now() / 1000) - 60,
         }),
       });
 
-      await expect(getClientDeviceSessionToken()).resolves.toBeNull();
+      await expect(getClientDeviceAccessToken()).resolves.toBeNull();
     });
   });
 });
