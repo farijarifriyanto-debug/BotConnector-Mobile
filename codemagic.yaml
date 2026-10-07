@@ -83,6 +83,7 @@ workflows:
       vars:
         XCODE_WORKSPACE: ios/PocketPal.xcworkspace
         XCODE_SCHEME: PocketPal
+        BOTCONNECTOR_MAC_CATALYST: "1"
       node: 22.21.0
       ruby: 3.2.3
       xcode: latest
@@ -131,6 +132,9 @@ workflows:
         script: |
           export NODE_OPTIONS="--max-old-space-size=4096"
           export EXTRA_PACKAGER_ARGS="--max-workers 2"
+          # hermesc -Og cannot encode the phonemize dictionary module; compile
+          # the Debug bundle with -O instead (see the script header).
+          export HERMES_CLI_PATH="$CM_BUILD_DIR/scripts/ci/hermesc-no-og.sh"
           xcodebuild \
             -workspace "$XCODE_WORKSPACE" \
             -scheme "$XCODE_SCHEME" \
@@ -141,8 +145,25 @@ workflows:
             COMPILER_INDEX_STORE_ENABLE=NO \
             build
 
+      - name: Launch and capture Mac render
+        script: |
+          set -euo pipefail
+          APP="$(find build/macos-catalyst/Build/Products/Debug-maccatalyst -maxdepth 1 -name '*.app' -print -quit)"
+          test -n "$APP"
+          mkdir -p build/macos-catalyst-render
+          codesign --force --deep --sign - "$APP"
+          open -n "$APP"
+          sleep 10
+          EXEC="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$APP/Contents/Info.plist")"
+          pgrep -f "/$EXEC$" >/dev/null
+          osascript -e "tell application \"System Events\" to tell process \"$EXEC\" to set frontmost to true" || true
+          sleep 2
+          screencapture -x build/macos-catalyst-render/botconnector-mac.png || true
+          pkill -f "/$EXEC$" || true
+
     artifacts:
       - build/macos-catalyst/Build/Products/Debug-maccatalyst/*.app
+      - build/macos-catalyst-render/*.png
       - /tmp/xcodebuild_logs/*.log
 
   ios-testflight:

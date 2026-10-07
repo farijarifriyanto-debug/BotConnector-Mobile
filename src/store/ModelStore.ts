@@ -2184,6 +2184,14 @@ class ModelStore {
    * @returns The initialized LlamaContext, or null if cancelled/skipped
    */
   initContext = async (model: Model, mmProjPath?: string) => {
+    // llama.rn has no Mac Catalyst slice (not autolinked, see
+    // react-native.config.js). Fail fast with a clear message instead of a
+    // TypeError from the missing native module. Local AI on Mac will use the
+    // Device Bridge, not in-process inference.
+    if (Platform.OS === 'ios' && Platform.isMacCatalyst) {
+      throw new Error(uiStore.l10n.models.localUnavailableOnMac);
+    }
+
     // Benchmark mode owns the native context lifecycle end-to-end.
     // Reject synchronously so any racing caller (ChatView auto-load, header,
     // sheet) fails fast instead of silently shadowing the matrix's per-cell

@@ -285,6 +285,7 @@
     "failedToGenerate": "Failed to generate output"
   },
   "models": {
+    "localUnavailableOnMac": "On-device AI is not available on Mac yet. Use BotConnector Cloud; local models on Mac will come through the Device Bridge.",
     "fileManagement": {
       "fileAlreadyExists": "File already exists",
       "fileAlreadyExistsMessage": "A file with this name already exists. What would you like to do?",
