@@ -332,7 +332,7 @@ jobs:
 
   # Job for iOS build
   build-ios:
-    runs-on: macos-26  # Keep CI on the same Xcode major as the release workflow
+    runs-on: macos-14  # macOS 14 Apple Silicon runner
     needs: [build-and-test, detect-changes]
     if: needs.detect-changes.outputs.translation_only != 'true'
     env:

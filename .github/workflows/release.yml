@@ -254,7 +254,7 @@ jobs:
 
   # Job 2: iOS Build and Upload (runs on macOS)
   build_ios:
-    runs-on: macos-26 # macOS 26 includes an iOS 26-capable Xcode toolchain
+    runs-on: macos-14 # macOS 14 Apple Silicon runner
     needs: build_android
     if: ${{ always() && (needs.build_android.result == 'success' || needs.build_android.result == 'skipped') }}
     env:
