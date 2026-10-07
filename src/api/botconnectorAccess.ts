@@ -27,8 +27,11 @@ export interface BotConnectorClientCapabilities {
   };
   /** Per-axis entitlement reasons, e.g. `reasons.files = "paid_plan_required"`. */
   reasons?: Record<string, string>;
-  /** What limits the reported capabilities: quota, model, or plan. */
-  capability_scope?: 'quota' | 'model' | 'plan';
+  /**
+   * Per-axis scope map, e.g. `{chat: "quota", files: "plan"}`: what limits
+   * each axis (quota, model, or plan). The server never sends a single string.
+   */
+  capability_scope?: Record<string, 'quota' | 'model' | 'plan'>;
   /** PAYG balance straight from the server; UI derives unavailable/zero/active from `state`. */
   payg?: BotConnectorPaygInfo;
   capabilities: {

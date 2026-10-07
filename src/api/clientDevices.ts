@@ -1,12 +1,12 @@
 /**
  * Local-devices contract (spec item 4): the mobile app pairs with BotConnector
  * Desktop / a device CLI and may only call the whitelisted device methods
- * below. Auth is the NATIVE login session token read from the same Keychain
- * entry BotConnectorAuthStore writes (`botconnector-native-auth-v1`); API keys
- * are never sent because the server rejects them with 403
- * device_access_requires_app_login. Install/pull/delete of any kind is not
- * part of the whitelist and is refused client-side before any request leaves
- * the device.
+ * below. Auth is the `accessToken` (bc_live_mobile_…) from the same Keychain
+ * entry BotConnectorAuthStore writes (`botconnector-native-auth-v1`); that
+ * entry's sessionToken is rejected by the server (401 invalid_api_key) and an
+ * ordinary API key gets 403 device_access_requires_app_login, so neither is
+ * ever sent. Install/pull/delete of any kind is not part of the whitelist and
+ * is refused client-side before any request leaves the device.
  */
 import * as Keychain from 'react-native-keychain';
 
@@ -141,6 +141,23 @@ function errorKindForStatus(
   return 'server';
 }
 
+/**
+ * Server errors arrive as `{error:{code,message}}`; some paths still send a
+ * flat `{code}`. Nested wins, flat is the fallback.
+ */
+function extractErrorCode(payload: unknown): string | undefined {
+  if (payload && typeof payload === 'object') {
+    const body = payload as {code?: unknown; error?: {code?: unknown}};
+    if (typeof body.error?.code === 'string') {
+      return body.error.code;
+    }
+    if (typeof body.code === 'string') {
+      return body.code;
+    }
+  }
+  return undefined;
+}
+
 function messageForKind(kind: ClientDeviceErrorKind, status: number): string {
   switch (kind) {
     case 'device_offline':
@@ -165,10 +182,7 @@ async function errorFromResponse(
 ): Promise<ClientDeviceError> {
   let code: string | undefined;
   try {
-    const payload = await response.json();
-    if (typeof payload?.code === 'string') {
-      code = payload.code;
-    }
+    code = extractErrorCode(await response.json());
   } catch {
     // Body may be empty or not JSON; status mapping still applies.
   }
@@ -183,11 +197,13 @@ async function errorFromResponse(
 }
 
 /**
- * Reads the native session token from the Keychain entry BotConnectorAuthStore
- * owns — READ ONLY (never writes or resets it). Returns null when absent,
- * unreadable, or expired.
+ * Reads the `accessToken` (bc_live_mobile_…) from the Keychain entry
+ * BotConnectorAuthStore owns — READ ONLY (never writes or resets it). The
+ * sessionToken in the same entry is intentionally NOT returned:
+ * /v1/client/devices rejects it with 401 invalid_api_key. Returns null when
+ * absent, unreadable, or expired.
  */
-export async function getClientDeviceSessionToken(): Promise<string | null> {
+export async function getClientDeviceAccessToken(): Promise<string | null> {
   let credentials: {password: string} | false;
   try {
     credentials = await Keychain.getGenericPassword({
@@ -201,7 +217,7 @@ export async function getClientDeviceSessionToken(): Promise<string | null> {
   }
   try {
     const session = JSON.parse(credentials.password) as {
-      sessionToken?: unknown;
+      accessToken?: unknown;
       expiresAt?: unknown;
     };
     if (
@@ -210,8 +226,8 @@ export async function getClientDeviceSessionToken(): Promise<string | null> {
     ) {
       return null;
     }
-    if (typeof session.sessionToken === 'string' && session.sessionToken) {
-      return session.sessionToken;
+    if (typeof session.accessToken === 'string' && session.accessToken) {
+      return session.accessToken;
     }
     return null;
   } catch {
@@ -220,7 +236,7 @@ export async function getClientDeviceSessionToken(): Promise<string | null> {
 }
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getClientDeviceSessionToken();
+  const token = await getClientDeviceAccessToken();
   if (!token) {
     throw new ClientDeviceError(
       'requires_app_login',
@@ -405,7 +421,14 @@ export function streamClientDeviceChat(options: {
           return;
         }
         if (xhr.status !== 200) {
-          const kind = errorKindForStatus(xhr.status, undefined);
+          let code: string | undefined;
+          try {
+            code = extractErrorCode(JSON.parse(xhr.responseText));
+          } catch {
+            // Non-JSON handshake body (e.g. an HTML error page): the
+            // status mapping still applies.
+          }
+          const kind = errorKindForStatus(xhr.status, code);
           fail(
             new ClientDeviceError(kind, messageForKind(kind, xhr.status), {
               statusCode: xhr.status,
