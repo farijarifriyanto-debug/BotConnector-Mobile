@@ -72,6 +72,8 @@ module.exports = {
     'mobx-persist-store': '<rootDir>/__mocks__/external/mobx-persist-store.js',
     'react-native-image-picker':
       '<rootDir>/__mocks__/external/react-native-image-picker.js',
+    '@react-native-camera-roll/camera-roll':
+      '<rootDir>/__mocks__/external/@react-native-camera-roll/camera-roll.js',
     'react-native-vision-camera':
       '<rootDir>/__mocks__/external/react-native-vision-camera.ts',
     '@react-native-google-signin/google-signin':

@@ -70,6 +70,8 @@
 	<string>BotConnector never requests or collects your location. A bundled camera library references the system location API to offer optional photo geotagging, which BotConnector leaves turned off.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>BotConnector accesses your photo library only when you choose an image for an AI conversation. Selected content may be processed on your device or sent to the AI provider you select.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>BotConnector saves images you generate with AI to your photo library only when you tap Save. Nothing is uploaded from your gallery.</string>
 	<key>NSSiriUsageDescription</key>
 	<string>BotConnector uses Siri when you choose to start an AI conversation with a voice command.</string>
 	<key>RCTNewArchEnabled</key>
