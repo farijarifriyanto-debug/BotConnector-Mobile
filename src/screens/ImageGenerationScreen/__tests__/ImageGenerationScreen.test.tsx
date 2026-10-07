@@ -266,20 +266,16 @@ describe('ImageGenerationScreen', () => {
         },
       ]);
 
-      const {getByTestId, UNSAFE_queryAllByType} = renderScreen();
+      const {getByTestId} = renderScreen();
 
       await waitFor(() =>
         expect(getByTestId('size-ratio-portrait')).toBeTruthy(),
       );
-      // Chip testID lands on a host element without `disabled`: read the
-      // composite props like the generate-button pattern above.
-      const chip = (id: string) =>
-        UNSAFE_queryAllByType(require('react-native-paper').Chip).find(
-          c => c.props.testID === id,
-        );
-      expect(chip('size-ratio-square')?.props.disabled).toBe(true);
-      expect(chip('size-ratio-landscape')?.props.disabled).toBe(true);
-      expect(chip('size-ratio-portrait')?.props.disabled).toBe(false);
+      const disabled = (id: string) =>
+        getByTestId(id).props.accessibilityState?.disabled;
+      expect(disabled('size-ratio-square')).toBe(true);
+      expect(disabled('size-ratio-landscape')).toBe(true);
+      expect(disabled('size-ratio-portrait')).toBe(false);
     });
   });
 
@@ -610,6 +606,68 @@ describe('ImageGenerationScreen', () => {
   });
 
   describe('save to gallery', () => {
+    it('appends the chosen style words to what the server sees, not to the saved prompt', async () => {
+      const {getByTestId} = renderScreen();
+      await waitFor(() =>
+        expect(getByTestId('generate-image-button')).toBeTruthy(),
+      );
+
+      fireEvent.changeText(getByTestId('image-prompt-input'), 'a red fox');
+      fireEvent.press(getByTestId('image-style-anime'));
+      fireEvent.press(getByTestId('generate-image-button'));
+
+      await waitFor(() =>
+        expect(generateBotConnectorImage).toHaveBeenCalledWith(
+          expect.objectContaining({
+            prompt: 'a red fox, anime style, clean line art, vibrant colors',
+          }),
+        ),
+      );
+      await waitFor(() => expect(getByTestId('generated-image')).toBeTruthy());
+      // The history keeps the user's own words so "use again" is clean.
+      fireEvent.press(getByTestId(/^history-thumb-/));
+      fireEvent.press(getByTestId('image-style-none'));
+      expect(getByTestId('image-prompt-input').props.value).toBe('a red fox');
+    });
+
+    it('pressing the selected style again clears it', async () => {
+      const {getByTestId} = renderScreen();
+      await waitFor(() => expect(getByTestId('image-style-logo')).toBeTruthy());
+      fireEvent.press(getByTestId('image-style-logo'));
+      expect(
+        getByTestId('image-style-logo').props.accessibilityState.selected,
+      ).toBe(true);
+      fireEvent.press(getByTestId('image-style-logo'));
+      expect(
+        getByTestId('image-style-none').props.accessibilityState.selected,
+      ).toBe(true);
+    });
+
+    it('offers "generate again" and "edit with this" under the result', async () => {
+      const alert = jest.spyOn(Alert, 'alert').mockReturnValue(undefined);
+      const {getByTestId} = renderScreen();
+      await waitFor(() =>
+        expect(getByTestId('generate-image-button')).toBeTruthy(),
+      );
+      fireEvent.changeText(getByTestId('image-prompt-input'), 'a blue cube');
+      fireEvent.press(getByTestId('generate-image-button'));
+      await waitFor(() => expect(getByTestId('generated-image')).toBeTruthy());
+
+      // Imagen 4 (selected) cannot take reference photos: explain, don't fail silently.
+      fireEvent.press(getByTestId('edit-with-result'));
+      await waitFor(() =>
+        expect(alert).toHaveBeenCalledWith(
+          'BotConnector',
+          copy.editUnsupported,
+        ),
+      );
+
+      fireEvent.press(getByTestId('generate-again'));
+      await waitFor(() =>
+        expect(generateBotConnectorImage).toHaveBeenCalledTimes(2),
+      );
+    });
+
     it('saves the generated image when the button is pressed', async () => {
       const alert = jest.spyOn(Alert, 'alert').mockReturnValue(undefined);
       const {getByTestId} = renderScreen();
