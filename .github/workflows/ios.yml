@@ -33,14 +33,14 @@ on:
       - '.github/workflows/ios.yml'
 
 concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   ios_simulator:
     name: iOS Simulator Build
     runs-on: macos-14
-    if: ${{ github.event_name == 'push' || inputs.build_target == 'all' || inputs.build_target == 'ios_simulator' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_simulator' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -140,7 +140,7 @@ jobs:
   macos_catalyst:
     name: macOS Catalyst Build
     runs-on: macos-14
-    if: ${{ github.event_name == 'push' || inputs.build_target == 'all' || inputs.build_target == 'macos_catalyst' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos_catalyst' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -244,7 +244,7 @@ jobs:
   ios_testflight:
     name: iOS TestFlight / Release Build
     runs-on: macos-14
-    if: ${{ github.event_name == 'push' || inputs.build_target == 'all' || inputs.build_target == 'ios_testflight' }}
+    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_testflight' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -392,7 +392,7 @@ jobs:
             -authenticationKeyIssuerID "$ISSUER_ID"
 
       - name: Upload to TestFlight
-        if: steps.check_secrets.outputs.has_signing == 'true' && (github.event_name == 'push' || inputs.upload_testflight == true)
+        if: steps.check_secrets.outputs.has_signing == 'true' && (github.event_name == 'push' || github.event.inputs.upload_testflight != 'false')
         run: |
           KEY_ID="${{ secrets.APP_STORE_CONNECT_API_KEY_ID || 'V5BH58HKB7' }}"
           ISSUER_ID="${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID || '6739aeaa-bae4-4779-9d8c-ae00213e33d9' }}"
