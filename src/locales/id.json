@@ -1376,9 +1376,59 @@
     "errorLoadModels": "Gagal memuat model gambar.",
     "errorGenerate": "Gagal membuat gambar.",
     "errorShare": "Tidak dapat membagikan gambar.",
+    "size": {
+      "label": "Rasio gambar",
+      "square": "Kotak",
+      "landscape": "Lanskap",
+      "portrait": "Potret"
+    },
+    "examples": {
+      "label": "Contoh prompt",
+      "product": "Foto produk studio speaker hitam matte di atas beton",
+      "scenic": "Danau gunung berkabut saat fajar, warna pastel lembut",
+      "mascot": "Maskot robot ramah melambai, gaya ilustrasi datar",
+      "logo": "Logo wordmark minimal kedai kopi, huruf B, hitam di putih",
+      "anime": "Potret anime berambut perak, latar kota neon"
+    },
+    "promptCount": "{{count}} karakter",
+    "cancel": "Batal",
+    "quota": {
+      "line": "Kuota gambar: {{remaining}}/{{limit}} · {{period}}",
+      "tier": "tier {{tier}}",
+      "periods": {
+        "day": "hari",
+        "week": "minggu",
+        "month": "bulan"
+      }
+    },
+    "history": {
+      "title": "Gambar terbaru",
+      "empty": "Gambar hasil akan muncul di sini.",
+      "open": "Buka",
+      "favorite": "Favorit",
+      "unfavorite": "Batal favorit",
+      "delete": "Hapus",
+      "regenerate": "Buat ulang",
+      "useAsReference": "Pakai sebagai referensi",
+      "thumbLabel": "Gambar hasil {{n}}"
+    },
+    "save": {
+      "action": "Simpan ke galeri",
+      "done": "Tersimpan ke galeri.",
+      "error": "Tidak dapat menyimpan ke galeri."
+    },
+    "errors": {
+      "quotaExhausted": "Kuota gambar habis — coba lagi nanti.",
+      "planRequired": "Model gambar ini butuh paket berbayar.",
+      "balance": "Saldo PAYG tidak cukup — isi saldo untuk melanjutkan.",
+      "rateLimited": "Terlalu banyak permintaan — coba lagi dalam {{seconds}} detik.",
+      "rateLimitedNow": "Server sedang sibuk — coba lagi sebentar lagi.",
+      "unauthorized": "Sesi telah berakhir — masuk kembali.",
+      "timeout": "Permintaan melebihi batas waktu 240 detik — coba lagi."
+    },
     "access": {
       "free": "Gratis",
-      "plan": "Plan",
+      "plan": "Termasuk",
       "payg": "PAYG"
     }
   },
