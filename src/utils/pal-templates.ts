@@ -63,10 +63,12 @@ export const createNewVideoPal = (): Partial<Pal> => ({
   type: 'local',
   name: '',
   description: '',
+  // Spec J: neutral copy — the upstream Lookie persona is not a
+  // BotConnector default, so new video pals start unnamed.
   systemPrompt:
-    'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
+    'You are a video analysis assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
   originalSystemPrompt:
-    'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
+    'You are a video analysis assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
   isSystemPromptChanged: false,
   useAIPrompt: false,
   parameters: {

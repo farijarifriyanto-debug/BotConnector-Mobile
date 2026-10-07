@@ -11,7 +11,12 @@ import {submitFeedback} from '../../api/feedback';
 
 import {CopyIcon, GithubIcon, ChevronRightIcon} from '../../assets/icons';
 
-import {BotConnectorAccountCard, Sheet, TextInput} from '../../components';
+import {
+  BotConnectorAccountCard,
+  BicoMascot,
+  Sheet,
+  TextInput,
+} from '../../components';
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 import {L10nContext} from '../../utils';
@@ -98,10 +103,11 @@ export const AboutScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
       <ScrollView contentContainerStyle={styles.container}>
-        <BotConnectorAccountCard />
+        <BotConnectorAccountCard readOnly />
         <View style={styles.card}>
           <View style={styles.header}>
             <View style={styles.headerContent}>
+              <BicoMascot width={96} />
               <Text
                 variant="titleLarge"
                 style={styles.title}

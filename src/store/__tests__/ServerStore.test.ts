@@ -72,6 +72,7 @@ describe('ServerStore', () => {
       serverStore.remoteReasoning = {};
       serverStore.remoteCaps = {};
       serverStore.botConnectorAccess = {};
+      serverStore.botConnectorAccessState = {};
       serverStore.botConnectorCatalog = {};
     });
   });
@@ -953,7 +954,78 @@ describe('ServerStore', () => {
         access: 'chat_only',
         paid: false,
       });
+      expect(serverStore.botConnectorAccessState[id]).toMatchObject({
+        loading: false,
+        error: true,
+        errorKind: 'server',
+      });
       expect(serverStore.error).toBeNull();
+    });
+
+    it('marks a 429 capability failure as a quota refusal, not a backend outage', async () => {
+      const id = serverStore.addServer({
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        username: 'apiKey',
+        password: 'bc_live_test',
+      });
+      mockedFetchBotConnectorAccess.mockRejectedValueOnce(
+        new botConnectorAccessModule.BotConnectorCapabilityError(
+          'quota_rate_limited',
+          'BotConnector capabilities request failed (429)',
+          429,
+        ),
+      );
+
+      await serverStore.fetchModelsForServer(id);
+
+      expect(serverStore.botConnectorAccessState[id]).toMatchObject({
+        loading: false,
+        error: true,
+        errorKind: 'quota_rate_limited',
+      });
+    });
+
+    it('exposes payg.state from the capabilities payload via botConnectorPayg', async () => {
+      const id = serverStore.addServer({
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI',
+      });
+      jest.clearAllMocks();
+
+      mockedFetchModels.mockResolvedValueOnce([]);
+      (Keychain.getGenericPassword as jest.Mock).mockResolvedValueOnce({
+        username: 'apiKey',
+        password: 'bc_live_test',
+      });
+      mockedFetchBotConnectorAccess.mockResolvedValueOnce({
+        object: 'botconnector.client_capabilities',
+        plan: 'plus',
+        payg: {state: 'zero', available_micros: 0},
+        capabilities: {
+          chat: true,
+          web_search: true,
+          read_url: true,
+          tools: true,
+          vision: true,
+          media: true,
+        },
+      });
+
+      expect(serverStore.botConnectorPayg).toBeUndefined();
+      await serverStore.fetchModelsForServer(id);
+      expect(serverStore.botConnectorPayg).toEqual({
+        state: 'zero',
+        available_micros: 0,
+      });
+      expect(id).toBeTruthy();
     });
 
     it('does not request BotConnector entitlement for another cloud provider', async () => {

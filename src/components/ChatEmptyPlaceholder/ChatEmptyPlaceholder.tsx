@@ -1,5 +1,5 @@
 import React, {useContext} from 'react';
-import {Image, View} from 'react-native';
+import {View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import {observer} from 'mobx-react';
 
@@ -9,6 +9,7 @@ import {modelStore, palStore} from '../../store';
 import {useNavigation} from '@react-navigation/native';
 import {NavigationProp} from '@react-navigation/native';
 import {L10nContext} from '../../utils';
+import {BicoMascot} from '..';
 
 interface ChatEmptyPlaceholderProps {
   onSelectModel: () => void;
@@ -50,7 +51,7 @@ export const ChatEmptyPlaceholder = observer(
             ) ?? `${pendingPalDownload.name} is getting ready`,
           description:
             l10n.components.chatEmptyPlaceholder.gettingReadyDescription ??
-            'We’ll let you know the moment your pal can chat. Tap the banner up top to see how it’s going.',
+            'We’ll let you know the moment your assistant can chat. Tap the banner up top to see how it’s going.',
           buttonText: null,
           onPress: () => {},
         };
@@ -84,11 +85,7 @@ export const ChatEmptyPlaceholder = observer(
     return (
       <View
         style={[styles.container, {marginBottom: bottomComponentHeight + 100}]}>
-        <Image
-          source={require('../../assets/pocketpal-dark-v2.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <BicoMascot width={112} />
         <View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>

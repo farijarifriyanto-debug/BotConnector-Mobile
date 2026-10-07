@@ -1,4 +1,7 @@
 {
+  "bico": {
+    "mascotLabel": "Bico, maskot BotConnector"
+  },
   "common": {
     "cancel": "Batal",
     "delete": "Hapus",
@@ -116,25 +119,25 @@
     "useHfTokenDescription": "Aktifkan untuk menggunakan token dalam permintaan API. Nonaktifkan jika token menyebabkan masalah autentikasi.",
     "cacheStorageTitle": "Cache & Penyimpanan",
     "clearPalCaches": "Bersihkan Cache Shortcut",
-    "clearPalCachesDescription": "Menghapus data cache yang digunakan untuk mempercepat Shortcut. Tidak memengaruhi Pal atau riwayat obrolan Anda.",
+    "clearPalCachesDescription": "Menghapus data cache yang digunakan untuk mempercepat Shortcut. Tidak memengaruhi persona atau riwayat obrolan Anda.",
     "clearCachesButton": "Bersihkan Cache",
     "clearCachesConfirmTitle": "Bersihkan Cache Shortcut?",
-    "clearCachesConfirmMessage": "Ini akan menghapus semua data sesi cache ({{fileCount}} file, {{size}}). Shortcut mungkin lebih lambat saat pertama kali digunakan setelah dibersihkan. Tidak memengaruhi Pal atau riwayat obrolan Anda.",
+    "clearCachesConfirmMessage": "Ini akan menghapus semua data sesi cache ({{fileCount}} file, {{size}}). Shortcut mungkin lebih lambat saat pertama kali digunakan setelah dibersihkan. Tidak memengaruhi persona atau riwayat obrolan Anda.",
     "clearCachesSuccess": "Berhasil membersihkan {{count}} file cache.",
     "clearCachesError": "Gagal membersihkan cache. Silakan coba lagi.",
     "noCachesToClear": "Tidak ada cache untuk dibersihkan.",
     "weightRepacking": "Aktifkan Weight Repacking",
     "weightRepackingDescription": "Pemrosesan prompt lebih cepat dengan overhead memori minimal ketika pemetaan memori dinonaktifkan. Generasi token tidak terdampak.",
     "serverName": "Nama Server",
-    "serverUrl": "URL server",
+    "serverUrl": "URL endpoint",
     "serverUrlPlaceholder": "misalnya, http://192.168.1.100:1234",
     "apiKey": "Kunci API",
     "apiKeyPlaceholder": "Opsional - diperlukan untuk OpenAI/Groq",
     "apiKeyDescription": "Disimpan dengan aman di perangkat.",
     "connectBotConnector": "Masuk dengan BotConnector",
     "connectBotConnectorDescription": "Masuk dengan akun BotConnector. Paket, kuota, model Cloud, Pencarian Web, file, dan akses Gambar AI diterapkan otomatis.",
-    "connectBotConnectorLocal": "Lanjutan: koneksi langsung ke BotConnector Local",
-    "connectBotConnectorLocalDescription": "Hubungkan langsung ke BotConnector Local di laptop. Di laptop, jalankan Local API Server dengan host 0.0.0.0, port 1337, dan API key; lalu masukkan alamat LAN lokal laptop di sini. Jika Anda memang memakai Tailscale, alamat Tailscale laptop juga bisa digunakan.",
+    "connectBotConnectorLocal": "Koneksi langsung",
+    "connectBotConnectorLocalDescription": "Hubungkan langsung ke BotConnector Local di laptop: masukkan alamat laptop dan pairing key. Keduanya disimpan dengan aman dan dipakai ulang otomatis saat menyambung ulang. Memakai Tailscale? Alamat Tailscale laptop juga bisa digunakan di sini. Opsi manual host, port, dan API key tersedia di Koneksi lanjutan.",
     "localDeviceUrl": "Alamat laptop",
     "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
     "localPairingKey": "Kunci pairing",
@@ -147,11 +150,12 @@
     "serverUrlRequired": "Dibutuhkan URL server",
     "serverUrlInvalid": "Format URL tidak valid",
     "serverUrlHttpWarning": "iOS membutuhkan HTTPS untuk server non-lokal. Gunakan https:// atau alamat jaringan lokal.",
-    "addRemoteModel": "Hubungkan akun atau server",
-    "yourServers": "Server Anda",
-    "orConnectNewServer": "atau sambungkan ke server baru",
+    "addRemoteModel": "Tambahkan Penyedia AI",
+    "yourServers": "Koneksi tersimpan",
+    "orConnectNewServer": "atau tambahkan koneksi baru",
     "selectModel": "Pilih Model",
-    "addModel": "Tambahkan Model",
+    "addModel": "Hubungkan model",
+    "addModelDisabledHint": "Pilih model terlebih dahulu.",
     "connected": "Terhubung",
     "connectionFailed": "Koneksi gagal: {{error}}",
     "connecting": "Menghubungkan...",
@@ -167,7 +171,40 @@
     "removeRemoteModel": "Hapus {{modelName}} ({{serverName}})?",
     "retryConnection": "Coba lagi",
     "enterUrlManually": "Masukkan URL secara manual",
-    "manageServers": "Kelola Server",
+    "manageServers": "Kelola koneksi",
+    "sectionCloud": "BotConnector Cloud",
+    "sectionLocal": "BotConnector Local",
+    "sectionOtherProviders": "Penyedia AI lain",
+    "sectionAdvanced": "Koneksi lanjutan",
+    "localPairTitle": "Pasangkan perangkat lokal",
+    "localPairCta": "Pasangkan perangkat",
+    "localPairCodeHint": "Masukkan kode ini di BotConnector Desktop atau CLI perangkat di laptop.",
+    "localPairExpires": "Kode kedaluwarsa dalam {{seconds}} detik",
+    "localPairRateLimited": "Terlalu banyak kode pasangan. Coba lagi dalam {{seconds}} detik.",
+    "localPairSignIn": "Masuk",
+    "deviceRequiresLogin": "Masuk dengan akun BotConnector untuk memasangkan perangkat. API key tidak bisa memasangkan perangkat.",
+    "deviceListEmpty": "Belum ada perangkat yang dipasangkan.",
+    "deviceRefresh": "Muat ulang",
+    "deviceStatusOnline": "Daring",
+    "deviceStatusOffline": "Luring",
+    "deviceStatusReconnecting": "Menyambung ulang",
+    "deviceStatusPaired": "Terpasang",
+    "deviceShowDetails": "Detail",
+    "deviceFetchModels": "Tampilkan model",
+    "deviceRevoke": "Hapus",
+    "deviceRevokeConfirm": "Hapus perangkat ini? Aksesnya hilang sampai dipasangkan lagi.",
+    "deviceErrorOffline": "Perangkat ini sedang luring.",
+    "deviceErrorRelayUnavailable": "Relay lokal tidak tersedia. Coba lagi sebentar lagi.",
+    "deviceErrorTimeout": "Perangkat tidak merespons tepat waktu.",
+    "deviceErrorMethodNotAllowed": "Perangkat ini tidak mengizinkan aksi tersebut.",
+    "deviceErrorRequiresLogin": "Masuk untuk mengelola perangkat lokal.",
+    "deviceErrorGeneric": "Permintaan perangkat gagal.",
+    "accountSection": "Akun",
+    "accountManageInSettings": "Kelola akun Anda di Pengaturan.",
+    "paygActive": "PAYG aktif · {{balance}}",
+    "paygZero": "Saldo PAYG nol",
+    "paygUnknown": "Saldo PAYG tidak dilaporkan",
+    "paygUnavailable": "PAYG tidak tersedia",
     "ttsAvailability": "Text-to-speech",
     "ttsAvailabilityDescription": "Bacakan balasan asisten dengan suara.",
     "ttsAvailabilityLowMemoryWarning": "Memori perangkat Anda rendah — fitur ini mungkin tidak bekerja dengan baik.",
@@ -194,7 +231,7 @@
       "resultCountLabel": "Hasil per pencarian",
       "resultCountDescription": "Lebih sedikit hasil menyisakan lebih banyak ruang dalam konteks model.",
       "consentTitle": "Pencarian meninggalkan perangkat Anda",
-      "consentDescription": "Saat Pal mencari di web, kueri dapat dikirim ke BotConnector (untuk model BotConnector yang aktif) atau ke penyedia pencarian fallback yang dipilih. Saat halaman dibaca, URL dan konten halaman dapat diproses melalui BotConnector, penyedia yang dipilih, atau layanan pembaca default (r.jina.ai) bila diperlukan.",
+      "consentDescription": "Saat asisten mencari di web, kueri dapat dikirim ke BotConnector (untuk model BotConnector yang aktif) atau ke penyedia pencarian fallback yang dipilih. Saat halaman dibaca, URL dan konten halaman dapat diproses melalui BotConnector, penyedia yang dipilih, atau layanan pembaca default (r.jina.ai) bila diperlukan.",
       "consentAccept": "Saya mengerti",
       "consentRequired": "Terima pengungkapan di atas untuk mengatur kunci dan mengaktifkan pencarian.",
       "consentGivenTitle": "Pencarian web diaktifkan",
@@ -604,7 +641,7 @@
       "activateModelButton": "Pilih Model",
       "loading": "Memuat...",
       "gettingReadyTitle": "{{name}} sedang bersiap",
-      "gettingReadyDescription": "Kami akan memberi tahu saat pal Anda siap mengobrol. Ketuk banner di atas untuk melihat perkembangannya."
+      "gettingReadyDescription": "Kami akan memberi tahu saat asisten Anda siap mengobrol. Ketuk banner di atas untuk melihat perkembangannya."
     },
     "chatInput": {
       "inputPlaceholder": "Pesan",
@@ -628,6 +665,31 @@
       "fileUploadUnavailableAccountBody": "Files tidak diaktifkan untuk akun BotConnector ini. Periksa paket Anda atau pilih model Cloud lain, lalu coba lagi.",
       "fileUploadErrorTitle": "Unggah file gagal",
       "fileUploadErrorBody": "Tidak dapat mengunggah file.",
+      "fileStatusUploading": "Mengunggah {{percent}}%",
+      "fileStatusUploaded": "Menunggu diproses…",
+      "fileStatusQueued": "Dalam antrean…",
+      "fileStatusProcessing": "Memproses…",
+      "fileStatusWaitingParser": "Menunggu pemroses dokumen…",
+      "fileStatusOcr": "Dokumen hasil scan — perlu OCR…",
+      "fileStatusWaitingRetrieval": "Mengindeks…",
+      "fileStatusReady": "Siap",
+      "fileStatusFailed": "Unggahan gagal",
+      "fileProcessingTimeout": "Pemrosesan memakan waktu lebih lama dari biasanya. Ketuk coba lagi.",
+      "fileProcessingError": "Pemrosesan file gagal",
+      "fileApiKeyRequired": "Kunci API BotConnector diperlukan",
+      "fileTooLargeTitle": "File terlalu besar",
+      "fileTooLargeBody": "Batas total lampiran per pesan adalah {{max}}.",
+      "fileUnknownSizeBody": "Tidak dapat menentukan ukuran {{name}}.",
+      "fileCopyFailedBody": "Tidak dapat menyiapkan {{name}} untuk diunggah.",
+      "fileServerTooLargeBody": "Server menolak file ini karena terlalu besar. Coba file yang lebih kecil.",
+      "fileUnknownStatusBody": "Server mengembalikan status file yang tidak dikenal ({{status}}).",
+      "fileUploadInterruptedBody": "Unggahan terputus sementara. Periksa koneksi atau sesi Anda, lalu ketuk coba lagi.",
+      "fileErrParserUnavailable": "Pemroses dokumen sedang tidak tersedia. Ketuk coba lagi.",
+      "fileErrDocumentRejected": "Server menolak dokumen ini.",
+      "fileErrProcessingTimeout": "Pemrosesan melebihi batas waktu. Ketuk coba lagi.",
+      "fileErrNoExtractableText": "Tidak ditemukan teks yang dapat diekstrak dari file ini.",
+      "fileErrProcessingFailed": "Server tidak dapat memproses file ini.",
+      "fileErrFileNotFound": "File tidak ditemukan di server. Unggah ulang.",
       "sessionUnavailableBody": "Sesi BotConnector tidak tersedia. Masuk kembali lalu coba lagi.",
       "internetSignIn": {
         "title": "Pencarian Internet",
@@ -711,7 +773,7 @@
         "title": "Berhasil",
         "message": "Pengaturan ini akan diterapkan ke semua sesi mendatang"
       },
-      "palSettings": "Pengaturan Pal",
+      "palSettings": "Pengaturan Persona",
       "settingsSource": "Sumber Pengaturan"
     },
     "palGenerationSettingsSheet": {
@@ -721,10 +783,10 @@
       "pleaseCorrect": "Harap perbaiki hal berikut:",
       "ok": "OK",
       "error": "Kesalahan",
-      "failedToSave": "Gagal menyimpan pengaturan pal",
+      "failedToSave": "Gagal menyimpan pengaturan persona",
       "resetToGlobal": "Atur Ulang ke Default Global",
       "resetToSystem": "Atur Ulang ke Default Sistem",
-      "clearPalSettings": "Hapus Pengaturan Pal",
+      "clearPalSettings": "Hapus Pengaturan Persona",
       "customSettingsFor": "Pengaturan khusus untuk {{palName}}",
       "inheritedSettingsFor": "Pengaturan warisan untuk {{palName}}"
     },
@@ -739,14 +801,14 @@
     "chatPalModelPickerSheet": {
       "modelsTab": "Model",
       "palsTab": "Persona",
-      "noPal": "Tidak Ada Pal",
-      "disablePal": "Nonaktifkan pal aktif",
+      "noPal": "Tanpa Persona",
+      "disablePal": "Nonaktifkan persona aktif",
       "noDescription": "Tidak ada deskripsi",
       "assistantType": "Asisten",
       "roleplayType": "Bermain Peran",
       "videoType": "Video",
       "confirmationTitle": "Konfirmasi",
-      "modelSwitchMessage": "Pal ini memiliki model default berbeda ({{modelName}}). Apakah Anda ingin beralih ke model default pal tersebut?",
+      "modelSwitchMessage": "Persona ini memiliki model default berbeda ({{modelName}}). Apakah Anda ingin beralih ke model default persona tersebut?",
       "keepButton": "Pertahankan",
       "switchButton": "Alihkan"
     },
@@ -790,6 +852,38 @@
       "exportChatSession": "Ekspor sesi obrolan",
       "importSessions": "Impor sesi",
       "exportCurrentSessionMarkdown": "Ekspor sebagai Markdown"
+    },
+    "addProvider": {
+      "title": "Tambahkan penyedia",
+      "description": "Gunakan kunci API Anda sendiri. Kunci disimpan di keychain aman perangkat ini dan hanya dikirim ke penyedia — tidak pernah ke BotConnector.",
+      "selectProvider": "Pilih penyedia",
+      "apiKeyLabel": "Kunci API",
+      "apiKeyPlaceholder": "Tempelkan kunci API Anda",
+      "apiKeyHint": "Disimpan di keychain perangkat ini. Hanya dikirim untuk menghubungi penyedia.",
+      "showKeyAccessibilityLabel": "Tampilkan kunci API",
+      "hideKeyAccessibilityLabel": "Sembunyikan kunci API",
+      "baseUrlLabel": "URL dasar",
+      "baseUrlPlaceholder": "https://api.contoh.com/v1",
+      "baseUrlHelp": "Endpoint kompatibel OpenAI. Daftar model diambil dari URL ini.",
+      "defaultBaseUrl": "Bawaan: {{url}}",
+      "configuredBadge": "Ditambahkan",
+      "testConnection": "Uji koneksi",
+      "testing": "Menguji koneksi…",
+      "testSuccess": "Terhubung · {{count}} model ditemukan",
+      "noModels": "Penyedia tidak mengembalikan model apa pun.",
+      "selectModels": "Pilih model",
+      "save": "Simpan penyedia",
+      "saveDisabledHint": "Uji koneksi dan pilih setidaknya satu model terlebih dahulu.",
+      "saveError": "Tidak dapat menyimpan penyedia ini. Silakan coba lagi.",
+      "remove": "Hapus penyedia",
+      "emptyState": "Belum ada penyedia lain. Tambahkan dengan kunci API Anda sendiri — kunci tetap di perangkat ini.",
+      "errorMissingKey": "Masukkan kunci API Anda dulu.",
+      "errorMissingBaseUrl": "Masukkan URL dasar dulu.",
+      "errorInvalidKey": "Kunci API ditolak. Periksa kuncinya lalu coba lagi.",
+      "errorTimeout": "Penyedia terlalu lama merespons. Coba lagi.",
+      "errorNetwork": "Tidak dapat menghubungi penyedia. Periksa koneksi dan URL dasar Anda.",
+      "errorNotFound": "Endpoint model tidak ditemukan. Periksa URL dasar.",
+      "errorServer": "Penyedia mengembalikan galat. Coba lagi nanti."
     },
     "hfTokenSheet": {
       "title": "Token Hugging Face",
@@ -848,12 +942,12 @@
     },
     "palSheet": {
       "title": {
-        "edit": "Sunting Pal",
-        "newPal": "Pal Baru",
-        "newVideoPal": "Pal Video Baru"
+        "edit": "Sunting Persona",
+        "newPal": "Persona Baru",
+        "newVideoPal": "Persona Video Baru"
       },
       "description": "Deskripsi",
-      "descriptionPlaceholder": "Masukkan deskripsi singkat Pal Anda",
+      "descriptionPlaceholder": "Masukkan deskripsi singkat Persona Anda",
       "parameters": "Parameter",
       "generationSettings": "Pengaturan Generasi",
       "configureGenerationSettings": "Konfigurasi Pengaturan Generasi",
@@ -889,10 +983,10 @@
     },
     "assistantPalSheet": {
       "title": {
-        "create": "Buat Pal Asisten",
-        "edit": "Edit Pal Asisten"
+        "create": "Buat Persona Asisten",
+        "edit": "Edit Persona Asisten"
       },
-      "palName": "Nama Pal",
+      "palName": "Nama Persona",
       "palNamePlaceholder": "Nama",
       "defaultModel": "Model Default",
       "defaultModelPlaceholder": "Pilih model",
@@ -905,7 +999,7 @@
     "modelNotAvailable": {
       "noModelsDownloaded": "Anda belum mengunduh model apa pun. Harap unduh model terlebih dahulu.",
       "downloadAModel": "Unduh model",
-      "defaultModelNotDownloaded": "Pal ini merekomendasikan model tertentu yang perlu diunduh, atau Anda dapat memilih model lain.",
+      "defaultModelNotDownloaded": "Persona ini merekomendasikan model tertentu yang perlu diunduh, atau Anda dapat memilih model lain.",
       "modelNotDownloadedShort": "Model belum diunduh",
       "recommendedModel": "Model yang Direkomendasikan",
       "cancelDownload": "Batalkan unduhan",
@@ -913,10 +1007,10 @@
     },
     "roleplayPalSheet": {
       "title": {
-        "create": "Buat Pal Bermain Peran",
-        "edit": "Edit Pal Bermain Peran"
+        "create": "Buat Persona Bermain Peran",
+        "edit": "Edit Persona Bermain Peran"
       },
-      "palName": "Nama Pal",
+      "palName": "Nama Persona",
       "palNamePlaceholder": "Nama",
       "defaultModel": "Model Default",
       "defaultModelPlaceholder": "Pilih model",
@@ -943,11 +1037,11 @@
     },
     "lookiePalSheet": {
       "title": {
-        "create": "Buat Pal Lookie",
-        "edit": "Edit Pal Lookie"
+        "create": "Buat Persona Lookie",
+        "edit": "Edit Persona Lookie"
       },
-      "palName": "Nama Pal",
-      "palNamePlaceholder": "Masukkan nama untuk Pal Lookie Anda",
+      "palName": "Nama Persona",
+      "palNamePlaceholder": "Masukkan nama untuk Persona Lookie Anda",
       "visionModel": "Model Visi",
       "visionModelPlaceholder": "Pilih model visi",
       "requiredModelsSection": "Model yang Diperlukan",
@@ -968,7 +1062,7 @@
       },
       "generatingPrompt": {
         "label": "Tujuan & Konteks",
-        "placeholder": "Jelaskan peran, tujuan, atau skenario untuk Pal ini..."
+        "placeholder": "Jelaskan peran, tujuan, atau skenario untuk persona ini..."
       },
       "buttons": {
         "loadingModel": "Memuat model...",
@@ -990,8 +1084,9 @@
       "menuItems": {
         "chat": "Obrolan",
         "models": "Model",
-        "pals": "Pal",
+        "pals": "Persona",
         "benchmark": "Benchmark",
+        "account": "Akun",
         "settings": "Pengaturan",
         "appInfo": "Info Aplikasi",
         "testCompletion": "Uji Penyelesaian"
@@ -1043,10 +1138,10 @@
       }
     },
     "palHeaderRight": {
-      "exportAllPals": "Ekspor semua pal",
-      "importPals": "Impor pal",
-      "importSuccess": "Berhasil mengimpor {{count}} pal.",
-      "importError": "Gagal mengimpor pal. Harap periksa format file."
+      "exportAllPals": "Ekspor semua persona",
+      "importPals": "Impor persona",
+      "importSuccess": "Berhasil mengimpor {{count}} persona.",
+      "importError": "Gagal mengimpor persona. Harap periksa format file."
     },
     "bubble": {
       "msPerToken": "{{value}}md/token",
@@ -1094,17 +1189,30 @@
         "family": "Family"
       }
     },
+    "capability": {
+      "checkingTitle": "Memeriksa fitur",
+      "checkingBody": "Memastikan dukungan akun dan model Anda.",
+      "unavailableTitle": "Tidak dapat memeriksa fitur",
+      "unavailableBody": "Kami tidak dapat memverifikasi kemampuan akun Anda. Periksa koneksi lalu coba lagi.",
+      "signedOutTitle": "Perlu masuk",
+      "retry": "Coba lagi",
+      "quotaRateTitle": "Batas laju tercapai",
+      "quotaRateBody": "Server sedang membatasi permintaan Web Search atau media saat ini. Coba lagi beberapa menit lagi.",
+      "quotaBalanceTitle": "Perlu kuota atau saldo",
+      "quotaBalanceBody": "Permintaan ini belum tercakup oleh kuota paket atau saldo PAYG Anda."
+    },
     "voiceInput": {
       "title": "Input suara",
       "permissionDenied": "Akses mikrofon atau pengenalan suara dimatikan. Aktifkan di Pengaturan untuk mendikte pesan.",
-      "openSettings": "Buka Pengaturan"
+      "openSettings": "Buka Pengaturan",
+      "failed": "Input suara gagal."
     }
   },
   "palsScreen": {
     "sectionTitles": {
-      "myPalsLocal": "Pal Saya (lokal)",
+      "myPalsLocal": "Persona Saya (lokal)",
       "myLibrary": "Pustaka Saya (palshub.ai)",
-      "discoverPals": "Temukan Pal (palshub.ai)"
+      "discoverPals": "Temukan Persona (palshub.ai)"
     },
     "systemPrompt": "Prompt Sistem",
     "videoAnalysis": "Analisis Video",
@@ -1119,26 +1227,27 @@
     "assistant": "Asisten",
     "roleplay": "Bermain Peran",
     "video": "Video",
-    "deletePal": "Hapus Pal",
-    "deletePalMessage": "Yakin ingin menghapus pal ini?",
+    "deletePal": "Hapus Persona",
+    "deletePalMessage": "Yakin ingin menghapus persona ini?",
     "missingModel": "Model Tidak Ditemukan",
-    "missingModelMessage": "Model default \"{{modelName}}\" untuk pal ini tidak tersedia. Harap unduh di lembar edit atau pilih model lain.",
+    "missingModelMessage": "Model default \"{{modelName}}\" untuk persona ini tidak tersedia. Harap unduh di lembar edit atau pilih model lain.",
     "search": "Cari",
     "profile": "Profil",
     "signIn": "Masuk",
-    "addPal": "Tambah Pal",
+    "addPal": "Tambah Persona",
+    "chatWith": "Obrolan dengan {{name}}",
     "signInToAccessLibrary": "Masuk untuk mengakses pustaka Anda dari palshub.ai",
     "signOut": "Keluar",
     "signOutConfirmation": "Yakin ingin keluar?",
     "signOutError": "Gagal keluar. Silakan coba lagi.",
     "account": "Akun",
-    "signInToPalsHub": "Masuk ke PalsHub",
-    "signInDescription": "Akses pustaka Anda, buat Pal pribadi, dan sinkronkan lintas perangkat",
-    "searchAllPals": "Cari semua Pal...",
+    "signInToPalsHub": "Masuk ke BotConnector",
+    "signInDescription": "Akses pustaka Anda, buat persona pribadi, dan sinkronkan lintas perangkat",
+    "searchAllPals": "Cari semua persona...",
     "deletePalConfirmation": "Yakin ingin menghapus \"{{palName}}\"?",
     "filters": {
       "all": "Semua",
-      "myPals": "Pal Saya",
+      "myPals": "Persona Saya",
       "local": "Lokal",
       "video": "Video",
       "free": "Gratis",
@@ -1151,8 +1260,8 @@
       "download": "Unduh",
       "getFree": "Dapatkan Gratis"
     },
-    "premiumPalDescription": "Pal premium dari komunitas palshub.ai",
-    "premiumInfoText": "Kunjungi palshub.ai untuk menjelajahi lebih banyak pal",
+    "premiumPalDescription": "Persona premium dari komunitas palshub.ai",
+    "premiumInfoText": "Kunjungi palshub.ai untuk menjelajahi lebih banyak persona",
     "sortOptions": {
       "newest": "Terbaru",
       "oldest": "Terlama",
@@ -1172,18 +1281,18 @@
       "systemPrompt": "Prompt Sistem",
       "downloaded": "Diunduh",
       "success": "Berhasil",
-      "palAddedToCollection": "Pal telah ditambahkan ke koleksi Anda!",
+      "palAddedToCollection": "Persona telah ditambahkan ke koleksi Anda!",
       "error": "Kesalahan",
-      "failedToLoadDetails": "Gagal memuat detail pal",
-      "failedToDownload": "Gagal mengunduh pal",
-      "premiumPalMessage": "Ini adalah Pal Premium.\n• Jika Anda sudah membukanya dengan akun Palshub, cukup masuk untuk mengakses detail lengkapnya.\n• Belum membukanya? Kunjungi aplikasi palshub.ai untuk informasi lebih lanjut.",
+      "failedToLoadDetails": "Gagal memuat detail persona",
+      "failedToDownload": "Gagal mengunduh persona",
+      "premiumPalMessage": "Ini adalah Persona Premium.\n• Jika Anda sudah membukanya dengan akun Anda, cukup masuk untuk mengakses detail lengkapnya.\n• Belum membukanya? Kunjungi palshub.ai untuk informasi lebih lanjut.",
       "notAvailable": "T/A",
-      "buyOnPalshub": "Beli di Palshub",
+      "buyOnPalshub": "Beli di BotConnector",
       "finalizingPurchase": "Menyelesaikan pembelian Anda…",
       "processingPurchase": "Memproses — akan segera terbuka.",
       "checkoutSessionExpired": "Sesi Anda telah berakhir. Masuk lagi untuk melanjutkan.",
       "signInAgain": "Masuk Lagi",
-      "palNotAvailable": "Pal ini sedang tidak tersedia untuk dibeli saat ini.",
+      "palNotAvailable": "Persona ini sedang tidak tersedia untuk dibeli saat ini.",
       "checkoutFailed": "Terjadi kesalahan. Silakan coba lagi."
     }
   },
@@ -1212,7 +1321,10 @@
     "takePhoto": "Kamera",
     "noVisionTitle": "Model ini tidak mendukung gambar",
     "noVisionMessage": "Model aktif tidak mendukung gambar/kamera. Ganti ke model dengan badge Vision untuk mengirim foto.",
-    "chooseVisionModel": "Pilih model"
+    "chooseVisionModel": "Pilih model",
+    "visionPlanTitle": "Vision tidak tersedia di paket ini",
+    "visionPlanBody": "Akun Anda tidak dapat mengirim foto dengan paket ini. Pilih model dengan badge Vision atau periksa paket Anda.",
+    "visionSignInBody": "Masuk ke BotConnector untuk menggunakan foto dan Vision."
   },
   "video": {
     "permissionTitle": "Izin Kamera Diperlukan",
@@ -1230,24 +1342,55 @@
     "captureIntervalUnit": "ms",
     "liveCommentary": "Komentar Langsung",
     "emptyPlaceholder": {
-      "title": "Selamat Datang di Lookie",
+      "title": "Selamat datang di analisis video",
       "subtitle": "Analisis Video Real-time On-Device Pribadi",
       "experimentalNotice": "Ini adalah fitur eksperimental. Akurasi tergantung pada model yang dipilih, kecepatan tergantung pada spesifikasi perangkat Anda, dan beberapa model mungkin gagal.",
       "howToUse": "Cara menggunakan:",
       "step1": "• Edit prompt (opsional) untuk memandu analisis",
       "step2": "• Ketuk tombol kamera untuk memulai analisis video langsung",
       "step3": "• Sesuaikan frekuensi tangkapan saat kamera aktif",
-      "step4": "• Beralih ke pal lain untuk obrolan teks biasa"
+      "step4": "• Beralih ke persona lain untuk obrolan teks biasa"
+    }
+  },
+  "imageGeneration": {
+    "connectTitle": "Hubungkan BotConnector terlebih dahulu",
+    "connectBody": "Masuk dengan akun BotConnector di bawah. Penggunaan aplikasi normal tidak memerlukan API key BotConnector.",
+    "model": "Model gambar",
+    "modelLoading": "Memuat model…",
+    "modelEmpty": "Saat ini tidak ada model gambar yang tersedia untuk akun ini.",
+    "prompt": "Jelaskan gambar yang ingin dibuat",
+    "promptPlaceholder": "Contoh: foto produk perangkat AI hitam di meja gelap, bersih dan minimal",
+    "generate": "Buat gambar",
+    "generateDisabledHint": "Pilih model gambar dan masukkan deskripsi terlebih dahulu.",
+    "generating": "Membuat…",
+    "share": "Bagikan",
+    "retry": "Muat ulang model",
+    "generated": "Gambar hasil",
+    "reference": "Foto referensi",
+    "addReference": "Tambah foto",
+    "removeReference": "Hapus foto referensi",
+    "referenceCount": "Foto {{current}}/{{max}}",
+    "referenceHint": "Maksimal 4 foto JPG, PNG, atau WebP (4 MB per foto, total 8 MB).",
+    "referenceUnsupported": "Model ini tidak mendukung foto referensi.",
+    "quotaRemaining": "Kuota tersisa: {{remaining}}/{{limit}}",
+    "errorLoadModels": "Gagal memuat model gambar.",
+    "errorGenerate": "Gagal membuat gambar.",
+    "errorShare": "Tidak dapat membagikan gambar.",
+    "access": {
+      "free": "Gratis",
+      "plan": "Plan",
+      "payg": "PAYG"
     }
   },
   "screenTitles": {
     "chat": "Obrolan",
     "models": "Model",
-    "pals": "Pal (eksperimental)",
+    "pals": "Persona (eksperimental)",
     "benchmark": "Benchmark",
     "settings": "Pengaturan",
     "appInfo": "Info Aplikasi",
-    "testCompletion": "Uji Penyelesaian"
+    "testCompletion": "Uji Penyelesaian",
+    "images": "Gambar AI"
   },
   "chat": {
     "conversationReset": "Obrolan diatur ulang!",
@@ -1301,7 +1444,7 @@
     "increaseContextReloading": "Memuat ulang model dengan konteks yang lebih besar…",
     "increaseContextSuccess": "Konteks ditingkatkan menjadi {{target}} token.",
     "increaseContextFailure": "Gagal meningkatkan ukuran konteks. Pengaturan sebelumnya telah dipulihkan.",
-    "palLoadHint": "Pal ini cenderung membutuhkan lebih banyak ruang daripada yang diizinkan ukuran konteks saat ini.",
+    "palLoadHint": "Persona ini cenderung membutuhkan lebih banyak ruang daripada yang diizinkan ukuran konteks saat ini.",
     "webSearch": {
       "searched": "Dicari: {{query}}",
       "noResults": "Tidak ada hasil",
@@ -1565,15 +1708,15 @@
       "brand": "BotConnector"
     },
     "screen1": {
-      "title": "Temui para pal Anda.",
-      "titleAccent": "pal.",
+      "title": "Temui asisten Anda.",
+      "titleAccent": "asisten",
       "body": "Teman-teman kecil pintar yang tinggal di dalam ponsel Anda.\nMari kita siapkan - akan memakan waktu sebentar.",
       "cta": "Ajak Berkeliling",
       "eyebrow": "Selamat Datang di BotConnector"
     },
     "screen2": {
       "title": "Kapan Saja,\nDi Mana Saja.",
-      "body": "Pal Anda tinggal di dalam ponsel Anda.\nTanpa internet, tanpa sinyal - mereka bekerja di pesawat, di luar jaringan, di desa terpencil.",
+      "body": "Asisten Anda tinggal di dalam ponsel Anda.\nTanpa internet, tanpa sinyal - mereka bekerja di pesawat, di luar jaringan, di desa terpencil.",
       "highlight": "Tanpa internet, tanpa sinyal",
       "cta": "Lanjut",
       "eyebrow": "Konsepnya",
@@ -1582,7 +1725,7 @@
     "screen3": {
       "title": "Lebih Kecil,\ntapi Milik Anda.",
       "titleAccent": "Lebih Kecil,",
-      "body": "Pal di ponsel Anda cepat dan pribadi - namun lebih ringan dari AI Cloud. Anggap saja teman saku, bukan oracle yang tahu segalanya.",
+      "body": "Asisten di ponsel Anda cepat dan pribadi - namun lebih ringan dari AI Cloud. Anggap saja teman saku, bukan oracle yang tahu segalanya.",
       "highlight": "cepat dan pribadi",
       "cta": "Mengerti",
       "eyebrow": "Peringatan"
@@ -1596,8 +1739,8 @@
       "eyebrow": "Privasi Terjamin"
     },
     "screen5": {
-      "title": "Untuk apa pal Anda?",
-      "body": "Pilih apa yang ingin Anda diskusikan - kami akan mencocokkan pal yang cocok dengan ponsel Anda.",
+      "title": "Untuk apa asisten Anda?",
+      "body": "Pilih apa yang ingin Anda diskusikan - kami akan mencocokkan asisten yang cocok dengan ponsel Anda.",
       "topic": {
         "smartchat": "Obrolan Cerdas",
         "coding": "Pemrograman",
@@ -1612,7 +1755,7 @@
         "education": "Belajar, jelaskan, kuis",
         "roleplay": "Karakter, skenario",
         "creative_writing": "Cerita, ide, draf",
-        "else": "Jelajahi semua pal nanti di aplikasi"
+        "else": "Jelajahi semua asisten nanti di aplikasi"
       }
     },
     "screen6": {
@@ -1631,7 +1774,7 @@
       "subtitleTemplate": "{{name}} berpikir menggunakan model AI kecil di ponsel Anda — pilih yang cocok.",
       "pal": {
         "pip": {
-          "body": "Kami menemukan pal yang sempurna untuk Anda — teman sehari-hari yang ramah. Cukup pintar untuk sebagian besar hal, cukup ringan untuk ponsel mana pun."
+          "body": "Kami menemukan asisten yang sempurna untuk Anda — teman sehari-hari yang ramah. Cukup pintar untuk sebagian besar hal, cukup ringan untuk ponsel mana pun."
         },
         "codie": {
           "body": "Kenali Codie — pair-programmer lokal Anda. Membaca kode, menulis kode, menjelaskan bagian rumit tanpa meninggalkan ponsel Anda."

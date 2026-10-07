@@ -55,11 +55,23 @@ import {t} from '../../locales';
 import {recognizeSpeechOnce} from '../../utils/speechRecognition';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {
+  CapabilityDenialInput,
+  CapabilityDenialReason,
+  resolveCapabilityDenial,
+} from '../../utils/capabilityDenial';
+import {
   BOTCONNECTOR_FILE_MAX_COUNT,
   BOTCONNECTOR_FILE_MAX_TOTAL_BYTES,
+  BOTCONNECTOR_FILE_POLL_DEADLINE_MS,
+  BOTCONNECTOR_FILE_POLL_ERROR_LIMIT,
   BotConnectorFile,
+  BotConnectorFileStatusError,
   getBotConnectorFile,
   isBotConnectorFileReady,
+  isKnownBotConnectorFileStatus,
+  isTerminalBotConnectorFileStatus,
+  nextFilePollDelayMs,
+  resolveFileFailureMessage,
   uploadBotConnectorFile,
 } from '../../api/botconnectorFiles';
 
@@ -214,12 +226,20 @@ export const ChatInput = observer(
           server => server.id === modelStore.activeModel?.serverId,
         )
       : undefined;
+    const isBotConnectorCloud = Boolean(
+      activeServer && isBotConnectorApiUrl(activeServer.url),
+    );
+    const activeAccess = isBotConnectorCloud
+      ? serverStore.botConnectorAccess[activeServer!.id]
+      : undefined;
+    const activeAccessState = isBotConnectorCloud
+      ? serverStore.botConnectorAccessState[activeServer!.id]
+      : undefined;
+    // Per-axis gate only: the legacy coarse `access` flag must never decide
+    // whether Files is offered (server reports files=false for plans without
+    // it, with reasons.files explaining why).
     const botConnectorFilesEnabled = Boolean(
-      activeServer &&
-        isBotConnectorApiUrl(activeServer.url) &&
-        serverStore.botConnectorAccess[activeServer.id]?.access === 'full' &&
-        serverStore.botConnectorAccess[activeServer.id]?.capabilities.files ===
-          true,
+      activeAccess && activeAccess.capabilities.files === true,
     );
 
     // Use `defaultValue` if provided
@@ -306,7 +326,9 @@ export const ChatInput = observer(
         }
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : 'Voice input failed.';
+          error instanceof Error
+            ? error.message
+            : l10n.components.voiceInput.failed;
         if (/permission/i.test(message)) {
           // Denied permission: explain and offer the Settings shortcut.
           Alert.alert(
@@ -334,7 +356,7 @@ export const ChatInput = observer(
     const hasPendingFiles =
       botConnectorFilesEnabled &&
       selectedFiles.some(
-        file => file.status !== 'ready' && file.status !== 'failed',
+        file => !isTerminalBotConnectorFileStatus(file.status),
       );
 
     const handleSend = () => {
@@ -432,20 +454,154 @@ export const ChatInput = observer(
       }
     };
 
-    const requireVision = (action: () => void) => () => {
+    const visionDenialInput = (
+      overrides: Partial<CapabilityDenialInput> = {},
+    ): CapabilityDenialInput => ({
+      enabled: false,
+      isBotConnectorServer: isBotConnectorCloud,
+      isSignedIn: botConnectorAuthStore.isSignedIn,
+      access: activeAccess,
+      accessLoading: activeAccessState?.loading,
+      accessError: activeAccessState?.error,
+      accessErrorKind: activeAccessState?.errorKind,
+      modelSupports: modelStore.activeModelCaps.visionActive === true,
+      capability: 'vision',
+      ...overrides,
+    });
+
+    const showVisionDeniedAlert = (
+      denial: CapabilityDenialReason | null,
+      retry: () => void,
+    ) => {
+      const capability = l10n.components.capability;
+      const chooseModelButton = {
+        text: l10n.camera.chooseVisionModel,
+        onPress: () => uiStore.openModelPicker('models'),
+      };
+      switch (denial) {
+        case 'signed_out':
+          Alert.alert(capability.signedOutTitle, l10n.camera.visionSignInBody, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {
+              text: l10n.settings.connectBotConnector,
+              onPress: () => {
+                botConnectorAuthStore.startLogin().catch(() => undefined);
+              },
+            },
+          ]);
+          return;
+        case 'checking':
+          Alert.alert(capability.checkingTitle, capability.checkingBody);
+          return;
+        case 'quota_rate_limited':
+          Alert.alert(capability.quotaRateTitle, capability.quotaRateBody, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {text: capability.retry, onPress: retry},
+          ]);
+          return;
+        case 'quota_balance':
+          Alert.alert(
+            capability.quotaBalanceTitle,
+            capability.quotaBalanceBody,
+            [
+              {text: l10n.common.cancel, style: 'cancel'},
+              {text: capability.retry, onPress: retry},
+            ],
+          );
+          return;
+        case 'unavailable':
+          Alert.alert(capability.unavailableTitle, capability.unavailableBody, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {text: capability.retry, onPress: retry},
+          ]);
+          return;
+        case 'plan_not_included':
+          Alert.alert(l10n.camera.visionPlanTitle, l10n.camera.visionPlanBody, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            chooseModelButton,
+          ]);
+          return;
+        default:
+          Alert.alert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            chooseModelButton,
+          ]);
+      }
+    };
+
+    const requireVision = (action: () => void) => async () => {
       if (isVisionEnabled) {
         action();
         return;
       }
       setShowImageUploadMenu(false);
-      Alert.alert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
-        {text: l10n.common.cancel, style: 'cancel'},
-        {
-          text: l10n.camera.chooseVisionModel,
-          onPress: () => uiStore.openModelPicker('models'),
-        },
-      ]);
+
+      let denial = resolveCapabilityDenial(visionDenialInput());
+
+      // Account state is unknown/failed: revalidate once, then decide with
+      // fresh data. A definitive plan answer is never re-fetched here; quota
+      // refusals revalidate on demand so Retry can actually retry.
+      if (
+        denial === 'checking' ||
+        denial === 'unavailable' ||
+        denial === 'quota_rate_limited' ||
+        denial === 'quota_balance'
+      ) {
+        const fresh = activeServer
+          ? await serverStore
+              .refreshBotConnectorAccess(activeServer.id)
+              .catch(() => undefined)
+          : undefined;
+        denial = resolveCapabilityDenial(
+          visionDenialInput({
+            enabled: Boolean(
+              fresh &&
+                modelStore.activeModelCaps.visionActive === true &&
+                fresh.capabilities.vision === true,
+            ),
+            access: fresh,
+            accessLoading: false,
+            accessError: !fresh,
+          }),
+        );
+      }
+
+      if (!denial) {
+        action();
+        return;
+      }
+      showVisionDeniedAlert(denial, () => {
+        requireVision(action)().catch(() => undefined);
+      });
     };
+
+    // Accessibility hint for the camera/gallery rows when Vision is denied.
+    const visionMenuHint = (() => {
+      if (isVisionEnabled) {
+        return undefined;
+      }
+      const denial = resolveCapabilityDenial(visionDenialInput());
+      const capability = l10n.components.capability;
+      if (denial === 'signed_out') {
+        return capability.signedOutTitle;
+      }
+      if (denial === 'checking') {
+        return capability.checkingTitle;
+      }
+      if (denial === 'unavailable') {
+        return capability.unavailableTitle;
+      }
+      if (denial === 'quota_rate_limited') {
+        return capability.quotaRateTitle;
+      }
+      if (denial === 'quota_balance') {
+        return capability.quotaBalanceTitle;
+      }
+      if (denial === 'plan_not_included') {
+        return l10n.camera.visionPlanTitle;
+      }
+      return l10n.camera.noVisionTitle;
+    })();
 
     // Handle selecting images from the gallery
     const handleSelectImages = async () => {
@@ -504,21 +660,26 @@ export const ChatInput = observer(
       );
     };
 
-    // Server-side parsing/OCR of large files can take minutes: poll with a
-    // gentle backoff, ride out transient network errors, and stop as soon as
-    // the attachment is removed from the composer.
+    // Server-side parsing/OCR of large files can take minutes: poll with the
+    // server-hinted cadence (never tighter than 3 s), back off on rate limits
+    // without counting them as failures, and stop as soon as the attachment
+    // is removed from the composer.
     const pollFileStatus = async (
       localKey: string,
       serverUrl: string,
       apiKey: string,
       fileId: string,
+      seed?: {pollAfterMs?: number | null; status?: string},
     ) => {
-      const deadline = Date.now() + 5 * 60 * 1000;
-      let delay = 1500;
+      const deadline = Date.now() + BOTCONNECTOR_FILE_POLL_DEADLINE_MS;
+      let delay = nextFilePollDelayMs({
+        serverPollAfterMs: seed?.pollAfterMs,
+        status: seed?.status,
+      });
+      let knownStatus: string | undefined = seed?.status;
       let consecutiveErrors = 0;
       while (Date.now() < deadline) {
         await new Promise(resolve => setTimeout(resolve, delay));
-        delay = Math.min(delay + 500, 4000);
         if (!selectedFileKeysRef.current.has(localKey)) {
           return; // removed by the user
         }
@@ -529,6 +690,24 @@ export const ChatInput = observer(
             fileId,
           });
           consecutiveErrors = 0;
+          // The next wait comes from the response: poll_after_ms wins when
+          // positive, else waiting_parser polls slower than everything else.
+          delay = nextFilePollDelayMs({
+            serverPollAfterMs: latest.poll_after_ms,
+            status: latest.status,
+            previousDelay: delay,
+          });
+          if (!isKnownBotConnectorFileStatus(latest.status)) {
+            // A status the app cannot render would otherwise spin forever.
+            updateSelectedFile(localKey, {
+              status: 'failed',
+              error: t(l10n.components.chatInput.fileUnknownStatusBody, {
+                status: String(latest.status),
+              }),
+            });
+            return;
+          }
+          knownStatus = latest.status;
           updateSelectedFile(localKey, {
             id: latest.id,
             name: latest.filename,
@@ -538,27 +717,91 @@ export const ChatInput = observer(
             route: latest.route,
             parser: latest.parser,
             progress: 1,
+            // Failed: prefer the server's own message, else its localized
+            // error-code fallback; other statuses clear any stale error.
+            error:
+              latest.status === 'failed'
+                ? resolveFileFailureMessage(
+                    latest.error,
+                    l10n.components.chatInput,
+                  )
+                : undefined,
           });
-          if (latest.status === 'ready' || latest.status === 'failed') {
+          if (isTerminalBotConnectorFileStatus(latest.status)) {
             return;
           }
         } catch (error) {
+          const statusCode =
+            error instanceof BotConnectorFileStatusError
+              ? error.statusCode
+              : undefined;
+          if (statusCode === 429) {
+            // Rate limiting is not a failure: double the wait, keep polling.
+            delay = nextFilePollDelayMs({
+              lastStatus: 429,
+              previousDelay: delay,
+              status: knownStatus,
+            });
+            continue;
+          }
           consecutiveErrors += 1;
-          if (consecutiveErrors < 3) {
+          delay = nextFilePollDelayMs({
+            attempt: consecutiveErrors,
+            previousDelay: delay,
+            status: knownStatus,
+          });
+          if (consecutiveErrors < BOTCONNECTOR_FILE_POLL_ERROR_LIMIT) {
             continue;
           }
           updateSelectedFile(localKey, {
             status: 'failed',
             error:
-              error instanceof Error ? error.message : 'File processing failed',
+              error instanceof Error
+                ? error.message
+                : l10n.components.chatInput.fileProcessingError,
           });
           return;
         }
       }
       updateSelectedFile(localKey, {
         status: 'failed',
-        error: 'Processing is taking longer than expected. Tap retry.',
+        error: l10n.components.chatInput.fileProcessingTimeout,
       });
+    };
+
+    // Localize failures the gateway rejected (esp. oversize 413) and fall
+    // back to the localized generic message when nothing usable is left.
+    const uploadFailureMessage = (error: unknown): string => {
+      const kind = (error as {kind?: string} | null)?.kind;
+      if (kind === 'too_large') {
+        return l10n.components.chatInput.fileServerTooLargeBody;
+      }
+      if (kind === 'transient') {
+        // 502/503/504 are temporary disruptions, not dead ends: explain the
+        // interruption and let the existing Retry button recover.
+        return l10n.components.chatInput.fileUploadInterruptedBody;
+      }
+      if (error instanceof Error && error.message) {
+        return error.message;
+      }
+      return l10n.components.chatInput.fileUploadErrorBody;
+    };
+
+    // Mark an upload as failed; a transient disruption also re-verifies the
+    // session/capability once (fire-and-forget) before the user retries.
+    const failSelectedFile = (localKey: string, error: unknown) => {
+      updateSelectedFile(localKey, {
+        status: 'failed',
+        error: uploadFailureMessage(error),
+      });
+      if (
+        (error as {kind?: string} | null)?.kind === 'transient' &&
+        activeServer
+      ) {
+        serverStore
+          .refreshBotConnectorAccess(activeServer.id)
+          .catch(() => undefined);
+      }
     };
 
     const retrySelectedFile = async (file: BotConnectorFile) => {
@@ -569,7 +812,7 @@ export const ChatInput = observer(
       if (!apiKey) {
         updateSelectedFile(file.uri, {
           status: 'failed',
-          error: 'BotConnector API key is required',
+          error: l10n.components.chatInput.fileApiKeyRequired,
         });
         return;
       }
@@ -606,15 +849,13 @@ export const ChatInput = observer(
           progress: 1,
         });
         if (uploaded.status !== 'ready') {
-          pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id).catch(
-            () => undefined,
-          );
+          pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id, {
+            pollAfterMs: uploaded.poll_after_ms,
+            status: uploaded.status,
+          }).catch(() => undefined);
         }
       } catch (error) {
-        updateSelectedFile(file.uri, {
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'File upload failed',
-        });
+        failSelectedFile(file.uri, error);
       }
     };
 
@@ -649,9 +890,27 @@ export const ChatInput = observer(
           0,
         );
         const accepted: BotConnectorFile[] = [];
+        const maxTotalSizeLabel = `${Math.round(
+          BOTCONNECTOR_FILE_MAX_TOTAL_BYTES / (1024 * 1024),
+        )} MB`;
 
         for (const item of candidates) {
           const name = item.name || 'file';
+          // Reject known-oversized files BEFORE copying them into the cache.
+          const reportedSize = Number(item.size || 0);
+          if (
+            reportedSize > 0 &&
+            (reportedSize > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
+              acceptedBytes + reportedSize > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES)
+          ) {
+            Alert.alert(
+              l10n.components.chatInput.fileTooLargeTitle,
+              t(l10n.components.chatInput.fileTooLargeBody, {
+                max: maxTotalSizeLabel,
+              }),
+            );
+            continue;
+          }
           const copies = await keepLocalCopy({
             files: [{uri: item.uri, fileName: name}],
             destination: 'cachesDirectory',
@@ -659,10 +918,10 @@ export const ChatInput = observer(
           const copy = copies[0];
           if (!copy || copy.status !== 'success') {
             Alert.alert(
-              'File upload failed',
-              copy?.status === 'error'
+              l10n.components.chatInput.fileUploadErrorTitle,
+              copy?.status === 'error' && copy.copyError
                 ? copy.copyError
-                : `Unable to prepare ${name} for upload.`,
+                : t(l10n.components.chatInput.fileCopyFailedBody, {name}),
             );
             continue;
           }
@@ -682,8 +941,8 @@ export const ChatInput = observer(
           if (!(size > 0)) {
             RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
             Alert.alert(
-              'File upload failed',
-              `Unable to determine the size of ${name}.`,
+              l10n.components.chatInput.fileUploadErrorTitle,
+              t(l10n.components.chatInput.fileUnknownSizeBody, {name}),
             );
             continue;
           }
@@ -693,8 +952,10 @@ export const ChatInput = observer(
           ) {
             RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
             Alert.alert(
-              'File too large',
-              'Maximum total attachment size is 512 MB per message.',
+              l10n.components.chatInput.fileTooLargeTitle,
+              t(l10n.components.chatInput.fileTooLargeBody, {
+                max: maxTotalSizeLabel,
+              }),
             );
             continue;
           }
@@ -739,21 +1000,13 @@ export const ChatInput = observer(
               progress: 1,
             });
             if (uploaded.status !== 'ready' && uploaded.status !== 'failed') {
-              pollFileStatus(
-                file.uri,
-                activeServer.url,
-                apiKey,
-                uploaded.id,
-              ).catch(() => undefined);
+              pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id, {
+                pollAfterMs: uploaded.poll_after_ms,
+                status: uploaded.status,
+              }).catch(() => undefined);
             }
           } catch (error) {
-            updateSelectedFile(file.uri, {
-              status: 'failed',
-              error:
-                error instanceof Error
-                  ? error.message
-                  : l10n.components.chatInput.fileUploadErrorTitle,
-            });
+            failSelectedFile(file.uri, error);
           }
         }
       } catch (error) {
@@ -787,10 +1040,37 @@ export const ChatInput = observer(
         const fresh = await serverStore
           .refreshBotConnectorAccess(activeServer.id)
           .catch(() => undefined);
-        if (fresh?.access === 'full' && fresh.capabilities.files === true) {
+        if (!fresh) {
+          // Capability check itself failed (network/backend): say that
+          // instead of blaming the account or the plan. 429/402 are quota
+          // refusals with their own explanation.
+          const capability = l10n.components.capability;
+          const errorKind =
+            serverStore.botConnectorAccessState[activeServer.id]?.errorKind;
+          const isQuota =
+            errorKind === 'quota_rate_limited' || errorKind === 'quota_balance';
+          const [title, body] = isQuota
+            ? errorKind === 'quota_rate_limited'
+              ? [capability.quotaRateTitle, capability.quotaRateBody]
+              : [capability.quotaBalanceTitle, capability.quotaBalanceBody]
+            : [capability.unavailableTitle, capability.unavailableBody];
+          Alert.alert(title, body, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {
+              text: capability.retry,
+              onPress: () => {
+                handleSelectFiles().catch(() => undefined);
+              },
+            },
+          ]);
+          return;
+        }
+        if (fresh.capabilities.files === true) {
           await openFilePicker();
           return;
         }
+        // Plan does not include Files: reasons.files (e.g.
+        // paid_plan_required) explains the refusal server-side.
         Alert.alert(
           l10n.components.chatInput.fileUploadUnavailableTitle,
           l10n.components.chatInput.fileUploadUnavailableAccountBody,
@@ -812,16 +1092,34 @@ export const ChatInput = observer(
     };
 
     const fileStatusLabel = (file: BotConnectorFile) => {
+      const status = l10n.components.chatInput;
       if (file.status === 'uploading') {
-        return `Uploading ${Math.round(file.progress * 100)}%`;
+        return t(status.fileStatusUploading, {
+          percent: String(Math.round(file.progress * 100)),
+        });
       }
       if (file.status === 'ready') {
-        return 'Ready';
+        return status.fileStatusReady;
       }
       if (file.status === 'failed') {
-        return file.error || 'Upload failed';
+        return file.error || status.fileStatusFailed;
       }
-      return 'Processing…';
+      if (file.status === 'uploaded') {
+        return status.fileStatusUploaded;
+      }
+      if (file.status === 'queued') {
+        return status.fileStatusQueued;
+      }
+      if (file.status === 'waiting_parser') {
+        return status.fileStatusWaitingParser;
+      }
+      if (file.status === 'ocr_required') {
+        return status.fileStatusOcr;
+      }
+      if (file.status === 'waiting_retrieval') {
+        return status.fileStatusWaitingRetrieval;
+      }
+      return status.fileStatusProcessing;
     };
 
     // Remove an image from the selection
@@ -1079,7 +1377,7 @@ export const ChatInput = observer(
                     accessibilityLabel={
                       isVisionEnabled
                         ? undefined
-                        : `${l10n.camera?.takePhoto || 'Camera'} — ${l10n.camera.noVisionTitle}`
+                        : `${l10n.camera?.takePhoto || 'Camera'} — ${visionMenuHint}`
                     }
                     onPress={requireVision(handleTakePhoto)}
                   />
@@ -1090,7 +1388,7 @@ export const ChatInput = observer(
                     accessibilityLabel={
                       isVisionEnabled
                         ? undefined
-                        : `${l10n.common?.gallery || 'Gallery'} — ${l10n.camera.noVisionTitle}`
+                        : `${l10n.common?.gallery || 'Gallery'} — ${visionMenuHint}`
                     }
                     onPress={requireVision(handleSelectImages)}
                   />
@@ -1127,7 +1425,7 @@ export const ChatInput = observer(
                     },
                   ]}
                   onPress={onPalBtnPress}
-                  accessibilityLabel="Select Pal"
+                  accessibilityLabel="Select persona"
                   accessibilityRole="button">
                   <Animated.View
                     style={{
@@ -1148,7 +1446,7 @@ export const ChatInput = observer(
                           color: onSurfaceColor,
                         },
                       ]}>
-                      Pal:{' '}
+                      Persona:{' '}
                       <Text
                         style={[
                           styles.palNameValueCompact,
@@ -1161,7 +1459,7 @@ export const ChatInput = observer(
                     </Text>
                     {/* Persona is optional: one tap turns it off. */}
                     <TouchableOpacity
-                      hitSlop={10}
+                      hitSlop={15}
                       testID="clear-active-pal"
                       onPress={() => chatSessionStore.setActivePal(undefined)}
                       accessibilityRole="button"

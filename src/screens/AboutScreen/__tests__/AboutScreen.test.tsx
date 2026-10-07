@@ -39,15 +39,28 @@ describe('AboutScreen', () => {
   });
 
   it('renders correctly', () => {
-    const {getByText, getByTestId} = render(<AboutScreen />);
+    const {getByText, getByTestId, queryByTestId} = render(<AboutScreen />);
 
-    // The account card is rendered above the about card.
+    // The account status is rendered above the about card.
     expect(getByTestId('botconnector-account-card')).toBeTruthy();
+    // Bico mascots the app header (decorative: hidden from VoiceOver).
+    expect(queryByTestId('bico-mascot')).toBeNull();
+    const mascot = getByTestId('bico-mascot', {includeHiddenElements: true});
+    expect(mascot.props.importantForAccessibility).toBe('no-hide-descendants');
     // Exact match: the app title only. The card says "...to BotConnector".
     expect(getByText('BotConnector')).toBeTruthy();
     expect(getByText('v1.0.0 (100)')).toBeTruthy();
     expect(getByText(l10n.en.about.supportProject)).toBeTruthy();
     expect(getByText(l10n.en.about.githubButton)).toBeTruthy();
+  });
+
+  it('stays informational: account status without sign-in or sign-out actions', () => {
+    const {queryByTestId, getByText} = render(<AboutScreen />);
+
+    // About only reports status; account management lives in Settings.
+    expect(queryByTestId('botconnector-account-action')).toBeNull();
+    expect(getByText(l10n.en.settings.accountManageInSettings)).toBeTruthy();
+    expect(getByText(l10n.en.settings.connectBotConnector)).toBeTruthy();
   });
 
   it('copies version to clipboard when version button is pressed', () => {

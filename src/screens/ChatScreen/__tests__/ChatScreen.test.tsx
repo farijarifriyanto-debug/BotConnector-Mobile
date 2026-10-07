@@ -1099,6 +1099,7 @@ describe('ChatScreen internet helper & capability healing', () => {
       serverStore.serverModels.clear();
       serverStore.remoteCaps = {};
       serverStore.botConnectorAccess = {};
+      serverStore.botConnectorAccessState = {};
       serverStore.botConnectorCatalog = {};
       searchProviderStore.setConsent(false);
       searchProviderStore.setForceInternetSearch(false);
@@ -1150,6 +1151,92 @@ describe('ChatScreen internet helper & capability healing', () => {
     expect(chooseModelButton).toBeTruthy();
     chooseModelButton.onPress();
     expect(openPickerSpy).toHaveBeenCalledWith('models');
+  });
+
+  it('explains a failed capability check instead of blaming the plan when signed in', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    // No cached capabilities + refresh resolves with nothing: the check
+    // itself failed, so the copy must say the status could not be checked.
+    activateCloudModel(undefined);
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+    const globe = await screen.findByTestId('internet-toggle');
+    fireEvent.press(globe);
+
+    await waitFor(() => {
+      expect(accessRefreshSpy).toHaveBeenCalled();
+      const call = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
+      expect(call[0]).toBe(l10n.en.components.capability.unavailableTitle);
+      expect(call[1]).toBe(l10n.en.components.capability.unavailableBody);
+      const retryButton = call[2].find(
+        (button: any) => button.text === l10n.en.components.capability.retry,
+      );
+      expect(retryButton).toBeTruthy();
+    });
+  });
+
+  it('keeps the attachment entry when the files axis is on, ignoring the legacy access flag', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    // Contract: filesEnabled reads capabilities.files only — a stale
+    // access:'chat_only' must not hide attachments when files=true.
+    activateCloudModel({
+      object: 'botconnector.client_capabilities',
+      plan: 'plus',
+      access: 'chat_only',
+      paid: false,
+      entitlement_sources: {subscription: true, payg: false, family: false},
+      capabilities: {
+        chat: true,
+        web_search: false,
+        read_url: false,
+        tools: true,
+        vision: false,
+        media: true,
+        files: true,
+      },
+    } as any);
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+
+    expect(screen.getByLabelText('Add attachment')).toBeTruthy();
+  });
+
+  it('explains a 429 capability refusal as a rate limit, not a backend outage', async () => {
+    runInAction(() => {
+      (botConnectorAuthStore as any).hasStoredSession = true;
+      (botConnectorAuthStore as any).isSignedIn = true;
+    });
+    activateCloudModel(signedInEntry({web_search: false}));
+    // The last capability check failed with 429 — state carries the kind.
+    runInAction(() => {
+      serverStore.botConnectorAccessState = {
+        'bc-net': {
+          loading: false,
+          error: true,
+          errorKind: 'quota_rate_limited',
+        },
+      };
+    });
+
+    const screen = render(<ChatScreen />, {withNavigation: true});
+    const globe = await screen.findByTestId('internet-toggle');
+    fireEvent.press(globe);
+
+    await waitFor(() => {
+      const call = alertSpy.mock.calls[alertSpy.mock.calls.length - 1];
+      expect(call[0]).toBe(l10n.en.components.capability.quotaRateTitle);
+      expect(call[1]).toBe(l10n.en.components.capability.quotaRateBody);
+      const retryButton = call[2].find(
+        (button: any) => button.text === l10n.en.components.capability.retry,
+      );
+      expect(retryButton).toBeTruthy();
+    });
   });
 
   it('toggles explicit Internet mode when the account has Web Search', async () => {
@@ -1317,6 +1404,7 @@ describe('ChatScreen vision from the live Cloud catalog', () => {
       serverStore.serverModels.clear();
       serverStore.remoteCaps = {};
       serverStore.botConnectorAccess = {};
+      serverStore.botConnectorAccessState = {};
       serverStore.botConnectorCatalog = {};
     });
     (botConnectorAuthStore as any).hasStoredSession = false;

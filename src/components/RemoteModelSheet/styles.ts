@@ -170,5 +170,33 @@ export const createStyles = (theme: Theme) => {
     addButton: {
       flex: 1,
     },
+    sectionHeader: {
+      fontSize: 13,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+      textTransform: 'uppercase',
+      color: theme.colors.primary,
+      marginTop: 18,
+      marginBottom: 8,
+    },
+    providerShortcut: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: theme.colors.outlineVariant,
+      marginBottom: 8,
+    },
+    providerShortcutLabel: {
+      flex: 1,
+      fontSize: 14,
+      color: theme.colors.onSurface,
+    },
+    providerShortcutMeta: {
+      fontSize: 12,
+      color: theme.colors.onSurfaceVariant,
+    },
   });
 };

@@ -41,8 +41,8 @@ export const useDeepLinking = () => {
 
           // Show user-friendly error message
           Alert.alert(
-            'Pal Not Found',
-            `The pal "${palName || palId}" could not be found. It may have been deleted or is not available on this device.`,
+            'Persona Not Found',
+            `The assistant "${palName || palId}" could not be found. It may have been deleted or is not available on this device.`,
             [{text: 'OK'}],
           );
           return;

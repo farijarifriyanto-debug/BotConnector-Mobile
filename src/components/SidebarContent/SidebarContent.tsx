@@ -8,7 +8,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
-import {chatSessionStore, SessionMetaData, uiStore} from '../../store';
+import {chatSessionStore, SessionMetaData} from '../../store';
 import {Menu, RenameModal, Checkbox} from '..';
 import {
   BenchmarkIcon,
@@ -20,6 +20,7 @@ import {
   StarIcon,
   TrashIcon,
   AppInfoIcon,
+  UserIcon,
 } from '../../assets/icons';
 import {L10nContext} from '../../utils';
 import {t} from '../../locales';
@@ -544,7 +545,7 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               testID="drawer-item-chat"
             />
             <Drawer.Item
-              label={uiStore.language === 'id' ? 'Gambar AI' : 'AI Images'}
+              label={l10n.screenTitles.images}
               icon={() => (
                 <Icon
                   source="image-multiple-outline"
@@ -569,6 +570,19 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               onPress={() => props.navigation.navigate(ROUTES.BENCHMARK)}
               style={styles.menuDrawerItem}
               testID="drawer-item-benchmark"
+            />
+            <Drawer.Item
+              label={l10n.components.sidebarContent.menuItems.account}
+              icon={() => (
+                <UserIcon
+                  width={24}
+                  height={24}
+                  stroke={theme.colors.primary}
+                />
+              )}
+              onPress={() => props.navigation.navigate(ROUTES.SETTINGS)}
+              style={styles.menuDrawerItem}
+              testID="drawer-item-account"
             />
             <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.settings}

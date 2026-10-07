@@ -371,7 +371,12 @@ export const SettingsScreen: React.FC = observer(() => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
-          <BotConnectorAccountCard />
+          <Card elevation={0} style={styles.card}>
+            <Card.Title title={l10n.settings.accountSection} />
+            <Card.Content>
+              <BotConnectorAccountCard />
+            </Card.Content>
+          </Card>
           {/* Model Initialization Settings */}
           <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />

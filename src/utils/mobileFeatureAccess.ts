@@ -26,9 +26,18 @@ export function resolveRichFeatureAccess(
   }
 
   if (isBotConnectorApiUrl(server.url)) {
-    return botConnectorAccess[server.id]?.access === 'full'
-      ? 'full'
-      : 'chat_only';
+    // Per-axis contract: never gate on the legacy coarse `access` flag.
+    // "Rich" means at least one non-chat axis is actually enabled; a
+    // not-yet-loaded placeholder reports none, so it stays chat-only until
+    // the real capabilities land.
+    const caps = botConnectorAccess[server.id]?.capabilities;
+    if (!caps) {
+      return 'chat_only';
+    }
+    const anyRichAxis = (
+      ['web_search', 'read_url', 'tools', 'vision', 'media', 'files'] as const
+    ).some(axis => caps[axis] === true);
+    return anyRichAxis ? 'full' : 'chat_only';
   }
 
   if (isBotConnectorLocalServerName(server.name)) {

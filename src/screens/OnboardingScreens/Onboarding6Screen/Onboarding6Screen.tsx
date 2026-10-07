@@ -13,7 +13,7 @@ import {OnboardingBottomBar} from '../components/OnboardingBottomBar';
 import {ItalicAccentTitle} from '../components/ItalicAccentTitle';
 import {DeviceInfoChip} from '../components/DeviceInfoChip';
 import {ModelRadioGroup, type ModelOption} from '../components/ModelRadioGroup';
-import {PipMascot} from '../illustrations/PipMascot';
+import {BicoMascot} from '../../../components';
 import {useOnboardingHandlers} from '../useOnboardingHandlers';
 import {createStyles} from './styles';
 
@@ -95,7 +95,7 @@ export const Onboarding6Screen: React.FC = observer(() => {
       content={
         <>
           <View style={styles.header}>
-            <PipMascot width={66} />
+            <BicoMascot variant="mark" width={66} />
             <ItalicAccentTitle title={pal.name} align="center" />
             <Text style={styles.palBody}>{palBody}</Text>
           </View>

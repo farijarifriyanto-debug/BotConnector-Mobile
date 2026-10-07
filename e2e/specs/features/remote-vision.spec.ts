@@ -161,10 +161,10 @@ describe('Remote Vision Capability', () => {
     await browser.pause(3000);
 
     // Open the model picker. The empty-state "Select Model" button only shows
-    // when no model is active; the "Select Pal" button in the input bar is
+    // when no model is active; the "Select persona" button in the input bar is
     // always present and toggles the picker, so it works whether or not a model
     // is already active (e.g. after a previous test activated one).
-    const palBtn = browser.$('~Select Pal');
+    const palBtn = browser.$('~Select persona');
     const palVisible = await palBtn
       .waitForDisplayed({timeout: 10000})
       .then(() => true)

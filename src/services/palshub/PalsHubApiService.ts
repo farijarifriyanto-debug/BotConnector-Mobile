@@ -178,7 +178,7 @@ class PalsHubApiService {
   ): Promise<T> {
     if (!this.isConfigured()) {
       throw new PalsHubError(
-        'PalsHub API not configured - missing PALSHUB_API_BASE_URL',
+        'The persona library service is not configured (missing PALSHUB_API_BASE_URL)',
       );
     }
 
@@ -480,7 +480,7 @@ class PalsHubApiService {
   async getMyPals(query: LibraryQuery = {}): Promise<PalsResponse> {
     if (!authService.user?.id) {
       throw new PalsHubError(
-        'User not authenticated - please sign in to access your pals',
+        'User not authenticated - please sign in to access your library',
       );
     }
 

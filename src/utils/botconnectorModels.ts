@@ -119,6 +119,40 @@ export function describeCloudModel(
   };
 }
 
+/**
+ * Whether the active BotConnector Cloud model supports tool calling.
+ * Contract: tools is a MODEL axis answered by /v1/models (verified runtime
+ * capability first, catalog tag as fallback) — never an account axis.
+ * Returns `undefined` when nothing answers, so callers keep their fallback
+ * instead of blocking on missing data.
+ */
+export function cloudModelSupportsTools(
+  rows: RemoteModelInfo[] | undefined,
+  remoteModelId: string | undefined,
+  catalog: BotConnectorCatalog,
+): boolean | undefined {
+  if (!rows || !remoteModelId) {
+    return undefined;
+  }
+  const row = rows.find(item => item.id === remoteModelId);
+  if (!row) {
+    return undefined;
+  }
+  const verified = row.botconnector_capabilities?.tools;
+  if (typeof verified === 'boolean') {
+    return verified;
+  }
+  const canonicalId = canonicalCloudModelId(row);
+  const entry = catalog[canonicalId] ?? catalog[row.id];
+  const tags = new Set(
+    (entry?.capabilities ?? []).map(tag => tag.toLowerCase()),
+  );
+  if (tags.has('tools')) {
+    return true;
+  }
+  return undefined;
+}
+
 /** Catalog says whether a model reads images; undefined when the catalog is silent. */
 export function catalogSupportsVision(
   row: Pick<RemoteModelInfo, 'id'> &

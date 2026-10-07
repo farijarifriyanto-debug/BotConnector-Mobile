@@ -651,18 +651,20 @@ export async function streamChatCompletion(
         cleanup();
 
         let errorMessage = `Server error: ${xhr.status}`;
+        let detailText: string | undefined;
         try {
           const errorBody = JSON.parse(xhr.responseText);
-          const detail =
+          detailText =
             errorBody?.error?.message || errorBody?.error || xhr.responseText;
-          errorMessage = `Server error: ${xhr.status} — ${detail}`;
+          errorMessage = `Server error: ${xhr.status} — ${detailText}`;
           console.log(
             '[OpenAI] Error:',
             errorBody?.error?.message || errorBody?.error,
           );
         } catch {
           if (xhr.responseText) {
-            errorMessage = `Server error: ${xhr.status} — ${xhr.responseText.substring(0, 200)}`;
+            detailText = xhr.responseText.substring(0, 200);
+            errorMessage = `Server error: ${xhr.status} — ${detailText}`;
             console.log(
               '[OpenAI] Error (raw):',
               xhr.responseText.substring(0, 200),
@@ -672,6 +674,16 @@ export async function streamChatCompletion(
 
         if (xhr.status === 401) {
           reject(new Error('Unauthorized: Invalid or missing API key'));
+        } else if (xhr.status === 429 || xhr.status === 402) {
+          // Quota refusals (rate limit / balance) get a clear explanation —
+          // these are server quota limits, not a model capability problem.
+          const quotaText =
+            xhr.status === 429
+              ? 'Rate limit reached — the server is limiting requests right now. Try again in a few minutes.'
+              : 'Quota or balance needed — this request is not covered by the current plan or PAYG balance.';
+          reject(
+            new Error(detailText ? `${quotaText} (${detailText})` : quotaText),
+          );
         } else {
           reject(new Error(errorMessage));
         }

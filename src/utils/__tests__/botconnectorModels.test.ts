@@ -1,6 +1,7 @@
 import {
   canonicalCloudModelId,
   catalogSupportsVision,
+  cloudModelSupportsTools,
   describeCloudModel,
   humanizeModelId,
   isChatCatalogEntry,
@@ -116,5 +117,55 @@ describe('botconnectorModels', () => {
       describeCloudModel(row('c', {botconnector_access: 'plan'}), {}),
     ]);
     expect(sorted.map(m => m.access)).toEqual(['plan', 'free', 'payg']);
+  });
+
+  describe('cloudModelSupportsTools (model axis, not account)', () => {
+    it('prefers the verified runtime answer from /v1/models', () => {
+      expect(
+        cloudModelSupportsTools(
+          [row('m', {botconnector_capabilities: {tools: false}})],
+          'm',
+          {m: {id: 'm', category: 'chat', capabilities: ['Tools']}},
+        ),
+      ).toBe(false);
+      expect(
+        cloudModelSupportsTools(
+          [row('m', {botconnector_capabilities: {tools: true}})],
+          'm',
+          {},
+        ),
+      ).toBe(true);
+    });
+
+    it('falls back to the catalog tag when no verified answer exists', () => {
+      expect(
+        cloudModelSupportsTools(
+          [row('claude-sonnet-5-5')],
+          'claude-sonnet-5-5',
+          catalog,
+        ),
+      ).toBe(true);
+      expect(
+        cloudModelSupportsTools([row('agnes-image')], 'agnes-image', catalog),
+      ).toBeUndefined();
+    });
+
+    it('stays silent for unknown models instead of blocking', () => {
+      expect(cloudModelSupportsTools(undefined, 'm', catalog)).toBeUndefined();
+      expect(cloudModelSupportsTools([], 'm', catalog)).toBeUndefined();
+      expect(
+        cloudModelSupportsTools([row('other')], 'm', catalog),
+      ).toBeUndefined();
+    });
+
+    it('maps payg route ids before catalog lookup', () => {
+      expect(
+        cloudModelSupportsTools(
+          [row('payg:anthropic_direct:claude-sonnet-5-5')],
+          'payg:anthropic_direct:claude-sonnet-5-5',
+          catalog,
+        ),
+      ).toBe(true);
+    });
   });
 });

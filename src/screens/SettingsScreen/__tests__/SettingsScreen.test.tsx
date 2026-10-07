@@ -87,6 +87,19 @@ describe('SettingsScreen', () => {
     expect(getByDisplayValue('2048')).toBeTruthy(); // Context size
   });
 
+  it('presents Account as its own section with a direct sign-in/out entry', () => {
+    const {getByText, getByTestId} = render(<SettingsScreen />, {
+      withSafeArea: true,
+      withNavigation: true,
+    });
+
+    // First-class Account entry (not buried in About).
+    expect(getByText(l10n.en.settings.accountSection)).toBeTruthy();
+    expect(getByTestId('botconnector-account-card')).toBeTruthy();
+    // Direct sign-in / sign-out without leaving Settings.
+    expect(getByTestId('botconnector-account-action')).toBeTruthy();
+  });
+
   it('updates context size correctly', async () => {
     jest.useFakeTimers();
     const {getByDisplayValue} = render(<SettingsScreen />, {

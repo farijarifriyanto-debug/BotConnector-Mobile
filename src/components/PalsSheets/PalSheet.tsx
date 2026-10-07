@@ -355,11 +355,11 @@ export const PalSheet: React.FC<PalSheetProps> = observer(
                   }}
                   name="name"
                   label={
-                    l10n.components.assistantPalSheet?.palName || 'Pal Name'
+                    l10n.components.assistantPalSheet?.palName || 'Persona Name'
                   }
                   placeholder={
                     l10n.components.assistantPalSheet?.palNamePlaceholder ||
-                    'Enter pal name'
+                    'Enter a name'
                   }
                   required
                   onSubmitEditing={() => inputRefs.current.description?.focus()}
@@ -474,7 +474,7 @@ export const PalSheet: React.FC<PalSheetProps> = observer(
         <PalGenerationSettingsSheet
           isVisible={showGenerationSettings}
           onClose={handleCloseGenerationSettings}
-          palName={pal.name || 'Pal'}
+          palName={pal.name || 'Persona'}
           completionSettings={currentCompletionSettings}
           onUpdateSettings={handleUpdateCompletionSettings}
         />

@@ -179,7 +179,7 @@ describe('PalHeaderRight', () => {
         );
         expect(Alert.alert).toHaveBeenCalledWith(
           'Export Error',
-          'Failed to export all pals.',
+          'Failed to export all personas.',
         );
       });
 

@@ -3,6 +3,7 @@ import {Alert} from 'react-native';
 import {render, fireEvent, waitFor} from '../../../../jest/test-utils';
 import {RemoteModelSheet} from '../RemoteModelSheet';
 import {botConnectorAuthStore, serverStore} from '../../../store';
+import {byokProviderStore} from '../../../store/ByokProviderStore';
 import {fetchModels, fetchModelsWithHeaders} from '../../../api/openai';
 import {detectServerType} from '../../../api/servers/detect';
 import {routerModelsBody} from '../../../../jest/fixtures/remoteModelList';
@@ -693,6 +694,79 @@ describe('RemoteModelSheet', () => {
         );
         expect(getByText('local-model-2')).toBeTruthy();
       });
+    });
+  });
+
+  // Spec M: the add-model sheet is reorganised into the four-part hierarchy
+  // (BotConnector Cloud → BotConnector Local → Other AI Providers →
+  // Advanced Connections) so a normal user never has to think in "servers".
+  describe('four-part provider hierarchy', () => {
+    afterEach(() => {
+      byokProviderStore.providers = [];
+    });
+
+    it('presents the four sections in spec order', () => {
+      serverStore.servers = [];
+
+      const {getAllByTestId} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      expect(
+        getAllByTestId(/^section-/).map(node => node.props.testID),
+      ).toEqual([
+        'section-cloud',
+        'section-local',
+        'section-providers',
+        'section-advanced',
+      ]);
+    });
+
+    it('routes the Other AI Providers entry to the add-provider flow', () => {
+      const onAddProvider = jest.fn();
+      const {getByTestId} = render(
+        <RemoteModelSheet
+          isVisible={true}
+          onDismiss={jest.fn()}
+          onAddProvider={onAddProvider}
+        />,
+      );
+
+      fireEvent.press(getByTestId('add-provider-button'));
+      expect(onAddProvider).toHaveBeenCalledTimes(1);
+    });
+
+    it('re-opens the flow on an already saved provider', () => {
+      byokProviderStore.providers = [
+        {
+          providerId: 'openai',
+          baseUrl: '',
+          selectedModels: ['gpt-a'],
+          createdAt: 1,
+        },
+      ];
+      const onAddProvider = jest.fn();
+      const {getByTestId} = render(
+        <RemoteModelSheet
+          isVisible={true}
+          onDismiss={jest.fn()}
+          onAddProvider={onAddProvider}
+        />,
+      );
+
+      fireEvent.press(getByTestId('byok-provider-row-openai'));
+      expect(onAddProvider).toHaveBeenCalledWith('openai');
+    });
+
+    it('keeps manual URL entry reachable under Advanced Connections', () => {
+      serverStore.servers = [];
+
+      const {getByTestId} = render(
+        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+      );
+
+      expect(getByTestId('section-advanced')).toBeTruthy();
+      expect(getByTestId('remote-url-input')).toBeTruthy();
     });
   });
 });

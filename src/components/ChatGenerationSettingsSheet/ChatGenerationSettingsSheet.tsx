@@ -337,7 +337,7 @@ const ChatGenerationSettingsSheetImpl = ({
               buttons={[
                 {
                   value: 'pal',
-                  label: `Pal (${activePal.name})`,
+                  label: `Persona (${activePal.name})`,
                 },
                 {
                   value: 'custom',

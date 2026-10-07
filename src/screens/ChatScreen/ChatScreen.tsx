@@ -30,6 +30,10 @@ import {hasVideoCapability} from '../../utils/pal-capabilities';
 import {L10nContext} from '../../utils';
 import {resolveReasoningCapability} from '../../utils/reasoningCapability';
 import {richFeaturesAllowed} from '../../utils/mobileFeatureAccess';
+import {
+  CapabilityDenialInput,
+  resolveCapabilityDenial,
+} from '../../utils/capabilityDenial';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {MessageType} from '../../utils/types';
 import {ErrorState} from '../../utils/errors';
@@ -136,6 +140,17 @@ export const ChatScreen: React.FC = observer(() => {
     activeBotConnectorAccess?.capabilities.web_search === true;
   const internetForced =
     internetAvailable && searchProviderStore.forceInternetSearch;
+  // Per-axis account gates (never derived from the coarse chat_only/full
+  // flag): Files stays paid-only (server reports files=false + a plan
+  // reason), Media drives the video-pal screen, and the attachment entry
+  // point shows when at least one attachment axis works.
+  const filesEnabled = Boolean(
+    activeBotConnectorAccess &&
+      activeBotConnectorAccess.capabilities.files === true,
+  );
+  const mediaEnabled = activeBotConnectorAccess
+    ? activeBotConnectorAccess.capabilities.media === true
+    : richFeaturesEnabled;
 
   const isSignedIn = botConnectorAuthStore.isSignedIn;
   const accessMissing = activeBotConnectorAccess === undefined;
@@ -169,34 +184,140 @@ export const ChatScreen: React.FC = observer(() => {
   }, [activeServer, isSignedIn, accessMissing, accessPlan, catalogEmpty]);
 
   const handleInternetUnavailable = React.useCallback(() => {
-    if (!botConnectorAuthStore.isSignedIn) {
-      Alert.alert(
-        l10n.components.chatInput.internetSignIn.title,
-        l10n.components.chatInput.internetSignIn.body,
-        [
-          {text: l10n.common.cancel, style: 'cancel'},
-          {
-            text: l10n.settings.connectBotConnector,
-            onPress: () => {
-              botConnectorAuthStore.startLogin().catch(() => undefined);
+    const showLadder = async () => {
+      if (!botConnectorAuthStore.isSignedIn) {
+        Alert.alert(
+          l10n.components.chatInput.internetSignIn.title,
+          l10n.components.chatInput.internetSignIn.body,
+          [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {
+              text: l10n.settings.connectBotConnector,
+              onPress: () => {
+                botConnectorAuthStore.startLogin().catch(() => undefined);
+              },
             },
-          },
-        ],
-      );
-      return;
-    }
-    Alert.alert(
-      l10n.components.chatInput.internetUnavailable.title,
-      l10n.components.chatInput.internetUnavailable.body,
-      [
-        {text: l10n.common.cancel, style: 'cancel'},
-        {
-          text: l10n.camera.chooseVisionModel,
-          onPress: () => uiStore.openModelPicker('models'),
-        },
-      ],
-    );
-  }, [l10n]);
+          ],
+        );
+        return;
+      }
+      const capability = l10n.components.capability;
+      const buildInput = (
+        overrides: Partial<CapabilityDenialInput> = {},
+      ): CapabilityDenialInput => ({
+        enabled: false,
+        isBotConnectorServer: Boolean(
+          activeServer && isBotConnectorApiUrl(activeServer.url),
+        ),
+        isSignedIn: botConnectorAuthStore.isSignedIn,
+        access: activeBotConnectorAccess,
+        accessLoading: activeServer
+          ? serverStore.botConnectorAccessState[activeServer.id]?.loading
+          : undefined,
+        accessError: activeServer
+          ? serverStore.botConnectorAccessState[activeServer.id]?.error
+          : undefined,
+        accessErrorKind: activeServer
+          ? serverStore.botConnectorAccessState[activeServer.id]?.errorKind
+          : undefined,
+        // Web Search is an account capability; there is no per-model axis.
+        modelSupports: true,
+        capability: 'web_search',
+        ...overrides,
+      });
+
+      let denial = resolveCapabilityDenial(buildInput());
+      // Account state is unknown/failed: revalidate once, then decide with
+      // fresh data. A definitive plan answer is never re-fetched here; quota
+      // refusals revalidate on demand so Retry can actually retry.
+      if (
+        denial === 'checking' ||
+        denial === 'unavailable' ||
+        denial === 'quota_rate_limited' ||
+        denial === 'quota_balance'
+      ) {
+        const fresh = activeServer
+          ? await serverStore
+              .refreshBotConnectorAccess(activeServer.id)
+              .catch(() => undefined)
+          : undefined;
+        denial = resolveCapabilityDenial(
+          buildInput({
+            enabled: fresh?.capabilities.web_search === true,
+            access: fresh,
+            accessLoading: false,
+            accessError: !fresh,
+          }),
+        );
+      }
+      if (!denial) {
+        // Capabilities came back enabled while the user waited; the globe
+        // re-renders as available, nothing else to explain.
+        return;
+      }
+      const cancelButton = {
+        text: l10n.common.cancel,
+        style: 'cancel' as const,
+      };
+      switch (denial) {
+        case 'checking':
+          Alert.alert(capability.checkingTitle, capability.checkingBody);
+          return;
+        case 'quota_rate_limited':
+          Alert.alert(capability.quotaRateTitle, capability.quotaRateBody, [
+            cancelButton,
+            {
+              text: capability.retry,
+              onPress: () => {
+                showLadder().catch(() => undefined);
+              },
+            },
+          ]);
+          return;
+        case 'quota_balance':
+          Alert.alert(
+            capability.quotaBalanceTitle,
+            capability.quotaBalanceBody,
+            [
+              cancelButton,
+              {
+                text: capability.retry,
+                onPress: () => {
+                  showLadder().catch(() => undefined);
+                },
+              },
+            ],
+          );
+          return;
+        case 'unavailable':
+          Alert.alert(capability.unavailableTitle, capability.unavailableBody, [
+            {text: l10n.common.cancel, style: 'cancel'},
+            {
+              text: capability.retry,
+              onPress: () => {
+                showLadder().catch(() => undefined);
+              },
+            },
+          ]);
+          return;
+        default:
+          // Covers model-unsupported and plan-not-included: the existing
+          // copy already blames "this account/model".
+          Alert.alert(
+            l10n.components.chatInput.internetUnavailable.title,
+            l10n.components.chatInput.internetUnavailable.body,
+            [
+              {text: l10n.common.cancel, style: 'cancel'},
+              {
+                text: l10n.camera.chooseVisionModel,
+                onPress: () => uiStore.openModelPicker('models'),
+              },
+            ],
+          );
+      }
+    };
+    showLadder().catch(() => undefined);
+  }, [l10n, activeServer, activeBotConnectorAccess]);
 
   const handleInternetToggle = React.useCallback(
     (enabled: boolean) => {
@@ -369,7 +490,7 @@ export const ChatScreen: React.FC = observer(() => {
   };
 
   // If the active pal is a video pal, show the video pal screen
-  if (isVideoPal && richFeaturesEnabled) {
+  if (isVideoPal && mediaEnabled) {
     return <VideoPalScreen activePal={activePal} />;
   }
 
@@ -387,7 +508,7 @@ export const ChatScreen: React.FC = observer(() => {
         isStopVisible={modelStore.inferencing}
         isStreaming={modelStore.isStreaming}
         sendButtonVisibilityMode="always"
-        showImageUpload={richFeaturesEnabled}
+        showImageUpload={visionEnabled || filesEnabled}
         isVisionEnabled={visionEnabled}
         initialInputText={pendingMessage || undefined}
         onInitialTextConsumed={clearPendingMessage}

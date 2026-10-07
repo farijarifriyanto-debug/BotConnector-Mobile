@@ -2,8 +2,8 @@ import React from 'react';
 import {Alert, StyleSheet} from 'react-native';
 
 import {fireEvent, render} from '../../../../jest/test-utils';
-import {l10n} from '../../../locales';
-import {botConnectorAuthStore} from '../../../store';
+import {l10n, t} from '../../../locales';
+import {botConnectorAuthStore, serverStore} from '../../../store';
 import {BotConnectorAccountCard} from '../BotConnectorAccountCard';
 
 describe('BotConnectorAccountCard', () => {
@@ -15,6 +15,7 @@ describe('BotConnectorAccountCard', () => {
     (botConnectorAuthStore as any).isSigningIn = false;
     (botConnectorAuthStore as any).isRestoring = false;
     (botConnectorAuthStore as any).error = null;
+    serverStore.botConnectorAccess = {};
   });
 
   it('stacks identity over a stretched sign-in action when signed out', () => {
@@ -108,5 +109,187 @@ describe('BotConnectorAccountCard', () => {
 
     const action = getByTestId('botconnector-account-action');
     expect(action.props.accessibilityState?.disabled).toBe(true);
+  });
+
+  describe('PAYG status line', () => {
+    it('shows the exact PAYG balance when PAYG is active', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+        available_micros: 5_000_000,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+
+      const {getByText} = render(<BotConnectorAccountCard />);
+
+      expect(
+        getByText(t(l10n.en.settings.paygActive, {balance: '$5.00'})),
+      ).toBeTruthy();
+    });
+
+    it('states a zero PAYG balance explicitly and invents no numbers', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+        available_micros: 0,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+
+      const {getByText, queryByText} = render(<BotConnectorAccountCard />);
+
+      expect(getByText(l10n.en.settings.paygZero)).toBeTruthy();
+      expect(queryByText(l10n.en.settings.paygActive)).toBeNull();
+      expect(queryByText(/\$[1-9]/)).toBeNull();
+    });
+
+    it('reports PAYG unavailable when the feature is not enabled', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'free',
+        has_payg: false,
+        available_micros: 0,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+
+      const {getByText, queryByText} = render(<BotConnectorAccountCard />);
+
+      expect(getByText(l10n.en.settings.paygUnavailable)).toBeTruthy();
+      expect(queryByText(l10n.en.settings.paygZero)).toBeNull();
+    });
+
+    it('reports the balance as unknown when the payload omits it (never as zero)', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+
+      const {getByText, queryByText} = render(<BotConnectorAccountCard />);
+
+      expect(getByText(l10n.en.settings.paygUnknown)).toBeTruthy();
+      expect(queryByText(l10n.en.settings.paygZero)).toBeNull();
+      expect(queryByText(/\$0\.00/)).toBeNull();
+    });
+
+    it('prefers payg.state from the capabilities payload over account fields', () => {
+      // The account payload still says active/$5.00, but the capabilities
+      // payload (server truth) reports zero — zero wins, and no fake $5.00
+      // may appear.
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+        available_micros: 5_000_000,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+      serverStore.botConnectorAccess = {
+        bc: {
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          payg: {state: 'zero', available_micros: 0},
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+          },
+        } as any,
+      };
+
+      const {getByText, queryByText} = render(<BotConnectorAccountCard />);
+
+      expect(getByText(l10n.en.settings.paygZero)).toBeTruthy();
+      expect(queryByText(/\$5\.00/)).toBeNull();
+      expect(queryByText(l10n.en.settings.paygActive)).toBeNull();
+    });
+
+    it('falls back to account fields when no capabilities payload carried payg', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+        available_micros: 2_500_000,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+      // Capabilities loaded, but without a payg block (older payload).
+      serverStore.botConnectorAccess = {
+        bc: {
+          object: 'botconnector.client_capabilities',
+          plan: 'plus',
+          capabilities: {
+            chat: true,
+            web_search: true,
+            read_url: true,
+            tools: true,
+            vision: true,
+            media: true,
+          },
+        } as any,
+      };
+
+      const {getByText} = render(<BotConnectorAccountCard />);
+      expect(
+        getByText(t(l10n.en.settings.paygActive, {balance: '$2.50'})),
+      ).toBeTruthy();
+    });
+  });
+
+  describe('read-only mode (informational surfaces such as About)', () => {
+    it('shows account status without any sign-in or sign-out action', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        email: 'fari@example.com',
+        plan: 'plus',
+        has_payg: false,
+        available_micros: 0,
+      };
+      (botConnectorAuthStore as any).isSignedIn = true;
+
+      const {getByTestId, queryByTestId, getByText} = render(
+        <BotConnectorAccountCard readOnly />,
+      );
+
+      expect(getByTestId('botconnector-account-card')).toBeTruthy();
+      expect(getByText('Fari')).toBeTruthy();
+      expect(queryByTestId('botconnector-account-action')).toBeNull();
+    });
+
+    it('points to Settings for signing in instead of acting inline', () => {
+      const startLoginSpy = jest
+        .spyOn(botConnectorAuthStore, 'startLogin')
+        .mockResolvedValue(undefined);
+
+      const {queryByTestId, getByText} = render(
+        <BotConnectorAccountCard readOnly />,
+      );
+
+      expect(queryByTestId('botconnector-account-action')).toBeNull();
+      expect(getByText(l10n.en.settings.accountManageInSettings)).toBeTruthy();
+      expect(startLoginSpy).not.toHaveBeenCalled();
+      startLoginSpy.mockRestore();
+    });
+
+    it('never triggers the sign-out confirmation in read-only mode', () => {
+      (botConnectorAuthStore as any).account = {
+        display_name: 'Fari',
+        plan: 'plus',
+        has_payg: true,
+        available_micros: 1_000_000,
+      };
+      const alertSpy = jest
+        .spyOn(Alert, 'alert')
+        .mockImplementation(() => undefined);
+
+      const {queryByTestId} = render(<BotConnectorAccountCard readOnly />);
+
+      expect(queryByTestId('botconnector-account-action')).toBeNull();
+      expect(alertSpy).not.toHaveBeenCalled();
+      alertSpy.mockRestore();
+    });
   });
 });

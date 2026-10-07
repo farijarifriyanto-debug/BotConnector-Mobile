@@ -10,7 +10,7 @@ export type ItalicAccentTitleProps = {
   title: string;
   /**
    * Substring rendered in Fraunces-Italic. When omitted the entire
-   * title renders italic (screen 6 "Pip"). On non-Latin locales the
+   * title renders italic (screen 6 pal name). On non-Latin locales the
    * Fraunces family swaps to Inter via the `typographyForLocale`
    * fallback; we mirror that by switching the italic-run family to
    * Inter-Medium + `fontStyle:'italic'` when the base title is

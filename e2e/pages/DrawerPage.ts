@@ -92,7 +92,7 @@ export class DrawerPage extends BasePage {
    */
   async navigateToPals(): Promise<void> {
     await this.waitForOpen();
-    await this.tap(byText('Pals'));
+    await this.tap(byText('Personas'));
     await browser.pause(300);
     await this.waitForClose();
   }

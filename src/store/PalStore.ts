@@ -31,7 +31,6 @@ import {isUSStorefront} from '../utils/region';
 import NativeExternalContentLink from '../specs/NativeExternalContentLink';
 import {palsHubService} from '../services';
 import {registerDefaultTalents} from '../services/talents';
-import {LOOKIE_DEFAULT_MODEL} from './builtinPalModels';
 import {chatTemplates} from '../utils/chat';
 import {defaultCompletionParams} from '../utils/completionSettingsVersions';
 import {parsePalsHubTemplate} from '../utils/palshub-template-parser';
@@ -52,12 +51,41 @@ import {downloadPalThumbnail, deletePalThumbnail} from '../utils/imageUtils';
 // Track each built-in separately so future defaults can still be introduced.
 // TODO: when adding another built-in pal, extract a shared seed-once helper
 // (check key, find existing, create, set key) instead of a third copy.
-const LOOKIE_SEEDED_KEY = 'PalStore.builtin.Lookie.seeded';
-const PIP_SEEDED_KEY = 'PalStore.builtin.Pip.seeded';
+
+// Spec J: Lookie/Pip (upstream PocketPal builtins) are no longer seeded and
+// are hidden from every list surface. Existing rows are kept in the database;
+// only their ids are remembered here so the hide survives restarts without
+// touching user data.
+const HIDDEN_IDS_KEY = 'PalStore.builtin.hiddenIds';
+const HIDDEN_MIGRATED_KEY = 'PalStore.builtin.upstreamDefaultsHidden.v1';
+
+/**
+ * One-time signature match for rows that were seeded by upstream releases
+ * (boot-time Lookie/Pip seeds and the onboarding Pip). A user-created pal
+ * that merely shares the name does not carry the upstream system prompt, so
+ * it never matches; after the migration runs once, ids alone decide.
+ */
+const isUpstreamBuiltinPal = (pal: Pal): boolean => {
+  const prompt = pal.systemPrompt || '';
+  if (pal.name === 'Pip' && prompt.includes('You are Pip')) {
+    return true;
+  }
+  if (
+    pal.name === 'Lookie' &&
+    (prompt.includes('You are Lookie') || pal.capabilities?.video === true)
+  ) {
+    return true;
+  }
+  return false;
+};
 
 class PalStore {
   // Core pals storage
   pals: Pal[] = [];
+
+  // Spec J: ids of upstream builtin pals (Lookie/Pip) masked from every list
+  // surface. The rows themselves are never deleted from the database.
+  hiddenPalIds: string[] = [];
 
   // PalsHub integration state
   cachedPalsHubPals: PalsHubPal[] = [];
@@ -91,14 +119,9 @@ class PalStore {
       // Migrate from JSON/AsyncStorage to database
       await palRepository.checkAndMigrateFromJSON();
 
-      // Load pals from database
+      // Load pals from database (upstream Lookie/Pip are masked here; they
+      // are no longer seeded — spec J).
       await this.loadPalsFromDatabase();
-
-      // Initialize Lookie pal after database is loaded
-      await this.initializeLookiePal();
-
-      // Initialize Pip pal (idempotent — see initializePipPal).
-      await this.initializePipPal();
 
       // Register talent engines (idempotent)
       registerDefaultTalents();
@@ -157,11 +180,54 @@ class PalStore {
   private async loadPalsFromDatabase() {
     try {
       const pals = await palRepository.getAllPals();
+      const hiddenIds = await this.resolveHiddenPalIds(pals);
       runInAction(() => {
-        this.pals = pals;
+        this.hiddenPalIds = hiddenIds;
+        this.pals = Array.isArray(pals)
+          ? pals.filter(p => !hiddenIds.includes(p.id))
+          : pals;
       });
     } catch (error) {
       console.error('Error loading pals from database:', error);
+    }
+  }
+
+  /**
+   * Ids to mask (spec J): previously persisted ones plus — until the
+   * one-time migration flag exists — any row still matching the upstream
+   * Lookie/Pip signature. Never throws: a storage failure fails open and
+   * leaves the visible list unfiltered for this session.
+   */
+  private async resolveHiddenPalIds(pals: Pal[]): Promise<string[]> {
+    try {
+      let ids: string[] = [];
+      const stored = await AsyncStorage.getItem(HIDDEN_IDS_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            ids = parsed.filter((x): x is string => typeof x === 'string');
+          }
+        } catch {
+          // Corrupt payload: ignore and rescan below if not yet migrated.
+        }
+      }
+
+      const migrated =
+        (await AsyncStorage.getItem(HIDDEN_MIGRATED_KEY)) === 'true';
+      if (!migrated) {
+        const scanned = (Array.isArray(pals) ? pals : [])
+          .filter(isUpstreamBuiltinPal)
+          .map(p => p.id)
+          .filter(id => !ids.includes(id));
+        ids = [...ids, ...scanned];
+        await AsyncStorage.setItem(HIDDEN_IDS_KEY, JSON.stringify(ids));
+        await AsyncStorage.setItem(HIDDEN_MIGRATED_KEY, 'true');
+      }
+      return ids;
+    } catch (error) {
+      console.warn('Failed to resolve hidden builtin pals:', error);
+      return [];
     }
   }
 
@@ -272,7 +338,7 @@ class PalStore {
       if (palsHubPal.price_cents > 0) {
         const ownership = await palsHubService.checkPalOwnership(palsHubPal.id);
         if (!ownership.owned) {
-          throw new Error('You must own this Pal to download it');
+          throw new Error('You must own this persona to download it');
         }
       }
 
@@ -634,7 +700,11 @@ class PalStore {
   };
 
   getLocalPals = () => {
-    return this.pals.filter(pal => pal.source === 'local' || !pal.source);
+    return this.pals.filter(
+      pal =>
+        (pal.source === 'local' || !pal.source) &&
+        !this.hiddenPalIds.includes(pal.id),
+    );
   };
 
   getDownloadedPalsHubPals = () => {
@@ -703,112 +773,6 @@ class PalStore {
       throw error;
     }
   };
-
-  /**
-   * Seed the default "Lookie" VideoPal once. After the first launch that
-   * records the seed, deletions and renames are preserved; on that launch a
-   * missing Lookie is created (installs that predate the key included).
-   */
-  private async initializeLookiePal(): Promise<void> {
-    try {
-      if ((await AsyncStorage.getItem(LOOKIE_SEEDED_KEY)) === 'true') {
-        return;
-      }
-
-      // Check if Lookie already exists
-      const lookiePal = this.pals.find(
-        p => p.capabilities?.video === true && p.name === 'Lookie',
-      );
-
-      if (!lookiePal) {
-        console.log('Creating default Lookie pal...');
-
-        // Offline constant — no network resolve at pal init.
-        const defaultModel = LOOKIE_DEFAULT_MODEL;
-
-        // Create the Lookie pal with all the original properties
-        const palData: Omit<Pal, 'id' | 'created_at' | 'updated_at'> = {
-          type: 'local',
-          name: 'Lookie',
-          description:
-            'Real-time video analysis assistant that provides concise descriptions of your camera feed.',
-          systemPrompt:
-            'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
-          isSystemPromptChanged: false,
-          useAIPrompt: false,
-          defaultModel: defaultModel, // Set the default model so users know what to download
-          parameters: {
-            captureInterval: '3000', // 3 seconds (original value) - stored as string for text input
-          },
-          parameterSchema: [
-            {
-              key: 'captureInterval',
-              type: 'text',
-              label: 'Capture Interval (ms)',
-              required: false,
-            },
-          ],
-          capabilities: {video: true},
-          color: ['#9E204F', '#F6E1EA'], // Original Lookie colors
-          source: 'local',
-        };
-
-        await this.addPal(palData);
-      } else {
-        console.log('Lookie pal already exists, skipping creation');
-      }
-      await AsyncStorage.setItem(LOOKIE_SEEDED_KEY, 'true');
-    } catch (error) {
-      console.error('Error initializing Lookie pal:', error);
-    }
-  }
-
-  /**
-   * Seed the default "Pip" recommended pal once. After the first launch that
-   * records the seed, deletions and renames are preserved; on that launch a
-   * missing Pip is created (installs that predate the key included).
-   *
-   * Idempotent: a re-entry never overwrites an existing Pip record, so a
-   * `defaultModel` bound from a prior session (e.g. by the onboarding
-   * recommended-pal picker) survives subsequent app starts.
-   */
-  private async initializePipPal(): Promise<void> {
-    try {
-      if ((await AsyncStorage.getItem(PIP_SEEDED_KEY)) === 'true') {
-        return;
-      }
-
-      const existing = this.pals.find(
-        p => p.name === 'Pip' && p.source === 'local',
-      );
-      if (existing) {
-        await AsyncStorage.setItem(PIP_SEEDED_KEY, 'true');
-        return;
-      }
-
-      const palData: Omit<Pal, 'id' | 'created_at' | 'updated_at'> = {
-        type: 'local',
-        name: 'Pip',
-        description:
-          'A friendly general-purpose pal that runs entirely on your phone.',
-        systemPrompt:
-          'You are Pip, a friendly and helpful assistant who runs locally on the user’s phone. Keep replies concise and warm.',
-        isSystemPromptChanged: false,
-        useAIPrompt: false,
-        defaultModel: undefined,
-        parameters: {},
-        parameterSchema: [],
-        capabilities: {},
-        color: ['#0E0D0C', '#FAFAFA'],
-        source: 'local',
-      };
-
-      await this.addPal(palData);
-      await AsyncStorage.setItem(PIP_SEEDED_KEY, 'true');
-    } catch (error) {
-      console.error('Error initializing Pip pal:', error);
-    }
-  }
 }
 
 export const palStore = new PalStore();

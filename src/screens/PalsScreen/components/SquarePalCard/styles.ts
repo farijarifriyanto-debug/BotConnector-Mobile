@@ -61,11 +61,6 @@ export const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    thumbnailText: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: theme.colors.onPrimaryContainer,
-    },
 
     chatButton: {
       position: 'absolute',

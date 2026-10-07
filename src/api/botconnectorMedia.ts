@@ -37,12 +37,20 @@ interface BotConnectorImageResponse {
 
 const parseError = async (response: Response): Promise<string> => {
   const payload: any = await response.json().catch(() => ({}));
-  return (
-    payload?.error?.message ||
-    payload?.detail ||
-    payload?.message ||
-    `BotConnector media request failed (${response.status})`
-  );
+  const message =
+    payload?.error?.message || payload?.detail || payload?.message;
+  if (message) {
+    return message;
+  }
+  // Server quota refusals get a clear explanation of their own — these are
+  // quota limits, not model capability problems.
+  if (response.status === 429) {
+    return 'Rate limit reached — the server is limiting requests right now. Try again in a few minutes.';
+  }
+  if (response.status === 402) {
+    return 'Quota or balance needed — this request is not covered by the current plan or PAYG balance.';
+  }
+  return `BotConnector media request failed (${response.status})`;
 };
 
 export async function fetchBotConnectorImageModels({

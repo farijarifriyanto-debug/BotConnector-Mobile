@@ -11,3 +11,4 @@ export * from './BotConnectorAuthStore';
 export * from './TTSStore';
 export * from './CheckoutFlowStore';
 export * from './SearchProviderStore';
+export * from './ByokProviderStore';

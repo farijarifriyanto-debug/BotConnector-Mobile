@@ -64,4 +64,12 @@ describe('Onboarding6Screen picker', () => {
       expect(uiStore.setOnboardingModelId).toHaveBeenCalledWith(expectedId);
     });
   });
+
+  it('greets with the Bico mark instead of the upstream illustration', () => {
+    const {queryByTestId, getByTestId} = renderScreen();
+    expect(queryByTestId('bico-mascot')).toBeNull();
+    const mascot = getByTestId('bico-mascot', {includeHiddenElements: true});
+    expect(mascot.props.source.testUri).toContain('bico-mark');
+    expect(mascot.props.importantForAccessibility).toBe('no-hide-descendants');
+  });
 });

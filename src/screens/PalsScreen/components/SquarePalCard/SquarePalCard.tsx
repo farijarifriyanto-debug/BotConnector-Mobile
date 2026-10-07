@@ -16,6 +16,8 @@ import {
 
 import {useTheme} from '../../../../hooks';
 
+import {ModelArtwork} from '../../../../components/ModelArtwork';
+
 import {createStyles} from './styles';
 
 import type {Pal} from '../../../../store/PalStore';
@@ -128,9 +130,7 @@ const PalThumbnail: React.FC<{
 }> = ({pal, isLocal, onChatPress}) => {
   const theme = useTheme();
   const styles = createStyles(theme);
-
-  const palName = isPalsHubPal(pal) ? pal.title : pal.name;
-  const firstLetter = palName?.[0]?.toUpperCase() || 'P';
+  const l10n = useContext(L10nContext);
 
   // Get thumbnail image URL - convert relative paths to full URIs for Image component
   const thumbnailUrl = pal.thumbnail_url
@@ -181,15 +181,25 @@ const PalThumbnail: React.FC<{
           resizeMode="cover"
         />
       ) : (
-        <Text style={[styles.thumbnailText, {color: textColor}]}>
-          {firstLetter}
-        </Text>
+        <ModelArtwork
+          metadata={null}
+          size={40}
+          color={textColor}
+          testID={`pal-artwork-${pal.id}`}
+        />
       )}
 
       {/* Chat Navigation Button (only for downloaded/local pals) */}
       {(isLocal ||
         (isPalsHubPal(pal) && palStore.isPalsHubPalDownloaded(pal.id))) && (
-        <TouchableOpacity style={styles.chatButton} onPress={onChatPress}>
+        <TouchableOpacity
+          style={styles.chatButton}
+          hitSlop={8}
+          onPress={onChatPress}
+          accessibilityRole="button"
+          accessibilityLabel={t(l10n.palsScreen.chatWith, {
+            name: isPalsHubPal(pal) ? pal.title : pal.name,
+          })}>
           {getChatNavigationIcon()}
         </TouchableOpacity>
       )}
@@ -232,7 +242,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
           if (!localPal) {
             // Need to download first
             Alert.alert(
-              'Download Pal',
+              'Download Persona',
               `Download "${pal.title}" to start chatting?`,
               [
                 {text: 'Cancel', style: 'cancel'},
@@ -247,7 +257,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
                       console.error('Error downloading pal:', error);
                       Alert.alert(
                         'Download Error',
-                        'Failed to download pal. Please try again.',
+                        'Failed to download persona. Please try again.',
                       );
                     }
                   },
@@ -290,7 +300,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
           if (palDefaultModel) {
             Alert.alert(
               'Switch Model?',
-              `Switch to "${palDefaultModel.name}" for this pal?`,
+              `Switch to "${palDefaultModel.name}" for this persona?`,
               [
                 {text: 'Keep Current', style: 'cancel'},
                 {
@@ -331,9 +341,11 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
         await exportPal(pal.id);
       } catch (error) {
         console.error('Error sharing pal:', error);
-        Alert.alert('Share Error', 'Failed to share pal. Please try again.', [
-          {text: 'OK'},
-        ]);
+        Alert.alert(
+          'Share Error',
+          'Failed to share this persona. Please try again.',
+          [{text: 'OK'}],
+        );
       }
     };
 
@@ -410,6 +422,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
                         )}
                         size={20}
                         style={styles.actionButton}
+                        accessibilityLabel={`${l10n.common.export} ${palName}`}
                         onPress={handleShare}
                       />
                     )}
@@ -426,6 +439,7 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
                         )}
                         size={20}
                         style={styles.actionButton}
+                        accessibilityLabel={`${l10n.common.delete} ${palName}`}
                         onPress={handleDelete}
                       />
                     )}
@@ -461,6 +475,8 @@ export const SquarePalCard: React.FC<SquarePalCardProps> = observer(
                         iconColor={theme.colors.error}
                         size={14}
                         style={styles.warningIcon}
+                        accessible={false}
+                        importantForAccessibility="no"
                       />
                       <Text style={styles.warningText} numberOfLines={1}>
                         {

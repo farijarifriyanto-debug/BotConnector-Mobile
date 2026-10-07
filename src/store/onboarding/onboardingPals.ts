@@ -1,6 +1,9 @@
 /**
  * Hardcoded onboarding pals — one per topic chosen on screen 5, with
- * three model tiers each. `else` falls back to the Pip (smartchat) pal.
+ * three model tiers each. `else` falls back to the smartchat pal.
+ * Spec J: none of these may present an upstream Lookie/Pip persona —
+ * the smartchat entry is a neutral "Assistant" (internal key `pip` stays
+ * so existing l10n paths keep working).
  *
  * The Balanced tier is universally `recommended: true` for now; a
  * future device-aware tier picker (pocketpal-device-rules) will adjust
@@ -110,11 +113,11 @@ export interface OnboardingPalDef {
 
 const PAL_PIP: OnboardingPalDef = {
   key: 'pip',
-  name: 'Pip',
+  name: 'Assistant',
   description:
-    'A friendly general-purpose pal that runs entirely on your phone.',
+    'A friendly general-purpose assistant that runs entirely on your phone.',
   systemPrompt:
-    "You are Pip, a friendly and helpful assistant who runs locally on the user's phone. Keep replies concise and warm.",
+    "You are a friendly and helpful assistant who runs locally on the user's phone. Keep replies concise and warm.",
   color: ['#0E0D0C', '#FAFAFA'],
   models: [
     palEntry({

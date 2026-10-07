@@ -188,13 +188,16 @@ describe('SquarePalCard', () => {
       expect(images).toBeTruthy();
     });
 
-    it('renders first letter when no thumbnail available', () => {
+    it('renders generic AI artwork instead of a first letter when no thumbnail is available', () => {
       const pal = createLocalPal({name: 'Test Pal'});
-      const {getByText} = render(
+      const {getByTestId, queryByText} = render(
         <SquarePalCard pal={pal} onPress={mockOnPress} isLocal={true} />,
       );
 
-      expect(getByText('T')).toBeTruthy(); // First letter
+      // Spec I: fallback artwork is a clean generic AI icon, never a giant
+      // letter avatar like "Q" / "V".
+      expect(getByTestId('pal-artwork-test-pal-1')).toBeTruthy();
+      expect(queryByText('T')).toBeNull();
     });
 
     it('renders protection badge for protected PalsHub pals', () => {
@@ -589,7 +592,7 @@ describe('SquarePalCard', () => {
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'Share Error',
-          'Failed to share pal. Please try again.',
+          'Failed to share this persona. Please try again.',
           [{text: 'OK'}],
         );
       });

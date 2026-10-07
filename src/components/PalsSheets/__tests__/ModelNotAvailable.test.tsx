@@ -48,7 +48,7 @@ describe('ModelNotAvailable', () => {
 
     expect(
       getByText(
-        'This pal recommends a specific model that needs to be downloaded, or you can select a different model.',
+        'This persona recommends a specific model that needs to be downloaded, or you can select a different model.',
       ),
     ).toBeTruthy();
     expect(getByText('Download')).toBeTruthy();

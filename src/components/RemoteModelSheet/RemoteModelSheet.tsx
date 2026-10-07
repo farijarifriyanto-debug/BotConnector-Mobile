@@ -22,8 +22,12 @@ import {runInAction} from 'mobx';
 import debounce from 'lodash/debounce';
 
 import {BotConnectorAccountCard, Sheet, TextInput} from '..';
+import {LocalDevicePair} from '../LocalDevicePair';
 import {useTheme} from '../../hooks';
 import {botConnectorAuthStore, serverStore} from '../../store';
+import {byokProviderStore} from '../../store/ByokProviderStore';
+import {getProviderMeta} from '../../api/byokProviders';
+import type {ByokProviderId} from '../../api/byokProviders';
 import {L10nContext} from '../../utils';
 import {isLocalHost} from '../../utils/network';
 import {parseTimeoutMs} from '../../utils/timeout';
@@ -57,10 +61,12 @@ interface RemoteModelSheetProps {
   isVisible: boolean;
   onDismiss: () => void;
   onModelAdded?: () => void;
+  /** Opens the Add AI Provider (BYOK) flow, optionally on a saved provider. */
+  onAddProvider?: (providerId?: ByokProviderId) => void;
 }
 
 export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
-  ({isVisible, onDismiss, onModelAdded}) => {
+  ({isVisible, onDismiss, onModelAdded, onAddProvider}) => {
     const theme = useTheme();
     const l10n = useContext(L10nContext);
     const styles = createStyles(theme);
@@ -433,6 +439,14 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             </View>
           )}
 
+          {/* 1. BotConnector Cloud */}
+          <Text
+            testID="section-cloud"
+            accessibilityRole="header"
+            style={styles.sectionHeader}>
+            {l10n.settings.sectionCloud}
+          </Text>
+
           <View style={styles.inputSpacing}>
             <BotConnectorAccountCard />
           </View>
@@ -464,8 +478,23 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             </View>
           ) : null}
 
+          {/* 2. BotConnector Local — automatic pairing with BotConnector
+              Desktop (spec item 4) above the manual entry to the laptop's
+              local API server. */}
+          <Text
+            testID="section-local"
+            accessibilityRole="header"
+            style={styles.sectionHeader}>
+            {l10n.settings.sectionLocal}
+          </Text>
+          {/* Pairing never changes the manual flow below: the Direct
+              connection button and its address/pairing-key form stay as
+              they were. */}
+          <View style={styles.inputSpacing}>
+            <LocalDevicePair />
+          </View>
           {/* The Cloud form stays Cloud-only; the direct Local connection is
-              an advanced option shown when the Cloud preset is not active. */}
+              shown when the Cloud preset is not active. */}
           {!isBotConnectorPreset && (
             <View style={styles.inputSpacing}>
               <Button
@@ -482,6 +511,57 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               </Text>
             </View>
           )}
+
+          {/* 3. Other AI Providers — BYOK credentials live in the device
+              keychain and are only ever sent to the provider itself. */}
+          <Text
+            testID="section-providers"
+            accessibilityRole="header"
+            style={styles.sectionHeader}>
+            {l10n.settings.sectionOtherProviders}
+          </Text>
+          {byokProviderStore.providers.length > 0 ? (
+            byokProviderStore.providers.map(config => (
+              <TouchableOpacity
+                key={config.providerId}
+                testID={`byok-provider-row-${config.providerId}`}
+                accessibilityRole="button"
+                accessibilityLabel={getProviderMeta(config.providerId).label}
+                style={styles.providerShortcut}
+                onPress={() => onAddProvider?.(config.providerId)}>
+                <Text style={styles.providerShortcutLabel}>
+                  {getProviderMeta(config.providerId).label}
+                </Text>
+                <Text style={styles.providerShortcutMeta}>
+                  {t(l10n.settings.modelsCount, {
+                    count: config.selectedModels.length,
+                  })}
+                </Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <Text style={styles.apiKeyDescription}>
+              {l10n.components.addProvider.emptyState}
+            </Text>
+          )}
+          <View style={styles.inputSpacing}>
+            <Button
+              testID="add-provider-button"
+              mode="contained-tonal"
+              icon="plus"
+              onPress={() => onAddProvider?.()}
+              accessibilityLabel={l10n.components.addProvider.title}>
+              {l10n.components.addProvider.title}
+            </Button>
+          </View>
+
+          {/* 4. Advanced Connections — manual endpoint entry stays here. */}
+          <Text
+            testID="section-advanced"
+            accessibilityRole="header"
+            style={styles.sectionHeader}>
+            {l10n.settings.sectionAdvanced}
+          </Text>
 
           {/* Known Server Chips */}
           {serverStore.servers.length > 0 && (
@@ -681,6 +761,13 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
                   right={
                     <PaperTextInput.Icon
                       testID="remote-apikey-toggle"
+                      accessibilityLabel={
+                        secureTextEntry
+                          ? l10n.settings.internetSearch
+                              .showKeyAccessibilityLabel
+                          : l10n.settings.internetSearch
+                              .hideKeyAccessibilityLabel
+                      }
                       icon={({color}) =>
                         secureTextEntry ? (
                           <EyeIcon width={24} height={24} stroke={color} />
@@ -843,6 +930,11 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
               loading={isSaving}
               disabled={
                 isSaving || !selectedModelId || availableModels.length === 0
+              }
+              accessibilityHint={
+                !isSaving && !selectedModelId && availableModels.length > 0
+                  ? l10n.settings.addModelDisabledHint
+                  : undefined
               }
               style={styles.addButton}>
               {l10n.settings.addModel}

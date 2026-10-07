@@ -158,7 +158,7 @@ describe('Talent Tool-Use Pipeline', () => {
     await dismissPerformanceWarningIfPresent();
     await chatPage.waitForReady();
 
-    // === Phase 3: Select Pal and chat ===
+    // === Phase 3: Select persona and chat ===
 
     // Select the new pal via pal picker
     await chatPage.openPalPicker();

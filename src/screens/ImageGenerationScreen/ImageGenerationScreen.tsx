@@ -13,7 +13,7 @@ import Share from 'react-native-share';
 import {
   ActivityIndicator,
   Button,
-  Chip,
+  Icon,
   IconButton,
   Text,
 } from 'react-native-paper';
@@ -26,58 +26,14 @@ import {
   generateBotConnectorImage,
 } from '../../api/botconnectorMedia';
 import {BotConnectorAccountCard, TextInput} from '../../components';
+import {ModelArtwork} from '../../components/ModelArtwork';
 import {Dropdown} from '../../components/ui';
 import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {useTheme} from '../../hooks';
-import {serverStore, uiStore} from '../../store';
+import {serverStore} from '../../store';
+import {L10nContext} from '../../utils';
+import {t} from '../../locales';
 import {createStyles} from './styles';
-
-const COPY = {
-  en: {
-    intro:
-      'Generate images with your BotConnector account. Free, plan, and PAYG access are enforced by your account quota.',
-    connectTitle: 'Connect BotConnector first',
-    connectBody:
-      'Sign in with your BotConnector account below. No BotConnector API key is needed for normal app use.',
-    model: 'Image model',
-    prompt: 'Describe the image',
-    promptPlaceholder:
-      'Example: a clean product photo of a black AI device on a dark desk',
-    generate: 'Generate image',
-    generating: 'Generating…',
-    share: 'Share',
-    retry: 'Refresh models',
-    noModels: 'No image models are available for this account right now.',
-    generated: 'Generated image',
-    reference: 'Reference photos',
-    addReference: 'Add photos',
-    referenceHint:
-      'Use up to 4 JPG, PNG, or WebP images (4 MB each, 8 MB total). Only shown for models that support image references.',
-    referenceUnsupported: 'This model does not support reference photos.',
-  },
-  id: {
-    intro:
-      'Buat gambar dengan akun BotConnector. Akses gratis, paket, dan PAYG mengikuti kuota akun Anda.',
-    connectTitle: 'Hubungkan BotConnector terlebih dahulu',
-    connectBody:
-      'Masuk dengan akun BotConnector di bawah. Penggunaan aplikasi normal tidak memerlukan API key BotConnector.',
-    model: 'Model gambar',
-    prompt: 'Jelaskan gambar yang ingin dibuat',
-    promptPlaceholder:
-      'Contoh: foto produk perangkat AI hitam di meja gelap, bersih dan minimal',
-    generate: 'Buat gambar',
-    generating: 'Membuat…',
-    share: 'Bagikan',
-    retry: 'Muat ulang model',
-    noModels: 'Saat ini tidak ada model gambar yang tersedia untuk akun ini.',
-    generated: 'Gambar hasil',
-    reference: 'Foto referensi',
-    addReference: 'Tambah foto',
-    referenceHint:
-      'Maksimal 4 JPG, PNG, atau WebP (4 MB per gambar, total 8 MB). Hanya untuk model yang mendukung gambar referensi.',
-    referenceUnsupported: 'Model ini tidak mendukung foto referensi.',
-  },
-};
 
 type ReferenceImage = {
   uri: string;
@@ -104,7 +60,8 @@ const extensionForMime = (mime: string): string => {
 export const ImageGenerationScreen = observer(() => {
   const theme = useTheme();
   const styles = createStyles(theme);
-  const copy = uiStore.language === 'id' ? COPY.id : COPY.en;
+  const l10n = React.useContext(L10nContext);
+  const copy = l10n.imageGeneration;
 
   const botConnectorServer = serverStore.servers.find(server =>
     isBotConnectorApiUrl(server.url),
@@ -139,6 +96,14 @@ export const ImageGenerationScreen = observer(() => {
       180,
     );
   }, []);
+
+  const formatAccess = (access?: string): string => {
+    if (!access) {
+      return '';
+    }
+    const known = copy.access[access as keyof typeof copy.access];
+    return known ?? access.toUpperCase();
+  };
 
   const loadModels = React.useCallback(async () => {
     if (!botConnectorServer) {
@@ -179,11 +144,11 @@ export const ImageGenerationScreen = observer(() => {
     } catch (e) {
       setModels([]);
       setSelectedModel('');
-      setError(e instanceof Error ? e.message : 'Unable to load image models.');
+      setError(e instanceof Error ? e.message : copy.errorLoadModels);
     } finally {
       setLoadingModels(false);
     }
-  }, [botConnectorServer]);
+  }, [botConnectorServer, copy.errorLoadModels]);
 
   React.useEffect(() => {
     loadModels().catch(() => undefined);
@@ -191,6 +156,11 @@ export const ImageGenerationScreen = observer(() => {
 
   const selected = models.find(model => model.id === selectedModel);
   const supportsReferenceImages = selected?.supports_reference_images === true;
+  const selectedMeta = selected
+    ? [selected.developer, formatAccess(selected.botconnector_access)]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
 
   React.useEffect(() => {
     if (!supportsReferenceImages && referenceImages.length > 0) {
@@ -295,13 +265,14 @@ export const ImageGenerationScreen = observer(() => {
         typeof result.quotaLimit === 'number'
       ) {
         setQuotaText(
-          uiStore.language === 'id'
-            ? `Kuota tersisa: ${result.quotaRemaining}/${result.quotaLimit}`
-            : `Quota remaining: ${result.quotaRemaining}/${result.quotaLimit}`,
+          t(copy.quotaRemaining, {
+            remaining: result.quotaRemaining,
+            limit: result.quotaLimit,
+          }),
         );
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Image generation failed.');
+      setError(e instanceof Error ? e.message : copy.errorGenerate);
     } finally {
       setGenerating(false);
     }
@@ -320,7 +291,7 @@ export const ImageGenerationScreen = observer(() => {
     } catch (e) {
       Alert.alert(
         'BotConnector',
-        e instanceof Error ? e.message : 'Unable to share image.',
+        e instanceof Error ? e.message : copy.errorShare,
       );
     }
   };
@@ -328,15 +299,15 @@ export const ImageGenerationScreen = observer(() => {
   if (!botConnectorServer || !apiKey) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-        <View style={{paddingHorizontal: 16, paddingTop: 12}}>
+        <View style={styles.connectContainer}>
           <BotConnectorAccountCard />
-        </View>
-        <View style={styles.centerState}>
-          <Text variant="titleMedium">{copy.connectTitle}</Text>
-          <Text style={styles.muted}>{copy.connectBody}</Text>
-          <Button mode="outlined" onPress={() => loadModels()}>
-            {copy.retry}
-          </Button>
+          <View style={styles.centerState}>
+            <Text variant="titleMedium">{copy.connectTitle}</Text>
+            <Text style={styles.muted}>{copy.connectBody}</Text>
+            <Button mode="outlined" onPress={() => loadModels()}>
+              {copy.retry}
+            </Button>
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -354,51 +325,64 @@ export const ImageGenerationScreen = observer(() => {
           keyboardDismissMode={
             Platform.OS === 'ios' ? 'interactive' : 'on-drag'
           }>
+          {/* Compact account + plan status (quota is enforced server-side). */}
           <BotConnectorAccountCard compact />
-          <Text style={styles.intro}>{copy.intro}</Text>
 
+          {/* Model selector: artwork + compact dropdown, one meta line. */}
           <View style={styles.field}>
-            <Text variant="labelLarge">{copy.model}</Text>
+            <View style={styles.fieldHeader}>
+              <Text variant="titleSmall">{copy.model}</Text>
+              {selectedMeta ? (
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {selectedMeta}
+                </Text>
+              ) : null}
+            </View>
             {loadingModels ? (
-              <ActivityIndicator />
+              <View style={styles.stateRow} testID="image-models-loading">
+                <ActivityIndicator size="small" />
+                <Text style={styles.muted}>{copy.modelLoading}</Text>
+              </View>
             ) : models.length > 0 ? (
-              <Dropdown
-                testID="image-model-dropdown"
-                value={selectedModel}
-                options={models.map(model => ({
-                  value: model.id,
-                  label: `${model.name} · ${model.botconnector_access.toUpperCase()}`,
-                }))}
-                onChange={setSelectedModel}
-              />
+              <View style={styles.modelRow}>
+                <ModelArtwork
+                  metadata={{
+                    provider: selected?.developer,
+                    name: selected?.name,
+                    modelId: selected?.id,
+                  }}
+                  size={20}
+                  color={theme.colors.onSurfaceVariant}
+                />
+                <Dropdown
+                  testID="image-model-dropdown"
+                  value={selectedModel}
+                  options={models.map(model => ({
+                    value: model.id,
+                    label: model.name,
+                  }))}
+                  onChange={setSelectedModel}
+                  accessibilityLabel={copy.model}
+                  style={styles.modelDropdown}
+                />
+              </View>
             ) : (
               <View style={styles.emptyModels}>
-                <Text style={styles.muted}>{copy.noModels}</Text>
-                <Button mode="text" onPress={() => loadModels()}>
+                <Text style={styles.muted}>{copy.modelEmpty}</Text>
+                <Button mode="text" compact onPress={() => loadModels()}>
                   {copy.retry}
                 </Button>
               </View>
             )}
-
-            {selected ? (
-              <View style={styles.modelMeta}>
-                <Chip compact>{selected.developer}</Chip>
-                <Chip compact>
-                  {selected.botconnector_access.toUpperCase()}
-                </Chip>
-                {supportsReferenceImages ? (
-                  <Chip compact>Image → Image</Chip>
-                ) : null}
-              </View>
-            ) : null}
           </View>
 
+          {/* Prompt */}
           <View
             style={styles.field}
             onLayout={event => {
               promptYRef.current = event.nativeEvent.layout.y;
             }}>
-            <Text variant="labelLarge">{copy.prompt}</Text>
+            <Text variant="titleSmall">{copy.prompt}</Text>
             <TextInput
               testID="image-prompt-input"
               value={prompt}
@@ -406,28 +390,44 @@ export const ImageGenerationScreen = observer(() => {
               onFocus={handlePromptFocus}
               placeholder={copy.promptPlaceholder}
               multiline
-              numberOfLines={4}
+              numberOfLines={3}
             />
           </View>
 
+          {/* Reference photo flow */}
           <View style={styles.referenceSection}>
             <View style={styles.sectionHeader}>
-              <Text variant="labelLarge" style={styles.sectionHeaderText}>
-                {copy.reference}
-              </Text>
+              <View style={styles.sectionTitleCluster}>
+                <Text variant="titleSmall">{copy.reference}</Text>
+                {referenceImages.length > 0 ? (
+                  <Text style={styles.countText}>
+                    {t(copy.referenceCount, {
+                      current: referenceImages.length,
+                      max: MAX_REFERENCE_IMAGES,
+                    })}
+                  </Text>
+                ) : null}
+              </View>
               <Button
                 compact
-                mode="outlined"
+                mode="text"
                 icon="image-plus"
                 disabled={
                   !supportsReferenceImages ||
                   referenceImages.length >= MAX_REFERENCE_IMAGES
                 }
+                accessibilityHint={
+                  supportsReferenceImages
+                    ? referenceImages.length >= MAX_REFERENCE_IMAGES
+                      ? copy.referenceHint
+                      : undefined
+                    : copy.referenceUnsupported
+                }
                 onPress={() => addReferenceImages().catch(() => undefined)}>
                 {copy.addReference}
               </Button>
             </View>
-            <Text style={styles.referenceHint}>
+            <Text style={styles.referenceHint} numberOfLines={2}>
               {supportsReferenceImages
                 ? copy.referenceHint
                 : copy.referenceUnsupported}
@@ -449,6 +449,8 @@ export const ImageGenerationScreen = observer(() => {
                       icon="close-circle"
                       size={20}
                       style={styles.referenceRemove}
+                      hitSlop={10}
+                      accessibilityLabel={copy.removeReference}
                       onPress={() =>
                         setReferenceImages(current =>
                           current.filter((_, itemIndex) => itemIndex !== index),
@@ -461,38 +463,65 @@ export const ImageGenerationScreen = observer(() => {
             ) : null}
           </View>
 
+          {/* Primary action */}
           <Button
             mode="contained"
             testID="generate-image-button"
             loading={generating}
             disabled={generating || !selectedModel || !prompt.trim()}
+            accessibilityHint={
+              generating || (selectedModel && prompt.trim())
+                ? undefined
+                : copy.generateDisabledHint
+            }
             onPress={() => generate().catch(() => undefined)}>
             {generating ? copy.generating : copy.generate}
           </Button>
 
-          {error ? <Text style={styles.error}>{error}</Text> : null}
+          {/* Error state */}
+          {error ? (
+            <View style={styles.errorBanner} testID="image-error">
+              <Icon
+                source="alert-circle-outline"
+                size={18}
+                color={theme.colors.onErrorContainer}
+              />
+              <Text style={styles.errorText} accessibilityRole="alert">
+                {error}
+              </Text>
+            </View>
+          ) : null}
 
+          {/* Result state */}
           {resultUri ? (
             <View style={styles.resultCard}>
-              <View style={styles.resultHeader}>
-                <Text variant="titleMedium">{copy.generated}</Text>
-                {resultAccess ? (
-                  <Chip compact>{resultAccess.toUpperCase()}</Chip>
-                ) : null}
-              </View>
               <Image
                 testID="generated-image"
                 source={{uri: resultUri}}
                 resizeMode="contain"
                 style={styles.resultImage}
               />
-              {quotaText ? <Text style={styles.muted}>{quotaText}</Text> : null}
-              <Button
-                mode="outlined"
-                icon="share-variant"
-                onPress={shareResult}>
-                {copy.share}
-              </Button>
+              <View style={styles.resultFooter}>
+                <View style={styles.resultMeta}>
+                  <Text variant="labelMedium" numberOfLines={1}>
+                    {copy.generated}
+                    {resultAccess ? ` · ${formatAccess(resultAccess)}` : ''}
+                  </Text>
+                  {quotaText ? (
+                    <Text style={styles.muted} numberOfLines={1}>
+                      {quotaText}
+                    </Text>
+                  ) : null}
+                </View>
+                <IconButton
+                  testID="share-generated-image"
+                  icon="share-variant"
+                  size={20}
+                  hitSlop={10}
+                  accessibilityLabel={copy.share}
+                  onPress={shareResult}
+                />
+              </View>
             </View>
           ) : null}
         </ScrollView>

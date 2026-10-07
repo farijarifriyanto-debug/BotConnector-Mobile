@@ -25,6 +25,8 @@ import {
   RemoteModelSheet,
   ServerDetailsSheet,
 } from '../../components';
+import {AddProviderSheet} from '../../components/AddProviderSheet';
+import type {ByokProviderId} from '../../api/byokProviders';
 
 import {uiStore, modelStore, hfStore, UIStore, serverStore} from '../../store';
 
@@ -53,6 +55,12 @@ export const ModelsScreen: React.FC = observer(() => {
   const [serverDetailsSheetVisible, setServerDetailsSheetVisible] =
     useState(false);
   const [selectedServerId, setSelectedServerId] = useState<string | null>(null);
+
+  // Add AI Provider (BYOK) flow
+  const [addProviderVisible, setAddProviderVisible] = useState(false);
+  const [addProviderInitialId, setAddProviderInitialId] = useState<
+    ByokProviderId | undefined
+  >();
 
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -122,6 +130,13 @@ export const ModelsScreen: React.FC = observer(() => {
 
   const handleAddRemoteModel = () => {
     setRemoteModelSheetVisible(true);
+  };
+
+  const handleAddProvider = (providerId?: ByokProviderId) => {
+    // The hierarchy sheet hands over to the dedicated Add AI Provider flow.
+    setRemoteModelSheetVisible(false);
+    setAddProviderInitialId(providerId);
+    setAddProviderVisible(true);
   };
 
   const handleManageServers = () => {
@@ -468,6 +483,15 @@ export const ModelsScreen: React.FC = observer(() => {
       <RemoteModelSheet
         isVisible={remoteModelSheetVisible}
         onDismiss={() => setRemoteModelSheetVisible(false)}
+        onAddProvider={handleAddProvider}
+      />
+      <AddProviderSheet
+        isVisible={addProviderVisible}
+        initialProviderId={addProviderInitialId}
+        onDismiss={() => {
+          setAddProviderVisible(false);
+          setAddProviderInitialId(undefined);
+        }}
       />
       <ServerDetailsSheet
         isVisible={serverDetailsSheetVisible}

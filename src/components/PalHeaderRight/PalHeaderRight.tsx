@@ -36,7 +36,7 @@ export const PalHeaderRight = observer(() => {
       await exportAllPals();
     } catch (error) {
       console.error('Error exporting all pals:', error);
-      Alert.alert('Export Error', 'Failed to export all pals.');
+      Alert.alert('Export Error', 'Failed to export all personas.');
     }
     closeMenu();
   };

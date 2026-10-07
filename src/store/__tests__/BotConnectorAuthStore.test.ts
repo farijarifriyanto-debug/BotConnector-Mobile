@@ -68,7 +68,7 @@ const b64url = (hex: string) =>
     .toString('base64')
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+    .replace(/[=]+$/g, '');
 
 const jsonResponse = (status: number, body: unknown) =>
   ({
@@ -417,5 +417,42 @@ describe('BotConnectorAuthStore', () => {
     await botConnectorAuthStore.logout();
     expect(mem.has(AUTH_SERVICE)).toBe(false);
     expect(botConnectorAuthStore.isSignedIn).toBe(false);
+  });
+
+  describe('PAYG state derivation (UI state only)', () => {
+    const setAccount = (overrides: Record<string, unknown>) => {
+      (botConnectorAuthStore as any).account = {...ACCOUNT, ...overrides};
+    };
+
+    it('reports unavailable when there is no account payload', () => {
+      (botConnectorAuthStore as any).account = null;
+      expect(botConnectorAuthStore.paygState).toBe('unavailable');
+      expect(botConnectorAuthStore.paygBalanceMicros).toBeNull();
+    });
+
+    it('reports unavailable when PAYG is not enabled, without exposing a balance', () => {
+      setAccount({has_payg: false, available_micros: 0});
+      expect(botConnectorAuthStore.paygState).toBe('unavailable');
+      expect(botConnectorAuthStore.paygBalanceMicros).toBeNull();
+    });
+
+    it('reports zero when PAYG is enabled with a zero balance', () => {
+      setAccount({has_payg: true, available_micros: 0});
+      expect(botConnectorAuthStore.paygState).toBe('zero');
+      expect(botConnectorAuthStore.paygBalanceMicros).toBe(0);
+    });
+
+    it('reports active with the exact balance when PAYG has funds', () => {
+      setAccount({has_payg: true, available_micros: 12_345_678});
+      expect(botConnectorAuthStore.paygState).toBe('active');
+      expect(botConnectorAuthStore.paygBalanceMicros).toBe(12_345_678);
+    });
+
+    it('reports unknown (never zero) when the balance field is missing from the payload', () => {
+      setAccount({has_payg: true});
+      delete (botConnectorAuthStore.account as any).available_micros;
+      expect(botConnectorAuthStore.paygState).toBe('unknown');
+      expect(botConnectorAuthStore.paygBalanceMicros).toBeNull();
+    });
   });
 });

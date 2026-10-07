@@ -13,6 +13,11 @@ import {
 } from '../config/botconnector';
 import {serverStore} from './ServerStore';
 import {modelStore} from './ModelStore';
+import {
+  derivePaygBalanceMicros,
+  derivePaygState,
+  type BotConnectorPaygState,
+} from '../utils/paygStatus';
 
 const NATIVE_CLIENT_ID = 'botconnector-mobile';
 const LOGIN_START_URL = 'https://botconnector.id/app-login/start';
@@ -67,7 +72,7 @@ const encodeBase64Url = (bytes: readonly number[]): string => {
     output += i + 1 < bytes.length ? alphabet[(triple >>> 6) & 63] : '=';
     output += i + 2 < bytes.length ? alphabet[triple & 63] : '=';
   }
-  return output.split('+').join('-').split('/').join('_').replace(/=+$/g, '');
+  return output.split('+').join('-').split('/').join('_').replace(/[=]+$/g, '');
 };
 
 const secureRandomBase64Url = (byteLength: number): string => {
@@ -132,6 +137,14 @@ class BotConnectorAuthStore {
 
   get isSignedIn(): boolean {
     return this.account !== null || this.hasStoredSession;
+  }
+
+  get paygState(): BotConnectorPaygState {
+    return derivePaygState(this.account);
+  }
+
+  get paygBalanceMicros(): number | null {
+    return derivePaygBalanceMicros(this.account);
   }
 
   private async readJsonSecret<T>(service: string): Promise<T | null> {

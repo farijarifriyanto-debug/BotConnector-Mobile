@@ -23,6 +23,16 @@ describe('onboardingPals', () => {
     ]);
   });
 
+  it('does not present the upstream Lookie/Pip personas as onboarding defaults (spec J)', () => {
+    const names = ONBOARDING_PALS.map(p => p.name);
+    expect(names).not.toContain('Pip');
+    expect(names).not.toContain('Lookie');
+    expect(TOPIC_TO_PAL.smartchat.name).not.toBe('Pip');
+    expect(TOPIC_TO_PAL.else.name).not.toBe('Pip');
+    expect(TOPIC_TO_PAL.smartchat.systemPrompt).not.toMatch(/You are Pip/);
+    expect(TOPIC_TO_PAL.smartchat.systemPrompt).not.toMatch(/Lookie/);
+  });
+
   it('maps every topic key to a pal; else falls back to pip', () => {
     for (const key of TOPIC_KEYS) {
       expect(TOPIC_TO_PAL[key]).toBeDefined();

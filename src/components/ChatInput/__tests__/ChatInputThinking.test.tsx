@@ -35,6 +35,8 @@ jest.mock('../../../store', () => ({
   },
   modelStore: {
     activeModel: null,
+    activeModelId: undefined,
+    activeModelCaps: {visionActive: false},
   },
   palStore: {
     pals: [],
@@ -49,6 +51,24 @@ jest.mock('../../../store', () => ({
     playbackState: {mode: 'idle'},
     openSetupSheet: jest.fn(),
     setAutoSpeak: jest.fn(),
+  },
+  // ChatInput derives its capability ladders at render time, so the store
+  // it reads must exist even in this minimal fixture.
+  botConnectorAuthStore: {
+    account: null,
+    isSignedIn: false,
+    startLogin: jest.fn(() => Promise.resolve()),
+    logout: jest.fn(() => Promise.resolve()),
+  },
+  serverStore: {
+    servers: [],
+    serverModels: new Map(),
+    remoteCaps: {},
+    botConnectorAccess: {},
+    botConnectorAccessState: {},
+    botConnectorCatalog: {},
+    getApiKey: jest.fn(() => Promise.resolve(undefined)),
+    refreshBotConnectorAccess: jest.fn(() => Promise.resolve(undefined)),
   },
 }));
 

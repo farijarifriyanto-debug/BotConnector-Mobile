@@ -52,7 +52,7 @@ export interface Pal {
   // ============================================================================
   /** Unique identifier (UUID) for this pal */
   id: string;
-  /** Display name of the pal (e.g., "Lookie", "Code Assistant") */
+  /** Display name of the pal (e.g., "Assistant", "Code Assistant") */
   name: string;
   /** Optional description shown in pal cards and details */
   description?: string;

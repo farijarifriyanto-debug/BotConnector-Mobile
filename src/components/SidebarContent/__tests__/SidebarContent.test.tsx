@@ -80,6 +80,15 @@ describe('SidebarContent Component', () => {
     expect(queryByText('Models Screen')).toBeNull();
   });
 
+  it('offers an Account entry outside About that opens Settings', () => {
+    const {getByText} = render(<TestNavigator />);
+
+    fireEvent.press(getByText('Account'));
+
+    // Account lives in Settings (its own section there), not only in About.
+    expect(getByText('Settings Screen')).toBeTruthy();
+  });
+
   describe('Selection Mode', () => {
     beforeEach(() => {
       jest.clearAllMocks();

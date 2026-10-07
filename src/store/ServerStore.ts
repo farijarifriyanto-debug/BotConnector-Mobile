@@ -6,7 +6,10 @@ import * as Keychain from 'react-native-keychain';
 
 import {fetchModels, testConnection} from '../api/openai';
 import {
+  BotConnectorCapabilityError,
+  BotConnectorCapabilityErrorKind,
   BotConnectorClientCapabilities,
+  BotConnectorPaygInfo,
   chatOnlyBotConnectorCapabilities,
   fetchBotConnectorClientCapabilities,
 } from '../api/botconnectorAccess';
@@ -94,10 +97,37 @@ class ServerStore {
   // Account-level mobile capability returned only by the official BotConnector API.
   // Not persisted: every launch/foreground refresh revalidates entitlement.
   botConnectorAccess: Record<string, BotConnectorClientCapabilities> = {};
+  // Load/error bookkeeping for the capability fetch above so the UI can say
+  // "checking…" / "couldn't verify" instead of blaming the model or the plan.
+  // errorKind separates a quota refusal (429/402) from a backend failure.
+  // Not persisted; derived from the latest refresh attempt.
+  botConnectorAccessState: Record<
+    string,
+    {
+      loading: boolean;
+      error: boolean;
+      errorKind?: BotConnectorCapabilityErrorKind;
+    }
+  > = {};
   // Public BotConnector catalog: display names + capability tags. Not persisted.
   botConnectorCatalog: BotConnectorCatalog = {};
   private catalogFetchedAt = 0;
   private catalogInFlight: Promise<void> | null = null;
+
+  /**
+   * PAYG balance state exactly as the capabilities payload reported it.
+   * UI derives unavailable/zero/active from `state` — never from a made-up
+   * number. Absent when no capability payload carried a `payg` block yet.
+   */
+  get botConnectorPayg(): BotConnectorPaygInfo | undefined {
+    for (const caps of Object.values(this.botConnectorAccess)) {
+      if (caps.payg) {
+        return caps.payg;
+      }
+    }
+    return undefined;
+  }
+
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   isLoading = false;
   error: string | null = null;
@@ -372,6 +402,11 @@ class ServerStore {
           ([key]) => key !== serverId,
         ),
       );
+      this.botConnectorAccessState = Object.fromEntries(
+        Object.entries(this.botConnectorAccessState).filter(
+          ([key]) => key !== serverId,
+        ),
+      );
     } catch (error) {
       console.error('Failed to save API key:', error);
     }
@@ -402,6 +437,11 @@ class ServerStore {
           ([key]) => key !== serverId,
         ),
       );
+      this.botConnectorAccessState = Object.fromEntries(
+        Object.entries(this.botConnectorAccessState).filter(
+          ([key]) => key !== serverId,
+        ),
+      );
     } catch (error) {
       console.error('Failed to remove API key:', error);
     }
@@ -424,10 +464,20 @@ class ServerStore {
         ...this.botConnectorAccess,
         [serverId]: chatOnlyBotConnectorCapabilities(),
       };
+      this.botConnectorAccessState = {
+        ...this.botConnectorAccessState,
+        [serverId]: {loading: true, error: false},
+      };
     });
 
     const apiKey = resolvedApiKey ?? (await this.getApiKey(serverId));
     if (!apiKey) {
+      runInAction(() => {
+        this.botConnectorAccessState = {
+          ...this.botConnectorAccessState,
+          [serverId]: {loading: false, error: false},
+        };
+      });
       return this.botConnectorAccess[serverId];
     }
 
@@ -444,10 +494,29 @@ class ServerStore {
             ...this.botConnectorAccess,
             [serverId]: access,
           };
+          this.botConnectorAccessState = {
+            ...this.botConnectorAccessState,
+            [serverId]: {loading: false, error: false},
+          };
         }
       });
       return access;
-    } catch {
+    } catch (error) {
+      runInAction(() => {
+        this.botConnectorAccessState = {
+          ...this.botConnectorAccessState,
+          [serverId]: {
+            loading: false,
+            error: true,
+            // 429/402 are quota refusals, not backend failures — keep the
+            // distinction so the ladder can say so (and never blame the model).
+            errorKind:
+              error instanceof BotConnectorCapabilityError
+                ? error.kind
+                : 'server',
+          },
+        };
+      });
       return this.botConnectorAccess[serverId];
     }
   }

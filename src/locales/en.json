@@ -1,4 +1,7 @@
 {
+  "bico": {
+    "mascotLabel": "Bico, the BotConnector mascot"
+  },
   "common": {
     "cancel": "Cancel",
     "delete": "Delete",
@@ -146,7 +149,7 @@
       "resultCountLabel": "Results per search",
       "resultCountDescription": "Fewer results keep more room in the model's context.",
       "consentTitle": "Searches leave your device",
-      "consentDescription": "When a Pal searches the web, your query may be sent to BotConnector (for an active BotConnector model) or to the selected fallback search provider. When a page is read, the URL and page content may be sent through BotConnector, the selected provider, or the default reader service (r.jina.ai) when needed.",
+      "consentDescription": "When your assistant searches the web, your query may be sent to BotConnector (for an active BotConnector model) or to the selected fallback search provider. When a page is read, the URL and page content may be sent through BotConnector, the selected provider, or the default reader service (r.jina.ai) when needed.",
       "consentAccept": "I understand",
       "consentRequired": "Accept the disclosure above to set a key and enable search.",
       "consentGivenTitle": "Searching the web is enabled",
@@ -165,15 +168,15 @@
     "useHfTokenDescription": "Enable to use token for API requests. Disable if token is causing authentication issues.",
     "cacheStorageTitle": "Cache & Storage",
     "clearPalCaches": "Clear Shortcuts Caches",
-    "clearPalCachesDescription": "Clears cached data used to speed up Shortcuts. This won't affect your Pals or chat history.",
+    "clearPalCachesDescription": "Clears cached data used to speed up Shortcuts. This won't affect your personas or chat history.",
     "clearCachesButton": "Clear Caches",
     "clearCachesConfirmTitle": "Clear Shortcuts Caches?",
-    "clearCachesConfirmMessage": "This will clear all cached session data ({{fileCount}} files, {{size}}). Shortcuts may be slower on first use after clearing. This won't affect your Pals or chat history.",
+    "clearCachesConfirmMessage": "This will clear all cached session data ({{fileCount}} files, {{size}}). Shortcuts may be slower on first use after clearing. This won't affect your personas or chat history.",
     "clearCachesSuccess": "Successfully cleared {{count}} cache file(s).",
     "clearCachesError": "Failed to clear caches. Please try again.",
     "noCachesToClear": "No caches to clear.",
     "serverName": "Server Name",
-    "serverUrl": "Server URL",
+    "serverUrl": "Endpoint URL",
     "serverUrlPlaceholder": "e.g., http://192.168.1.100:1234",
     "requestTimeout": "Request Timeout (seconds)",
     "requestTimeoutPlaceholder": "Optional - leave empty for default",
@@ -185,8 +188,8 @@
     "apiKeyDescription": "Stored securely on device.",
     "connectBotConnector": "Sign in to BotConnector",
     "connectBotConnectorDescription": "Sign in with your BotConnector account. Your plan, quota, Cloud models, Web Search, files, and AI Image access are applied automatically.",
-    "connectBotConnectorLocal": "Advanced: direct connection to BotConnector Local",
-    "connectBotConnectorLocalDescription": "Connect directly to BotConnector Local on your laptop. On the laptop, start Local API Server with host 0.0.0.0, port 1337, and an API key; then enter its local LAN address here. If you already use Tailscale, you can use the laptop's Tailscale address instead.",
+    "connectBotConnectorLocal": "Direct connection",
+    "connectBotConnectorLocalDescription": "Connect directly to BotConnector Local on your laptop: enter the laptop's address and pairing key. Both are stored securely and reused automatically when reconnecting. Using Tailscale? The laptop's Tailscale address works here too. Manual host, port, and API key options are available under Advanced Connections.",
     "localDeviceUrl": "Laptop address",
     "localDeviceUrlPlaceholder": "http://192.168.1.10:1337",
     "localPairingKey": "Pairing key",
@@ -199,11 +202,12 @@
     "serverUrlRequired": "Server URL is required",
     "serverUrlInvalid": "Invalid URL format",
     "serverUrlHttpWarning": "iOS requires HTTPS for non-local servers. Use https:// or a local network address.",
-    "addRemoteModel": "Connect account or server",
-    "yourServers": "Your Servers",
-    "orConnectNewServer": "or connect new server",
+    "addRemoteModel": "Add AI Provider",
+    "yourServers": "Saved connections",
+    "orConnectNewServer": "or add a new connection",
     "selectModel": "Select Model",
-    "addModel": "Add Model",
+    "addModel": "Connect model",
+    "addModelDisabledHint": "Select a model first.",
     "connected": "Connected",
     "connectionFailed": "Connection failed: {{error}}",
     "connecting": "Connecting...",
@@ -219,7 +223,40 @@
     "removeRemoteModel": "Remove {{modelName}} ({{serverName}})?",
     "retryConnection": "Retry",
     "enterUrlManually": "Enter URL manually",
-    "manageServers": "Manage Servers"
+    "manageServers": "Manage connections",
+    "sectionCloud": "BotConnector Cloud",
+    "sectionLocal": "BotConnector Local",
+    "sectionOtherProviders": "Other AI Providers",
+    "sectionAdvanced": "Advanced Connections",
+    "localPairTitle": "Pair a local device",
+    "localPairCta": "Pair a device",
+    "localPairCodeHint": "Enter this code in BotConnector Desktop or the device CLI on your laptop.",
+    "localPairExpires": "Code expires in {{seconds}} seconds",
+    "localPairRateLimited": "Too many pairing codes. Try again in {{seconds}} seconds.",
+    "localPairSignIn": "Sign in",
+    "deviceRequiresLogin": "Sign in with your BotConnector account to pair devices. API keys cannot pair devices.",
+    "deviceListEmpty": "No devices paired yet.",
+    "deviceRefresh": "Refresh",
+    "deviceStatusOnline": "Online",
+    "deviceStatusOffline": "Offline",
+    "deviceStatusReconnecting": "Reconnecting",
+    "deviceStatusPaired": "Paired",
+    "deviceShowDetails": "Details",
+    "deviceFetchModels": "Show models",
+    "deviceRevoke": "Remove",
+    "deviceRevokeConfirm": "Remove this device? It will lose access until it is paired again.",
+    "deviceErrorOffline": "This device is offline.",
+    "deviceErrorRelayUnavailable": "The local relay is unavailable. Try again shortly.",
+    "deviceErrorTimeout": "The device did not respond in time.",
+    "deviceErrorMethodNotAllowed": "This device does not allow that action.",
+    "deviceErrorRequiresLogin": "Sign in to manage local devices.",
+    "deviceErrorGeneric": "Device request failed.",
+    "accountSection": "Account",
+    "accountManageInSettings": "Manage your account in Settings.",
+    "paygActive": "PAYG active · {{balance}}",
+    "paygZero": "PAYG balance zero",
+    "paygUnknown": "PAYG balance not reported",
+    "paygUnavailable": "PAYG unavailable"
   },
   "memory": {
     "shortWarning": "Memory Warning",
@@ -625,7 +662,7 @@
       "activateModelButton": "Select Model",
       "loading": "Loading...",
       "gettingReadyTitle": "{{name}} is getting ready",
-      "gettingReadyDescription": "We’ll let you know the moment your pal can chat. Tap the banner up top to see how it’s going."
+      "gettingReadyDescription": "We’ll let you know the moment your assistant can chat. Tap the banner up top to see how it’s going."
     },
     "chatInput": {
       "inputPlaceholder": "Message",
@@ -649,6 +686,31 @@
       "fileUploadUnavailableAccountBody": "Files are not enabled for this BotConnector account. Check your plan or pick another Cloud model, then try again.",
       "fileUploadErrorTitle": "File upload failed",
       "fileUploadErrorBody": "Unable to upload file.",
+      "fileStatusUploading": "Uploading {{percent}}%",
+      "fileStatusUploaded": "Waiting to process…",
+      "fileStatusQueued": "Queued…",
+      "fileStatusProcessing": "Processing…",
+      "fileStatusWaitingParser": "Waiting for the document processor…",
+      "fileStatusOcr": "Scanned document — OCR needed…",
+      "fileStatusWaitingRetrieval": "Indexing…",
+      "fileStatusReady": "Ready",
+      "fileStatusFailed": "Upload failed",
+      "fileProcessingTimeout": "Processing is taking longer than expected. Tap retry.",
+      "fileProcessingError": "File processing failed",
+      "fileApiKeyRequired": "BotConnector API key is required",
+      "fileTooLargeTitle": "File too large",
+      "fileTooLargeBody": "Maximum total attachment size is {{max}} per message.",
+      "fileUnknownSizeBody": "Unable to determine the size of {{name}}.",
+      "fileCopyFailedBody": "Unable to prepare {{name}} for upload.",
+      "fileServerTooLargeBody": "The server refused this file because it is too large. Try a smaller file.",
+      "fileUnknownStatusBody": "Server returned an unknown file status ({{status}}).",
+      "fileUploadInterruptedBody": "The upload was interrupted temporarily. Check your connection or session, then tap retry.",
+      "fileErrParserUnavailable": "The document processor is unavailable right now. Tap retry.",
+      "fileErrDocumentRejected": "The server rejected this document.",
+      "fileErrProcessingTimeout": "Processing timed out. Tap retry.",
+      "fileErrNoExtractableText": "No extractable text was found in this file.",
+      "fileErrProcessingFailed": "The server could not process this file.",
+      "fileErrFileNotFound": "File not found on the server. Upload it again.",
       "sessionUnavailableBody": "Your BotConnector session is unavailable. Sign in again and retry.",
       "internetSignIn": {
         "title": "Internet search",
@@ -739,7 +801,7 @@
         "title": "Success",
         "message": "These settings will be applied to all future sessions"
       },
-      "palSettings": "Pal Settings",
+      "palSettings": "Persona Settings",
       "settingsSource": "Settings Source"
     },
     "palGenerationSettingsSheet": {
@@ -749,10 +811,10 @@
       "pleaseCorrect": "Please correct the following:",
       "ok": "OK",
       "error": "Error",
-      "failedToSave": "Failed to save pal settings",
+      "failedToSave": "Failed to save persona settings",
       "resetToGlobal": "Reset to Global Defaults",
       "resetToSystem": "Reset to System Defaults",
-      "clearPalSettings": "Clear Pal Settings",
+      "clearPalSettings": "Clear Persona Settings",
       "customSettingsFor": "Custom settings for {{palName}}",
       "inheritedSettingsFor": "Inherited settings for {{palName}}"
     },
@@ -767,14 +829,14 @@
     "chatPalModelPickerSheet": {
       "modelsTab": "Models",
       "palsTab": "Persona",
-      "noPal": "No Pal",
-      "disablePal": "Disable active pal",
+      "noPal": "No persona",
+      "disablePal": "Disable active persona",
       "noDescription": "No description",
       "assistantType": "Assistant",
       "roleplayType": "Roleplay",
       "videoType": "Video",
       "confirmationTitle": "Confirmation",
-      "modelSwitchMessage": "This pal has a different default model ({{modelName}}). Would you like to switch to the pal's default model?",
+      "modelSwitchMessage": "This persona has a different default model ({{modelName}}). Would you like to switch to the persona's default model?",
       "keepButton": "Keep",
       "switchButton": "Switch"
     },
@@ -818,6 +880,38 @@
       "exportAllSessions": "Export all sessions",
       "exportChatSession": "Export chat session",
       "importSessions": "Import sessions"
+    },
+    "addProvider": {
+      "title": "Add provider",
+      "description": "Use your own API key. It is stored in this device's secure keychain and sent only to the provider — never to BotConnector.",
+      "selectProvider": "Choose a provider",
+      "apiKeyLabel": "API key",
+      "apiKeyPlaceholder": "Paste your API key",
+      "apiKeyHint": "Stored in this device's keychain. It is only sent to reach the provider.",
+      "showKeyAccessibilityLabel": "Show API key",
+      "hideKeyAccessibilityLabel": "Hide API key",
+      "baseUrlLabel": "Base URL",
+      "baseUrlPlaceholder": "https://api.example.com/v1",
+      "baseUrlHelp": "OpenAI-compatible endpoint. The model list is fetched from this URL.",
+      "defaultBaseUrl": "Default: {{url}}",
+      "configuredBadge": "Added",
+      "testConnection": "Test connection",
+      "testing": "Testing connection…",
+      "testSuccess": "Connected · {{count}} models found",
+      "noModels": "The provider returned no models.",
+      "selectModels": "Select models",
+      "save": "Save provider",
+      "saveDisabledHint": "Test the connection and select at least one model first.",
+      "saveError": "Could not save this provider. Please try again.",
+      "remove": "Remove provider",
+      "emptyState": "No other providers yet. Add one with your own API key — it stays on this device.",
+      "errorMissingKey": "Enter your API key first.",
+      "errorMissingBaseUrl": "Enter a base URL first.",
+      "errorInvalidKey": "The API key was rejected. Check the key and try again.",
+      "errorTimeout": "The provider took too long to respond. Try again.",
+      "errorNetwork": "Could not reach the provider. Check your connection and the base URL.",
+      "errorNotFound": "The models endpoint was not found. Check the base URL.",
+      "errorServer": "The provider returned an error. Try again later."
     },
     "hfTokenSheet": {
       "title": "Hugging Face Token",
@@ -876,12 +970,12 @@
     },
     "palSheet": {
       "title": {
-        "edit": "Edit Pal",
-        "newPal": "New Pal",
-        "newVideoPal": "New Video Pal"
+        "edit": "Edit Persona",
+        "newPal": "New Persona",
+        "newVideoPal": "New Video Persona"
       },
       "description": "Description",
-      "descriptionPlaceholder": "Enter a brief description of your pal",
+      "descriptionPlaceholder": "Enter a brief description of your persona",
       "parameters": "Parameters",
       "generationSettings": "Generation Settings",
       "configureGenerationSettings": "Configure Generation Settings",
@@ -908,7 +1002,7 @@
       "greeting": {
         "sectionLabel": "Greeting",
         "textLabel": "Greeting message",
-        "textPlaceholder": "What should this pal say on an empty chat?",
+        "textPlaceholder": "What should this persona say on an empty chat?",
         "suggestedPromptsLabel": "Suggested prompts",
         "addPromptButton": "Add prompt",
         "promptPlaceholder": "A short prompt for the chip",
@@ -917,10 +1011,10 @@
     },
     "assistantPalSheet": {
       "title": {
-        "create": "Create Assistant Pal",
-        "edit": "Edit Assistant Pal"
+        "create": "Create Assistant Persona",
+        "edit": "Edit Assistant Persona"
       },
-      "palName": "Pal Name",
+      "palName": "Persona Name",
       "palNamePlaceholder": "Name",
       "defaultModel": "Default Model",
       "defaultModelPlaceholder": "Select model",
@@ -933,7 +1027,7 @@
     "modelNotAvailable": {
       "noModelsDownloaded": "You do not have any models downloaded yet. Please download a model first.",
       "downloadAModel": "Download a model",
-      "defaultModelNotDownloaded": "This pal recommends a specific model that needs to be downloaded, or you can select a different model.",
+      "defaultModelNotDownloaded": "This persona recommends a specific model that needs to be downloaded, or you can select a different model.",
       "modelNotDownloadedShort": "Model not downloaded",
       "recommendedModel": "Recommended Model",
       "cancelDownload": "Cancel download",
@@ -941,10 +1035,10 @@
     },
     "roleplayPalSheet": {
       "title": {
-        "create": "Create Roleplay Pal",
-        "edit": "Edit Roleplay Pal"
+        "create": "Create Roleplay Persona",
+        "edit": "Edit Roleplay Persona"
       },
-      "palName": "Pal Name",
+      "palName": "Persona Name",
       "palNamePlaceholder": "Name",
       "defaultModel": "Default Model",
       "defaultModelPlaceholder": "Select model",
@@ -971,11 +1065,11 @@
     },
     "lookiePalSheet": {
       "title": {
-        "create": "Create Lookie Pal",
-        "edit": "Edit Lookie Pal"
+        "create": "Create Lookie Persona",
+        "edit": "Edit Lookie Persona"
       },
-      "palName": "Pal Name",
-      "palNamePlaceholder": "Enter a name for your Lookie Pal",
+      "palName": "Persona Name",
+      "palNamePlaceholder": "Enter a name for your Lookie persona",
       "visionModel": "Vision Model",
       "visionModelPlaceholder": "Select a vision model",
       "requiredModelsSection": "Required Models",
@@ -996,7 +1090,7 @@
       },
       "generatingPrompt": {
         "label": "Purpose & Context",
-        "placeholder": "Describe the role, purpose, or scenario for this pal..."
+        "placeholder": "Describe the role, purpose, or scenario for this persona..."
       },
       "buttons": {
         "loadingModel": "Loading model...",
@@ -1018,8 +1112,9 @@
       "menuItems": {
         "chat": "Chat",
         "models": "Models",
-        "pals": "Pals",
+        "pals": "Personas",
         "benchmark": "Benchmark",
+        "account": "Account",
         "settings": "Settings",
         "appInfo": "App Info",
         "testCompletion": "Test Completion"
@@ -1071,10 +1166,10 @@
       }
     },
     "palHeaderRight": {
-      "exportAllPals": "Export all pals",
-      "importPals": "Import pals",
-      "importSuccess": "Successfully imported {{count}} pal(s).",
-      "importError": "Failed to import pals. Please check the file format."
+      "exportAllPals": "Export all personas",
+      "importPals": "Import personas",
+      "importSuccess": "Successfully imported {{count}} persona(s).",
+      "importError": "Failed to import personas. Please check the file format."
     },
     "modelPicker": {
       "searchPlaceholder": "Search models",
@@ -1103,17 +1198,30 @@
         "family": "Family"
       }
     },
+    "capability": {
+      "checkingTitle": "Checking features",
+      "checkingBody": "Confirming what your account and model support.",
+      "unavailableTitle": "Can't check features",
+      "unavailableBody": "We couldn't verify your account capabilities. Check your connection and try again.",
+      "signedOutTitle": "Sign in required",
+      "retry": "Retry",
+      "quotaRateTitle": "Rate limit reached",
+      "quotaRateBody": "The server is limiting requests right now for Web Search or media. Try again in a few minutes.",
+      "quotaBalanceTitle": "Quota or balance needed",
+      "quotaBalanceBody": "This request is not covered by your current plan quota or PAYG balance yet."
+    },
     "voiceInput": {
       "title": "Voice input",
       "permissionDenied": "Microphone or speech recognition access is off. Turn it on in Settings to dictate messages.",
-      "openSettings": "Open Settings"
+      "openSettings": "Open Settings",
+      "failed": "Voice input failed."
     }
   },
   "palsScreen": {
     "sectionTitles": {
-      "myPalsLocal": "My Pals (local)",
+      "myPalsLocal": "My Personas (local)",
       "myLibrary": "My Library (palshub.ai)",
-      "discoverPals": "Discover Pals (palshub.ai)"
+      "discoverPals": "Discover Personas (palshub.ai)"
     },
     "systemPrompt": "System Prompt",
     "videoAnalysis": "Video Analysis",
@@ -1128,26 +1236,27 @@
     "assistant": "Assistant",
     "roleplay": "Roleplay",
     "video": "Video",
-    "deletePal": "Delete Pal",
-    "deletePalMessage": "Are you sure you want to delete this pal?",
+    "deletePal": "Delete Persona",
+    "deletePalMessage": "Are you sure you want to delete this persona?",
     "missingModel": "Missing Model",
-    "missingModelMessage": "The default model \"{{modelName}}\" for this pal is not available. Please download it in the edit sheet or select a different model.",
+    "missingModelMessage": "The default model \"{{modelName}}\" for this persona is not available. Please download it in the edit sheet or select a different model.",
     "search": "Search",
     "profile": "Profile",
     "signIn": "Sign In",
-    "addPal": "Add Pal",
+    "addPal": "Add Persona",
+    "chatWith": "Chat with {{name}}",
     "signInToAccessLibrary": "Sign in to access your library from palshub.ai",
     "signOut": "Sign Out",
     "signOutConfirmation": "Are you sure you want to sign out?",
     "signOutError": "Failed to sign out. Please try again.",
     "account": "Account",
-    "signInToPalsHub": "Sign In to PalsHub",
-    "signInDescription": "Access your library, create private Pals, and sync across devices",
-    "searchAllPals": "Search all Pals...",
+    "signInToPalsHub": "Sign in to BotConnector",
+    "signInDescription": "Access your library, create private personas, and sync across devices",
+    "searchAllPals": "Search all personas...",
     "deletePalConfirmation": "Are you sure you want to delete \"{{palName}}\"?",
     "filters": {
       "all": "All",
-      "myPals": "My Pals",
+      "myPals": "My Personas",
       "local": "Local",
       "video": "Video",
       "free": "Free",
@@ -1160,8 +1269,8 @@
       "download": "Download",
       "getFree": "Get Free"
     },
-    "premiumPalDescription": "Premium pal from the palshub.ai community",
-    "premiumInfoText": "Visit palshub.ai to explore more pals",
+    "premiumPalDescription": "Premium persona from the palshub.ai community",
+    "premiumInfoText": "Visit palshub.ai to explore more personas",
     "sortOptions": {
       "newest": "Newest",
       "oldest": "Oldest",
@@ -1181,18 +1290,18 @@
       "systemPrompt": "System Prompt",
       "downloaded": "Downloaded",
       "success": "Success",
-      "palAddedToCollection": "Pal has been added to your collection!",
+      "palAddedToCollection": "Persona has been added to your collection!",
       "error": "Error",
-      "failedToLoadDetails": "Failed to load pal details",
-      "failedToDownload": "Failed to download pal",
-      "premiumPalMessage": "This is a Premium Pal.\n• If you've already unlocked it with your Palshub account, simply sign in to access the full details.\n• Haven't unlocked it yet? Visit palshub.ai app to learn more.",
+      "failedToLoadDetails": "Failed to load persona details",
+      "failedToDownload": "Failed to download persona",
+      "premiumPalMessage": "This is a Premium Persona.\n• If you've already unlocked it with your account, simply sign in to access the full details.\n• Haven't unlocked it yet? Visit palshub.ai to learn more.",
       "notAvailable": "N/A",
-      "buyOnPalshub": "Buy on Palshub",
+      "buyOnPalshub": "Buy on BotConnector",
       "finalizingPurchase": "Finalizing your purchase…",
       "processingPurchase": "Processing — will unlock shortly.",
       "checkoutSessionExpired": "Your session expired. Sign in again to continue.",
       "signInAgain": "Sign in again",
-      "palNotAvailable": "This pal is not available for purchase right now.",
+      "palNotAvailable": "This persona is not available for purchase right now.",
       "checkoutFailed": "Something went wrong. Please try again."
     }
   },
@@ -1221,7 +1330,10 @@
     "takePhoto": "Camera",
     "noVisionTitle": "This model cannot read images",
     "noVisionMessage": "The active model does not support images or the camera. Switch to a model with the Vision badge to send photos.",
-    "chooseVisionModel": "Choose a model"
+    "chooseVisionModel": "Choose a model",
+    "visionPlanTitle": "Vision not available on this plan",
+    "visionPlanBody": "Your account can't send photos with this plan. Choose a model with the Vision badge or check your plan.",
+    "visionSignInBody": "Sign in to BotConnector to use photos and Vision."
   },
   "video": {
     "permissionTitle": "Camera Permission Required",
@@ -1239,24 +1351,55 @@
     "captureIntervalUnit": "ms",
     "liveCommentary": "Live Commentary",
     "emptyPlaceholder": {
-      "title": "Welcome to Lookie",
+      "title": "Welcome to video analysis",
       "subtitle": "Private On-Device Real-time Video Analysis",
       "experimentalNotice": "This is an experimental feature. Accuracy depends on the selected model, speed depends on your device specs, and some models might fail.",
       "howToUse": "How to use:",
       "step1": "• Edit the prompt (optional) to guide the analysis",
       "step2": "• Tap the camera button to start live video analysis",
       "step3": "• Adjust snapshot frequency while camera is active",
-      "step4": "• Switch to another pal for normal text chat"
+      "step4": "• Switch to another persona for normal text chat"
+    }
+  },
+  "imageGeneration": {
+    "connectTitle": "Connect BotConnector first",
+    "connectBody": "Sign in with your BotConnector account below. No BotConnector API key is needed for normal app use.",
+    "model": "Image model",
+    "modelLoading": "Loading models…",
+    "modelEmpty": "No image models are available for this account right now.",
+    "prompt": "Describe the image",
+    "promptPlaceholder": "Example: a clean product photo of a black AI device on a dark desk",
+    "generate": "Generate image",
+    "generateDisabledHint": "Choose an image model and enter a description first.",
+    "generating": "Generating…",
+    "share": "Share",
+    "retry": "Refresh models",
+    "generated": "Generated image",
+    "reference": "Reference photos",
+    "addReference": "Add photos",
+    "removeReference": "Remove reference photo",
+    "referenceCount": "Photos {{current}}/{{max}}",
+    "referenceHint": "Up to 4 JPG, PNG, or WebP images (4 MB each, 8 MB total).",
+    "referenceUnsupported": "This model does not support reference photos.",
+    "quotaRemaining": "Quota remaining: {{remaining}}/{{limit}}",
+    "errorLoadModels": "Unable to load image models.",
+    "errorGenerate": "Image generation failed.",
+    "errorShare": "Unable to share image.",
+    "access": {
+      "free": "Free",
+      "plan": "Plan",
+      "payg": "PAYG"
     }
   },
   "screenTitles": {
     "chat": "Chat",
     "models": "Models",
-    "pals": "Pals (experimental)",
+    "pals": "Personas (experimental)",
     "benchmark": "Benchmark",
     "settings": "Settings",
     "appInfo": "App Info",
-    "testCompletion": "Test Completion"
+    "testCompletion": "Test Completion",
+    "images": "AI Images"
   },
   "chat": {
     "conversationReset": "Conversation reset!",
@@ -1308,7 +1451,7 @@
     "increaseContextReloading": "Reloading model with a larger context…",
     "increaseContextSuccess": "Context increased to {{target}} tokens.",
     "increaseContextFailure": "Could not increase the context size. Your previous setting was restored.",
-    "palLoadHint": "This pal tends to need more room than the current context size allows.",
+    "palLoadHint": "This persona tends to need more room than the current context size allows.",
     "generatingPreview": "Generating preview… ({{tokens}} tokens)",
     "generatingPreviewPending": "Generating preview…",
     "toolUsedChip": "used {{name}}",
@@ -1574,15 +1717,15 @@
       "brand": "BotConnector"
     },
     "screen1": {
-      "title": "Meet your pals.",
-      "titleAccent": "pals.",
+      "title": "Meet your assistants.",
+      "titleAccent": "assistants.",
       "body": "Smart little friends that live inside your phone.\nLet’s get you set up - it’ll take a minute.",
       "cta": "Show me Around",
       "eyebrow": "Welcome to BotConnector"
     },
     "screen2": {
       "title": "Anytime,\nAnywhere.",
-      "body": "Your pals live inside your phone.\nNo internet, no signal - they work on planes, off-grid, in remote villages.",
+      "body": "Your assistants live inside your phone.\nNo internet, no signal - they work on planes, off-grid, in remote villages.",
       "highlight": "No internet, no signal",
       "cta": "Next",
       "eyebrow": "The idea",
@@ -1591,7 +1734,7 @@
     "screen3": {
       "title": "Smaller,\nbut yours.",
       "titleAccent": "Smaller,",
-      "body": "Pals on your phone are quick and private - but lighter than Cloud AI. Think pocket companion, not all-knowing oracle.",
+      "body": "Assistants on your phone are quick and private - but lighter than Cloud AI. Think pocket companion, not all-knowing oracle.",
       "highlight": "quick and private",
       "cta": "Got it",
       "eyebrow": "A heads-up"
@@ -1605,8 +1748,8 @@
       "eyebrow": "Privacy promised"
     },
     "screen5": {
-      "title": "What’s your pal for?",
-      "body": "Pick what you’d like to discuss - we’ll match a pal that fits your phone.",
+      "title": "What’s your assistant for?",
+      "body": "Pick what you’d like to discuss - we’ll match an assistant that fits your phone.",
       "topic": {
         "smartchat": "Smart Chat",
         "coding": "Coding",
@@ -1621,7 +1764,7 @@
         "education": "Learn, explain, quiz",
         "roleplay": "Characters, scenarios",
         "creative_writing": "Stories, ideas, drafts",
-        "else": "Browse all pals later in the app"
+        "else": "Browse all assistants later in the app"
       }
     },
     "screen6": {
@@ -1640,7 +1783,7 @@
       "subtitleTemplate": "{{name}} thinks using a small AI model on your phone - pick one that fits.",
       "pal": {
         "pip": {
-          "body": "We found a perfect pal for you - a friendly everyday companion. Smart enough for most things, light enough for any phone."
+          "body": "We found a perfect assistant for you - a friendly everyday companion. Smart enough for most things, light enough for any phone."
         },
         "codie": {
           "body": "Meet Codie — your local pair-programmer. Reads code, writes code, explains tricky bits without ever leaving your phone."

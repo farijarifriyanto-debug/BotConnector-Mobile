@@ -119,11 +119,11 @@ describe('useOnboardingHandlers', () => {
   });
 
   describe('finish', () => {
-    it('topic=smartchat with existing Pip pal: rebinds defaultModel, then completes + downloads', async () => {
+    it('topic=smartchat with existing smartchat pal: rebinds defaultModel, then completes + downloads', async () => {
       palStore.pals = [
         {
           id: 'pip-id',
-          name: 'Pip',
+          name: TOPIC_TO_PAL.smartchat.name,
           source: 'local',
           type: 'local',
           description: 'desc',
@@ -181,7 +181,7 @@ describe('useOnboardingHandlers', () => {
       );
     });
 
-    it('topic=null falls back to Pip (the else→pip mapping)', async () => {
+    it('topic=null falls back to the smartchat pal (the else→pip mapping)', async () => {
       palStore.pals = [];
       uiStore.onboardingState.selectedModelId = PIP_BALANCED_ID;
       uiStore.onboardingState.selectedTopic = null;
@@ -193,7 +193,10 @@ describe('useOnboardingHandlers', () => {
 
       expect(palStore.createPal).toHaveBeenCalledTimes(1);
       const palData = (palStore.createPal as jest.Mock).mock.calls[0][0];
-      expect(palData.name).toBe('Pip');
+      expect(palData.name).toBe(TOPIC_TO_PAL.smartchat.name);
+      // Spec J: onboarding must not materialise the upstream Pip persona.
+      expect(palData.name).not.toBe('Pip');
+      expect(palData.systemPrompt).not.toMatch(/You are Pip/);
     });
 
     it('with selectedModelId=null, completes onboarding without touching the pal store or download queue', async () => {

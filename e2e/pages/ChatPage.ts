@@ -327,7 +327,7 @@ export class ChatPage extends BasePage {
    * Open the pal/model picker sheet by tapping the pal selector button.
    */
   async openPalPicker(): Promise<void> {
-    const palBtn = browser.$(byAccessibilityLabel('Select Pal'));
+    const palBtn = browser.$(byAccessibilityLabel('Select persona'));
     await palBtn.waitForDisplayed({timeout: 5000});
     await palBtn.click();
     await browser.pause(500);

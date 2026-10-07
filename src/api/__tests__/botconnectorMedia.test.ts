@@ -155,4 +155,38 @@ describe('BotConnector media API', () => {
       }),
     ).rejects.toThrow('Batas gambar sudah tercapai.');
   });
+
+  it('explains a 429 without a server message as a rate/quota limit', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      json: async () => ({}),
+    } as any);
+
+    await expect(
+      generateBotConnectorImage({
+        serverUrl: 'https://api.botconnector.id',
+        apiKey: 'bc_live_test',
+        model: 'img-free',
+        prompt: 'test',
+      }),
+    ).rejects.toThrow('Rate limit reached');
+  });
+
+  it('explains a 402 without a server message as a quota/balance need', async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 402,
+      json: async () => ({}),
+    } as any);
+
+    await expect(
+      generateBotConnectorImage({
+        serverUrl: 'https://api.botconnector.id',
+        apiKey: 'bc_live_test',
+        model: 'img-free',
+        prompt: 'test',
+      }),
+    ).rejects.toThrow('Quota or balance needed');
+  });
 });

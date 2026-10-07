@@ -215,10 +215,10 @@ export const Selectors = {
       return byAccessibilityLabel('Add Local Model');
     },
     get remoteFab(): string {
-      return byAccessibilityLabel('Add Remote Model');
+      return byAccessibilityLabel('Add AI Provider');
     },
     get manageServersFab(): string {
-      return byAccessibilityLabel('Manage Servers');
+      return byAccessibilityLabel('Manage connections');
     },
     get flatList(): string {
       return byTestId('flat-list');

@@ -102,6 +102,56 @@ describe('resolveRichFeatureAccess', () => {
     ).toBe('full');
   });
 
+  it('ignores the legacy coarse access flag when axes say otherwise', () => {
+    const servers = [
+      {
+        id: 'bc',
+        name: 'BotConnector',
+        url: 'https://api.botconnector.id',
+        serverType: 'OpenAI' as const,
+      },
+    ];
+    // access says chat_only, but the per-axis contract (Starter) enables
+    // vision/web search — axes win.
+    expect(
+      resolveRichFeatureAccess(model('bc'), servers, {
+        bc: {...chatOnly, access: 'chat_only'},
+      }),
+    ).toBe('chat_only');
+    expect(
+      resolveRichFeatureAccess(model('bc'), servers, {
+        bc: {
+          ...chatOnly,
+          access: 'chat_only',
+          capabilities: {...chatOnly.capabilities, web_search: true},
+        },
+      }),
+    ).toBe('full');
+    // The inverse: a stale access=full with no enabled axes is not rich.
+    expect(
+      resolveRichFeatureAccess(model('bc'), servers, {
+        bc: {...fullAccess, access: 'full'},
+      }),
+    ).toBe('full');
+    expect(
+      resolveRichFeatureAccess(model('bc'), servers, {
+        bc: {
+          ...fullAccess,
+          access: 'full',
+          capabilities: {
+            chat: true,
+            web_search: false,
+            read_url: false,
+            tools: false,
+            vision: false,
+            media: false,
+            files: false,
+          },
+        },
+      }),
+    ).toBe('chat_only');
+  });
+
   it('keeps BotConnector Local full even over an optional Tailscale address', () => {
     const servers = [
       {

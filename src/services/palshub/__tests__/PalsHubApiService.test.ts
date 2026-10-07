@@ -18,7 +18,7 @@ describe('PalsHubApiService', () => {
 
     await expect(palsHubApiService.getPals()).rejects.toThrow(PalsHubError);
     await expect(palsHubApiService.getPals()).rejects.toThrow(
-      'PalsHub API not configured',
+      'The persona library service is not configured',
     );
   });
 

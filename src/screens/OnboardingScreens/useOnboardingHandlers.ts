@@ -104,10 +104,9 @@ export const useOnboardingHandlers = (step: OnboardingStep) => {
         p => p.name === palDef.name && p.source === 'local',
       );
       if (existing) {
-        // Pip is auto-created at boot (back-compat); other topic pals
-        // may already exist if the user replays onboarding. In both
-        // cases, rebind the picked model and refresh the curated
-        // greeting if the pal has one.
+        // Replaying onboarding, or an install that already materialised
+        // this topic's pal. In that case, rebind the picked model and
+        // refresh the curated greeting if the pal has one.
         if (picked) {
           await palStore.updatePal(existing.id, {
             defaultModel: picked,

@@ -39,7 +39,21 @@ class MockServerStore {
   }
 
   botConnectorAccess: Record<string, any> = {};
+  botConnectorAccessState: Record<
+    string,
+    {loading: boolean; error: boolean; errorKind?: string}
+  > = {};
   botConnectorCatalog: Record<string, any> = {};
+
+  /** Same derivation as the real store: first payload that carried `payg`. */
+  get botConnectorPayg(): any {
+    for (const caps of Object.values(this.botConnectorAccess)) {
+      if (caps && caps.payg) {
+        return caps.payg;
+      }
+    }
+    return undefined;
+  }
 
   isBotConnectorServer(serverId: string | undefined): boolean {
     const server = this.servers.find(s => s.id === serverId);

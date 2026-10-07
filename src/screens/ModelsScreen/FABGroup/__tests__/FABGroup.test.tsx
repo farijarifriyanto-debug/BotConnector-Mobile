@@ -68,10 +68,29 @@ describe('FABGroup', () => {
     expect(
       getByLabelText('Add Local Model', {includeHiddenElements: true}),
     ).toBeTruthy();
+    // Spec M: user-centric wording replaces the server-centric label.
     expect(
-      getByLabelText('Connect account or server', {
+      getByLabelText('Add AI Provider', {
         includeHiddenElements: true,
       }),
+    ).toBeTruthy();
+  });
+
+  it('labels saved-connection management without server jargon', () => {
+    const mockOnManageServers = jest.fn();
+    const {getByLabelText} = render(
+      <FABGroup
+        onAddHFModel={mockOnAddHFModel}
+        onAddLocalModel={mockOnAddLocalModel}
+        onAddRemoteModel={mockOnAddRemoteModel}
+        onManageServers={mockOnManageServers}
+        hasServers={true}
+      />,
+      {withNavigation: true},
+    );
+
+    expect(
+      getByLabelText('Manage connections', {includeHiddenElements: true}),
     ).toBeTruthy();
   });
 });

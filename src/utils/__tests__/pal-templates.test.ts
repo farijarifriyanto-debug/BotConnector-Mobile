@@ -59,11 +59,12 @@ describe('Pal Templates', () => {
       expect(pal.type).toBe('local');
       expect(pal.name).toBe('');
       expect(pal.systemPrompt).toBe(
-        'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
+        'You are a video analysis assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
       );
       expect(pal.originalSystemPrompt).toBe(
-        'You are Lookie, an AI assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
+        'You are a video analysis assistant giving real-time, concise descriptions of a video feed. Use few words. If unsure, say so clearly.',
       );
+      expect(pal.systemPrompt).not.toMatch(/Lookie/);
       expect(pal.parameterSchema).toEqual(VIDEO_SCHEMA);
       expect(pal.parameters).toEqual({
         captureInterval: '3000',

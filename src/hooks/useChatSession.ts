@@ -19,6 +19,7 @@ import {
 import type {PersistedTurnTimings} from '../utils/completionTypes';
 import {resolveReasoningCapability} from '../utils/reasoningCapability';
 import {richFeaturesAllowed} from '../utils/mobileFeatureAccess';
+import {cloudModelSupportsTools} from '../utils/botconnectorModels';
 import {isBotConnectorApiUrl} from '../config/botconnector';
 
 import {MessageType, ModelOrigin, User} from '../utils/types';
@@ -99,9 +100,26 @@ const prepareCompletion = async ({
     activeServer && isBotConnectorApiUrl(activeServer.url)
       ? serverStore.botConnectorAccess[activeServer.id]
       : undefined;
-  const toolsAllowed = activeBotConnectorAccess
-    ? activeBotConnectorAccess.capabilities.tools === true
-    : allowRichFeatures;
+  // Contract: tools is a MODEL axis (verified by /v1/models), not an account
+  // axis — an account capability must never disable tool calling for a model
+  // that supports it, nor enable it for one that does not.
+  const toolsAllowed = (() => {
+    if (activeBotConnectorAccess) {
+      const modelTools = cloudModelSupportsTools(
+        activeServer
+          ? serverStore.serverModels.get(activeServer.id)
+          : undefined,
+        modelStore.activeModel?.remoteModelId,
+        serverStore.botConnectorCatalog,
+      );
+      if (modelTools !== undefined) {
+        return modelTools;
+      }
+      // Unknown answer: do not block (the server enforces its own limits).
+      return true;
+    }
+    return allowRichFeatures;
+  })();
   if (!toolsAllowed && sessionCompletionSettings.tools) {
     sessionCompletionSettings = {
       ...sessionCompletionSettings,

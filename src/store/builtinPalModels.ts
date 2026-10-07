@@ -30,9 +30,12 @@ const LOOKIE_HF_MODEL = {
   ],
 } as unknown as HuggingFaceModel;
 
-// Default model for the built-in Lookie pal. It is a vision model outside the
-// device-rule tiers, so it ships as a self-contained offline constant rather
-// than being resolved over the network at pal init.
+// Vision model constant that used to back the upstream Lookie pal (spec J:
+// Lookie is no longer seeded as a default persona). Kept for the SmolVLM
+// download path and its tests — it is a model-catalog entry, not a persona.
+// Vision model outside the device-rule tiers, so it ships as a
+// self-contained offline constant rather than being resolved over the
+// network at pal init.
 export const LOOKIE_DEFAULT_MODEL: Model = {
   id: 'ggml-org/SmolVLM-500M-Instruct-GGUF/SmolVLM-500M-Instruct-Q8_0.gguf',
   author: 'ggml-org',

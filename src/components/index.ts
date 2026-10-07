@@ -2,6 +2,7 @@ export * from './AssistantTurnFooter';
 export * from './AttachmentButton';
 export * from './Avatar';
 export * from './Bubble';
+export * from './BicoMascot';
 export * from './ChatGenerationSettingsSheet';
 export * from './ChatInput';
 export * from './ChatView';

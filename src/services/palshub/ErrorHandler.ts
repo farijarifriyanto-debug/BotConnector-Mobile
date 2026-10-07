@@ -50,7 +50,8 @@ export class PalsHubErrorHandler {
     return {
       type: 'unknown',
       message: error.message,
-      userMessage: error.message || 'An error occurred with PalsHub.',
+      userMessage:
+        error.message || 'An error occurred with the library service.',
       retryable: false,
     };
   }

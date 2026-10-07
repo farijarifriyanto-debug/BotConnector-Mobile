@@ -14,6 +14,7 @@ import type {AvailableLanguage} from '../index';
 
 const EXPECTED_SECTIONS = [
   'common',
+  'bico',
   'settings',
   'memory',
   'storage',
@@ -27,6 +28,7 @@ const EXPECTED_SECTIONS = [
   'validation',
   'camera',
   'video',
+  'imageGeneration',
   'screenTitles',
   'chat',
   'benchmark',

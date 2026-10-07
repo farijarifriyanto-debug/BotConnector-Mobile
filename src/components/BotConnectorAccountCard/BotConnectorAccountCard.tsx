@@ -3,16 +3,25 @@ import {Alert, StyleSheet, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import {observer} from 'mobx-react';
 
-import {botConnectorAuthStore} from '../../store';
+import {botConnectorAuthStore, serverStore} from '../../store';
 import {useTheme} from '../../hooks';
 import {L10nContext} from '../../utils';
+import {t} from '../../locales';
+import {
+  derivePaygBalanceFromCapabilities,
+  derivePaygBalanceMicros,
+  derivePaygState,
+  derivePaygStateFromCapabilities,
+  formatPaygBalance,
+} from '../../utils/paygStatus';
 
 type Props = {
   compact?: boolean;
+  readOnly?: boolean;
 };
 
 export const BotConnectorAccountCard: React.FC<Props> = observer(
-  ({compact = false}) => {
+  ({compact = false, readOnly = false}) => {
     const theme = useTheme();
     const l10n = React.useContext(L10nContext);
     const account = botConnectorAuthStore.account;
@@ -22,6 +31,39 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
     const displayName = account?.display_name?.trim() || '';
     const email = account?.email?.trim() || '';
     const plan = account?.plan?.trim() || '';
+
+    let paygText: string | null = null;
+    if (account) {
+      // Contract: prefer `payg.state` from the capabilities payload (server
+      // truth); fall back to the account fields only when it is absent.
+      const capabilitiesPayg = serverStore.botConnectorPayg;
+      const state =
+        derivePaygStateFromCapabilities(capabilitiesPayg) ??
+        derivePaygState(account);
+      switch (state) {
+        case 'active': {
+          const micros =
+            derivePaygBalanceFromCapabilities(capabilitiesPayg) ??
+            derivePaygBalanceMicros(account);
+          paygText =
+            micros === null
+              ? l10n.settings.paygUnknown
+              : t(l10n.settings.paygActive, {
+                  balance: formatPaygBalance(micros),
+                });
+          break;
+        }
+        case 'zero':
+          paygText = l10n.settings.paygZero;
+          break;
+        case 'unknown':
+          paygText = l10n.settings.paygUnknown;
+          break;
+        default:
+          paygText = l10n.settings.paygUnavailable;
+          break;
+      }
+    }
 
     return (
       <View
@@ -63,6 +105,14 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
                   {plan.toUpperCase()}
                 </Text>
               ) : null}
+              {paygText ? (
+                <Text
+                  testID="botconnector-account-payg"
+                  variant="labelSmall"
+                  style={{color: theme.colors.onSurfaceVariant}}>
+                  {paygText}
+                </Text>
+              ) : null}
             </>
           ) : (
             <Text
@@ -78,38 +128,49 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
           ) : null}
         </View>
 
-        <Button
-          testID="botconnector-account-action"
-          compact
-          mode={signedIn ? 'text' : 'contained-tonal'}
-          loading={accountBusy}
-          disabled={accountBusy}
-          style={!compact ? styles.regularAction : undefined}
-          onPress={() => {
-            if (!signedIn) {
-              botConnectorAuthStore.startLogin().catch(() => undefined);
-              return;
-            }
-            // Sign-out drops the session: confirm first (destructive action).
-            Alert.alert(
-              l10n.palsScreen.signOut,
-              l10n.palsScreen.signOutConfirmation,
-              [
-                {text: l10n.common.cancel, style: 'cancel'},
-                {
-                  text: l10n.palsScreen.signOut,
-                  style: 'destructive',
-                  onPress: () => {
-                    botConnectorAuthStore.logout().catch(() => undefined);
+        {readOnly ? (
+          signedIn ? null : (
+            <Text
+              testID="botconnector-account-manage-hint"
+              variant="bodySmall"
+              style={{color: theme.colors.onSurfaceVariant}}>
+              {l10n.settings.accountManageInSettings}
+            </Text>
+          )
+        ) : (
+          <Button
+            testID="botconnector-account-action"
+            compact
+            mode={signedIn ? 'text' : 'contained-tonal'}
+            loading={accountBusy}
+            disabled={accountBusy}
+            style={!compact ? styles.regularAction : undefined}
+            onPress={() => {
+              if (!signedIn) {
+                botConnectorAuthStore.startLogin().catch(() => undefined);
+                return;
+              }
+              // Sign-out drops the session: confirm first (destructive action).
+              Alert.alert(
+                l10n.palsScreen.signOut,
+                l10n.palsScreen.signOutConfirmation,
+                [
+                  {text: l10n.common.cancel, style: 'cancel'},
+                  {
+                    text: l10n.palsScreen.signOut,
+                    style: 'destructive',
+                    onPress: () => {
+                      botConnectorAuthStore.logout().catch(() => undefined);
+                    },
                   },
-                },
-              ],
-            );
-          }}>
-          {signedIn
-            ? l10n.palsScreen.signOut
-            : l10n.settings.connectBotConnector}
-        </Button>
+                ],
+              );
+            }}>
+            {signedIn
+              ? l10n.palsScreen.signOut
+              : l10n.settings.connectBotConnector}
+          </Button>
+        )}
       </View>
     );
   },

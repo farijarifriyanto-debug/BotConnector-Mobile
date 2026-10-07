@@ -49,6 +49,7 @@ describe('PalsScreen', () => {
 
     // Reset palStore state
     palStore.pals = [];
+    palStore.hiddenPalIds = [];
     palStore.cachedPalsHubPals = [];
     palStore.userLibrary = [];
     palStore.userCreatedPals = [];
@@ -400,7 +401,9 @@ describe('PalsScreen', () => {
       });
 
       await waitFor(() => {
-        expect(getByText(/No Pals found|Create your first Pal/i)).toBeTruthy();
+        expect(
+          getByText(/No personas found|Create your first persona/i),
+        ).toBeTruthy();
       });
     });
 
@@ -421,8 +424,31 @@ describe('PalsScreen', () => {
       fireEvent.press(localFilter);
 
       await waitFor(() => {
-        expect(getByText(/Create your first Pal/i)).toBeTruthy();
+        expect(getByText(/Create your first persona/i)).toBeTruthy();
       });
+    });
+  });
+
+  describe('Upstream builtin defaults (spec J)', () => {
+    it('does not list hidden upstream Lookie/Pip; user-created pals stay visible', async () => {
+      palStore.pals = [
+        createPal({id: 'lookie-1', name: 'Lookie', source: 'local'}),
+        createPal({id: 'pip-1', name: 'Pip', source: 'local'}),
+        createPal({id: 'mine-1', name: 'My Own Pal', source: 'local'}),
+      ];
+      palStore.hiddenPalIds = ['lookie-1', 'pip-1'];
+
+      const {getByText, queryByText} = render(<PalsScreen />, {
+        withNavigation: true,
+        withSafeArea: true,
+        withBottomSheetProvider: true,
+      });
+
+      await waitFor(() => {
+        expect(getByText('My Own Pal')).toBeTruthy();
+      });
+      expect(queryByText('Lookie')).toBeNull();
+      expect(queryByText('Pip')).toBeNull();
     });
   });
 

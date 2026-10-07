@@ -100,7 +100,10 @@ export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 style={styles.clearButton}
-                testID="clear-search-button">
+                testID="clear-search-button"
+                accessibilityRole="button"
+                accessibilityLabel={l10n.components.modelPicker.clearSearch}
+                hitSlop={8}>
                 <XIcon
                   stroke={theme.colors.onSurfaceVariant}
                   width={16}
@@ -114,7 +117,10 @@ export const ExpandableSearch: React.FC<ExpandableSearchProps> = observer(
             <TouchableOpacity
               onPress={handleClose}
               style={styles.closeButton}
-              testID="close-search-button">
+              testID="close-search-button"
+              accessibilityRole="button"
+              accessibilityLabel={l10n.common.close}
+              hitSlop={8}>
               <XIcon
                 stroke={theme.colors.onSurfaceVariant}
                 width={18}

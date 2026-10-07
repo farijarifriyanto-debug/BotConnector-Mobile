@@ -9,8 +9,6 @@ import {
 import {Text} from 'react-native-paper';
 import {observer} from 'mobx-react-lite';
 
-import {PlusIcon} from '../../assets/icons';
-
 import {useTheme} from '../../hooks';
 import {createStyles} from './styles';
 import {handlePalByType} from '../../utils/pal-type-guards';
@@ -32,6 +30,7 @@ import {
 } from './components';
 
 import {SectionDivider} from '../../components/PalsSheets/SectionDivider';
+import {BicoMascot} from '../../components/BicoMascot';
 
 // Unified pal sheet component
 import {PalSheet} from '../../components/PalsSheets';
@@ -76,6 +75,13 @@ export const PalsScreen: React.FC = observer(() => {
   const styles = createStyles(theme);
   const l10n = useContext(L10nContext);
   const {width: windowWidth} = useWindowDimensions();
+
+  // Spec J: upstream builtin personas (Lookie/Pip) are masked at the list
+  // level as well, so no render path can surface them as BotConnector
+  // defaults. The store already drops them from `pals` on load; this is the
+  // list-level backstop (and covers the mocked store in tests).
+  const hiddenPalIds: string[] = palStore.hiddenPalIds ?? [];
+  const notHidden = (pal: {id: string}) => !hiddenPalIds.includes(pal.id);
 
   // Navigation state
   const [activeAction, setActiveAction] = useState<BottomActionType>('search');
@@ -215,7 +221,7 @@ export const PalsScreen: React.FC = observer(() => {
       return searchResults;
     }
 
-    const localPals = palStore.getLocalPals();
+    const localPals = palStore.getLocalPals().filter(notHidden);
     const downloadedPals = palStore.getDownloadedPalsHubPals();
     const hubPals = palStore.cachedPalsHubPals;
 
@@ -255,7 +261,7 @@ export const PalsScreen: React.FC = observer(() => {
       return [{title: '', data: searchResults}];
     }
 
-    const localPals = palStore.getLocalPals();
+    const localPals = palStore.getLocalPals().filter(notHidden);
     const downloadedPals = palStore.getDownloadedPalsHubPals();
     const hubPals = palStore.cachedPalsHubPals;
 
@@ -331,11 +337,11 @@ export const PalsScreen: React.FC = observer(() => {
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
-      <PlusIcon stroke={theme.colors.onSurfaceVariant} width={48} height={48} />
+      <BicoMascot variant="mark" width={72} />
       <Text style={styles.emptyStateText}>
         {activeFilter === 'local' || activeFilter === 'my-pals'
-          ? 'No Pals yet.\nCreate your first Pal using the + button!'
-          : 'No Pals found.\nTry adjusting your filters or search.'}
+          ? 'No personas yet.\nCreate your first persona using the + button!'
+          : 'No personas found.\nTry adjusting your filters or search.'}
       </Text>
     </View>
   );
