@@ -9,6 +9,9 @@ import type {SearchAccess} from './searchAccess';
 import type {PageContent, SearchHit} from '../search/types';
 import {allowReadUrls} from './readUrlAllowlist';
 import {wrapUntrusted} from './untrustedContent';
+import {normalizeUrl, numberFor, resetSourceNumbers} from './sourceNumbers';
+
+export {normalizeUrl};
 
 export const DEEP_RESEARCH_LIMITS = {
   queriesPerCall: 5,
@@ -41,27 +44,13 @@ let run: RunState = fresh();
 /** Called at every agent run start (like the read_url allowlist) so source numbers start at 1 for each answer. */
 export function resetDeepResearchRun(): void {
   run = fresh();
+  resetSourceNumbers();
 }
 
 const esc = (s: string) =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n) + '…' : s);
 
-export function normalizeUrl(raw: string): string {
-  try {
-    const u = new URL(raw.trim());
-    u.hash = '';
-    u.pathname = u.pathname.replace(/\/+$/, '') || '/';
-    for (const k of [...u.searchParams.keys()]) {
-      if (/^(utm_|fbclid$|gclid$|ref$)/i.test(k)) {
-        u.searchParams.delete(k);
-      }
-    }
-    return u.toString().replace(/\/$/, '');
-  } catch {
-    return raw;
-  }
-}
 const domainOf = (u: string) => {
   try {
     return new URL(u).hostname.replace(/^www\./, '');
@@ -279,7 +268,7 @@ export class DeepResearchEngine implements TalentEngine {
     const results: WebSearchResultItem[] = [];
     const blocks: string[] = [];
     for (const d of got) {
-      const n = run.sources.length + 1;
+      const n = numberFor(d.url); // shared with web_search: the same page keeps one number
       run.sources.push({n, url: d.url, title: d.title});
       results.push({
         id: n,

@@ -50,14 +50,17 @@ interface OutcomeLike {
   };
 }
 
-/** The numbered sources a turn's deep_research calls returned, by the number the model cites. */
+/** The numbered sources a turn's web_search / deep_research calls returned, by the number the model cites. */
 export function citationSourcesFromSteps(
   steps: ReadonlyArray<{toolOutcomes?: ReadonlyArray<OutcomeLike>}> | undefined,
 ): Map<number, CitationSource> {
   const out = new Map<number, CitationSource>();
   for (const step of steps ?? []) {
     for (const o of step.toolOutcomes ?? []) {
-      if (o.toolName !== 'deep_research' || o.result?.type !== 'search') {
+      if (
+        (o.toolName !== 'deep_research' && o.toolName !== 'web_search') ||
+        o.result?.type !== 'search'
+      ) {
         continue;
       }
       for (const r of o.result.results ?? []) {

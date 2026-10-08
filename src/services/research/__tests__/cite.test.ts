@@ -32,7 +32,7 @@ describe('applyCitations', () => {
 });
 
 describe('citationSourcesFromSteps', () => {
-  it('collects numbered sources from deep_research outcomes only', () => {
+  it('collects numbered sources from web_search and deep_research outcomes', () => {
     const steps = [
       {
         toolOutcomes: [
@@ -59,7 +59,7 @@ describe('citationSourcesFromSteps', () => {
       {},
     ];
     const m = citationSourcesFromSteps(steps);
-    expect([...m.keys()]).toEqual([1, 2]);
+    expect([...m.keys()]).toEqual([1, 2, 9]);
     expect(m.get(2)?.url).toBe('https://b.example');
     expect(citationSourcesFromSteps(undefined).size).toBe(0);
   });

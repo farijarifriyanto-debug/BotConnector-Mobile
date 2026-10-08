@@ -1476,4 +1476,48 @@ describe('runAgent', () => {
     expect(stepFinished).toBeDefined();
     expect(stepFinished!.toolCalls).toBeUndefined();
   });
+  it('a web_search call that arrives without a query is completed from the latest user message', async () => {
+    const engine = makeScriptedEngine({
+      scripts: [
+        {
+          tokens: [],
+          result: {
+            text: '',
+            content: '',
+            tool_calls: [
+              {
+                id: 'c-empty',
+                type: 'function',
+                function: {name: 'web_search', arguments: '{}'},
+              },
+            ],
+          },
+        },
+        {tokens: [], result: {text: 'ok', content: 'ok'}},
+      ],
+    });
+    const seen: Array<Record<string, any>> = [];
+    const search = makeTalent('web_search', args => {
+      seen.push(args);
+      return {type: 'text', summary: 'results'};
+    });
+    await collect(
+      runAgent({
+        engine,
+        initialParams: {
+          ...baseParams,
+          messages: [
+            {role: 'user', content: 'old'},
+            {role: 'assistant', content: 'a'},
+            {role: 'user', content: 'buatkan tabel perkabupaten'},
+          ] as any,
+        },
+        allowedTalentNames: ['web_search'],
+        talentLookup: name => (name === 'web_search' ? search : undefined),
+        messageId: 'msg',
+        triggerMarkers: [],
+      }),
+    );
+    expect(seen).toEqual([{query: 'buatkan tabel perkabupaten'}]);
+  });
 });

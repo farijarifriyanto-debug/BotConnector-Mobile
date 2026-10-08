@@ -274,7 +274,7 @@ const prepareCompletion = async ({
   // Reseed the read_url exfiltration allowlist for this run; the trust policy
   // (which sources count) lives in the talents module.
   seedReadUrlAllowlist(messages, currentMessages);
-  // Deep research numbers its sources from 1 for every answer.
+  // Web sources (web_search and deep_research) are numbered from 1 for every answer.
   resetDeepResearchRun();
 
   const completionParamsWithAppProps = {

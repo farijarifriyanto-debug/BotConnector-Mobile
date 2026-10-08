@@ -13,6 +13,7 @@ import type {
   TokenDelta,
 } from './AgentRunner.types';
 import type {TalentResult} from '../talents/types';
+import {lastUserQuery, withSearchFallback} from './fallbackQuery';
 
 export const DEFAULT_MAX_TURNS = 5;
 
@@ -128,6 +129,7 @@ async function executeOne(
   call: AgentToolCall,
   allowedTalentNames: string[],
   talentLookup: (name: string) => ReturnType<AgentRunOptions['talentLookup']>,
+  fallbackQuery?: string,
 ): Promise<AgentToolOutcome> {
   const fnName = call.function?.name ?? '';
   const callId = call.id;
@@ -169,7 +171,9 @@ async function executeOne(
   }
 
   try {
-    const toolResult = await handler.execute(parsedArgs);
+    const toolResult = await handler.execute(
+      withSearchFallback(fnName, parsedArgs, fallbackQuery),
+    );
     return {
       callId,
       toolName: fnName,
@@ -256,6 +260,8 @@ export async function* runAgent(
   } = options;
 
   yield {type: 'run_started', messageId};
+  // what the user just asked: completes a search call that arrives without a query
+  const fallbackQuery = lastUserQuery(initialParams.messages as any[]);
 
   // When the consumer aborts mid-stream (e.g. user taps the stop
   // button while the engine is generating tokens), the runner is the
@@ -302,6 +308,7 @@ export async function* runAgent(
         forcedFirstToolCall,
         allowedTalentNames,
         talentLookup,
+        fallbackQuery,
       );
       yield {type: 'tool_call_finished', outcome: forcedOutcome};
       yield {
@@ -479,6 +486,7 @@ export async function* runAgent(
           call,
           allowedTalentNames,
           talentLookup,
+          fallbackQuery,
         );
         outcomes.push(outcome);
         yield {type: 'tool_call_finished', outcome};

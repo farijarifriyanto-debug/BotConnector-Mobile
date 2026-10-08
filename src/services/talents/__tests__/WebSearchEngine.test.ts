@@ -3,6 +3,7 @@ import type {SearchAccess} from '../searchAccess';
 import type {SearchHit, SearchProvider} from '../../search/types';
 import * as budget from '../../search/searchBudget';
 import {resetSearchCache} from '../../search/searchBudget';
+import {resetSourceNumbers} from '../sourceNumbers';
 
 const hit = (overrides: Partial<SearchHit> = {}): SearchHit => ({
   title: 'Title',
@@ -26,7 +27,10 @@ const makeAccess = (overrides: Partial<SearchAccess> = {}): SearchAccess => {
 };
 
 describe('WebSearchEngine', () => {
-  beforeEach(() => resetSearchCache());
+  beforeEach(() => {
+    resetSearchCache();
+    resetSourceNumbers();
+  });
 
   it('exposes the web_search schema with a required query param', () => {
     const def = new WebSearchEngine(makeAccess()).toToolDefinition();
@@ -51,7 +55,7 @@ describe('WebSearchEngine', () => {
     if (result.type === 'search') {
       expect(result.query).toBe('mars');
       expect(result.results).toEqual([
-        {title: 'Mars', url: 'https://m.com', snippet: 'rover'},
+        {id: 1, title: 'Mars', url: 'https://m.com', snippet: 'rover'},
       ]);
       expect(result.summary).toContain('Mars');
       expect(result.summary).toContain('https://m.com');
@@ -211,7 +215,7 @@ describe('WebSearchEngine', () => {
     }
   });
 
-  it('formats each hit as a markdown bullet (title/date/snippet/url, no numbering)', async () => {
+  it('formats each hit as a markdown bullet with a citation number (title/date/snippet/url)', async () => {
     const provider: SearchProvider = {
       id: 'tavily',
       search: jest.fn().mockResolvedValue([
@@ -229,10 +233,10 @@ describe('WebSearchEngine', () => {
     expect(result.type).toBe('search');
     if (result.type === 'search') {
       expect(result.summary).toContain(
-        '- **Mars** *(2026-07-01)*\n  rover\n  <https://m.com>',
+        '- [1] **Mars** *(2026-07-01)*\n  rover\n  <https://m.com>',
       );
       expect(result.summary).toContain(
-        '<https://m.com>\n- **Venus**\n  clouds\n  <https://v.com>',
+        '<https://m.com>\n- [2] **Venus**\n  clouds\n  <https://v.com>',
       );
       expect(result.summary).not.toMatch(/^\s*\d+\.\s/m);
     }
@@ -251,7 +255,7 @@ describe('WebSearchEngine', () => {
     const result = await new WebSearchEngine(access).execute({query: 'bare'});
     if (result.type === 'search') {
       expect(result.summary).toContain(
-        '- **https://bare.com**\n  <https://bare.com>',
+        '- [1] **https://bare.com**\n  <https://bare.com>',
       );
     }
   });
@@ -309,5 +313,47 @@ describe('WebSearchEngine', () => {
       expect(frag(['web_search', 'read_url'])).toContain('read_url');
       expect(frag(['web_search'])).not.toContain('read_url');
     });
+  });
+});
+
+describe('WebSearchEngine citation numbers', () => {
+  const mk = (urls: string[]) => ({
+    id: 'tavily' as const,
+    search: jest
+      .fn()
+      .mockResolvedValue(urls.map(u => hit({title: u, url: u, snippet: 's'}))),
+  });
+
+  beforeEach(() => {
+    resetSearchCache();
+    resetSourceNumbers();
+  });
+
+  it('numbers continue across searches in one run and a repeated page keeps its number', async () => {
+    const p1 = mk(['https://a.com', 'https://b.com']);
+    const e1 = new WebSearchEngine(makeAccess({getActiveProvider: () => p1}));
+    const r1 = await e1.execute({query: 'one'});
+    const p2 = mk(['https://b.com/?utm_source=x', 'https://c.com']);
+    const r2 = await new WebSearchEngine(
+      makeAccess({getActiveProvider: () => p2}),
+    ).execute({query: 'two'});
+    if (r1.type === 'search' && r2.type === 'search') {
+      expect(r1.results.map(r => r.id)).toEqual([1, 2]);
+      expect(r2.results.map(r => r.id)).toEqual([2, 3]);
+      expect(r2.summary).toContain('- [2] **');
+      expect(r2.summary).toContain('- [3] **https://c.com**');
+    } else {
+      throw new Error('expected search results');
+    }
+  });
+
+  it('restarts at 1 after resetSourceNumbers (a new answer)', async () => {
+    const p = mk(['https://a.com']);
+    const e = new WebSearchEngine(makeAccess({getActiveProvider: () => p}));
+    await e.execute({query: 'one'});
+    resetSourceNumbers();
+    resetSearchCache();
+    const r = await e.execute({query: 'one'});
+    expect(r.type === 'search' && r.results[0].id).toBe(1);
   });
 });
