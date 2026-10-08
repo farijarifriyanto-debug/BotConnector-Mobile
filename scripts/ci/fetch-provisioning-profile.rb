@@ -14,7 +14,7 @@ key_path = ENV['KEY_PATH'] || File.expand_path("~/.appstoreconnect/private_keys/
 bundle_id = ENV['BUNDLE_ID'] || 'id.botconnector.app'
 platform = (ENV['PROFILE_PLATFORM'] || ENV['PLATFORM'] || 'ios').downcase
 is_mac = platform == 'mac' || platform == 'macos'
-target_ptype = is_mac ? 'MAC_APP_STORE' : 'IOS_APP_STORE'
+target_ptype = is_mac ? 'MAC_CATALYST_APP_STORE' : 'IOS_APP_STORE'
 
 puts "Target platform: #{is_mac ? 'macOS (Mac Catalyst)' : 'iOS'} (Looking for profile type: #{target_ptype})"
 
@@ -127,8 +127,8 @@ if target_profile.nil? && is_mac
       data: {
         type: 'profiles',
         attributes: {
-          name: "BotConnector Mac App Store",
-          profileType: 'MAC_APP_STORE'
+          name: "BotConnector Mac Catalyst App Store",
+          profileType: target_ptype
         },
         relationships: {
           bundleId: {
