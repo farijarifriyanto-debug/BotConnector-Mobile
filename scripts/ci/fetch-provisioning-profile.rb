@@ -126,5 +126,18 @@ if ENV['GITHUB_OUTPUT']
   end
 end
 
+# 5. Append to ios/Config/Env.xcconfig so target inherits without breaking Pods
+env_xcconfig = File.expand_path('../../ios/Config/Env.xcconfig', __dir__)
+if File.exist?(env_xcconfig)
+  File.open(env_xcconfig, 'a') do |f|
+    f.puts "\n// Automated Signing Configuration for Release"
+    f.puts "PROVISIONING_PROFILE_SPECIFIER = #{name}"
+    f.puts "DEVELOPMENT_TEAM = #{ENV['TEAM_ID'] || '7DD999P944'}"
+    f.puts "CODE_SIGN_STYLE = Manual"
+    f.puts "CODE_SIGN_IDENTITY = Apple Distribution"
+  end
+  puts "Appended signing configuration to #{env_xcconfig}"
+end
+
 puts "PROVISIONING_PROFILE_SPECIFIER=#{name}"
 puts "PROVISIONING_PROFILE_UUID=#{uuid}"
