@@ -419,6 +419,76 @@ describe('BotConnectorAuthStore', () => {
     expect(botConnectorAuthStore.isSignedIn).toBe(false);
   });
 
+  describe('deleteAccount', () => {
+    const seedSession = () =>
+      mem.set(AUTH_SERVICE, {
+        username: 'session',
+        password: JSON.stringify({
+          sessionToken: 'sess-token',
+          accessToken: EXCHANGE.access_token,
+          userId: EXCHANGE.user_id,
+          expiresAt: EXCHANGE.expires_at,
+        }),
+      });
+
+    it('sends the password and phrase with the app session, then signs out locally', async () => {
+      seedSession();
+      fetchMock.mockResolvedValueOnce(jsonResponse(200, {message: 'ok'}));
+      const result = await botConnectorAuthStore.deleteAccount(
+        'pw-1',
+        'HAPUS AKUN',
+      );
+      expect(result).toEqual({ok: true});
+      const [url, init] = fetchMock.mock.calls[0];
+      expect(url).toBe(
+        'https://botconnector.id/app-login/native/delete-account',
+      );
+      expect(init.method).toBe('POST');
+      expect(init.headers.Authorization).toBe('Bearer sess-token');
+      expect(JSON.parse(init.body)).toEqual({
+        current_password: 'pw-1',
+        confirmation: 'HAPUS AKUN',
+      });
+      expect(mem.has(AUTH_SERVICE)).toBe(false);
+      expect(botConnectorAuthStore.isSignedIn).toBe(false);
+    });
+
+    it.each([
+      [403, 'wrong_password'],
+      [422, 'confirmation'],
+      [429, 'rate_limited'],
+      [502, 'unavailable'],
+    ])('HTTP %i keeps the user signed in (%s)', async (status, reason) => {
+      seedSession();
+      fetchMock.mockResolvedValueOnce(jsonResponse(status, {detail: 'x'}));
+      expect(
+        await botConnectorAuthStore.deleteAccount('pw', 'HAPUS AKUN'),
+      ).toEqual({ok: false, reason});
+      expect(mem.has(AUTH_SERVICE)).toBe(true);
+    });
+
+    it('a network error keeps the session; an expired session ends it', async () => {
+      seedSession();
+      fetchMock.mockRejectedValueOnce(new Error('offline'));
+      expect(
+        await botConnectorAuthStore.deleteAccount('pw', 'HAPUS AKUN'),
+      ).toEqual({ok: false, reason: 'network'});
+      expect(mem.has(AUTH_SERVICE)).toBe(true);
+      fetchMock.mockResolvedValueOnce(jsonResponse(401, {detail: 'x'}));
+      expect(
+        await botConnectorAuthStore.deleteAccount('pw', 'HAPUS AKUN'),
+      ).toEqual({ok: false, reason: 'session'});
+      expect(mem.has(AUTH_SERVICE)).toBe(false);
+    });
+
+    it('does nothing without a stored session', async () => {
+      expect(
+        await botConnectorAuthStore.deleteAccount('pw', 'HAPUS AKUN'),
+      ).toEqual({ok: false, reason: 'session'});
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+  });
+
   describe('PAYG state derivation (UI state only)', () => {
     const setAccount = (overrides: Record<string, unknown>) => {
       (botConnectorAuthStore as any).account = {...ACCOUNT, ...overrides};

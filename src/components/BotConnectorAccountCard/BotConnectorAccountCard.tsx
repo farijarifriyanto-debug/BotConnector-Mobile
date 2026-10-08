@@ -3,6 +3,8 @@ import {Alert, StyleSheet, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import {observer} from 'mobx-react';
 
+import {DeleteAccountDialog} from '../DeleteAccountDialog';
+
 import {botConnectorAuthStore, serverStore} from '../../store';
 import {useTheme} from '../../hooks';
 import {L10nContext} from '../../utils';
@@ -28,6 +30,7 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
     const signedIn = botConnectorAuthStore.isSignedIn;
     const accountBusy =
       botConnectorAuthStore.isSigningIn || botConnectorAuthStore.isRestoring;
+    const [deleteOpen, setDeleteOpen] = React.useState(false);
     const displayName = account?.display_name?.trim() || '';
     const email = account?.email?.trim() || '';
     const plan = account?.plan?.trim() || '';
@@ -171,6 +174,24 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
               : l10n.settings.connectBotConnector}
           </Button>
         )}
+        {/* App Store 5.1.1(v): account deletion starts inside the app. */}
+        {signedIn && !readOnly && !compact ? (
+          <>
+            <Button
+              testID="botconnector-account-delete"
+              compact
+              mode="text"
+              textColor={theme.colors.error}
+              style={styles.regularAction}
+              onPress={() => setDeleteOpen(true)}>
+              {l10n.settings.deleteAccount.button}
+            </Button>
+            <DeleteAccountDialog
+              visible={deleteOpen}
+              onDismiss={() => setDeleteOpen(false)}
+            />
+          </>
+        ) : null}
       </View>
     );
   },
