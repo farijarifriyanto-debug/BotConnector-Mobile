@@ -39,7 +39,7 @@ concurrency:
 jobs:
   ios_simulator:
     name: iOS Simulator Build
-    runs-on: macos-14
+    runs-on: macos-15
     if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_simulator' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
@@ -48,13 +48,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Latest Xcode
         run: |
-          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | sort -V | tail -n 1)
-          if [ -n "$XCODE_PATH" ]; then
-            echo "Selecting $XCODE_PATH"
-            sudo xcode-select -s "$XCODE_PATH"
+          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_26*.app" | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
           fi
+          echo "Selecting $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
           xcodebuild -version
 
       - name: Setup Node.js 22
@@ -139,7 +140,7 @@ jobs:
 
   macos_catalyst:
     name: macOS Catalyst Build
-    runs-on: macos-14
+    runs-on: macos-15
     if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos_catalyst' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
@@ -149,13 +150,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Latest Xcode
         run: |
-          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | sort -V | tail -n 1)
-          if [ -n "$XCODE_PATH" ]; then
-            echo "Selecting $XCODE_PATH"
-            sudo xcode-select -s "$XCODE_PATH"
+          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_26*.app" | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
           fi
+          echo "Selecting $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
           xcodebuild -version
 
       - name: Setup Node.js 22
@@ -243,7 +245,7 @@ jobs:
 
   ios_testflight:
     name: iOS TestFlight / Release Build
-    runs-on: macos-14
+    runs-on: macos-15
     if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_testflight' || github.event.inputs.build_target == '' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
@@ -254,13 +256,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Select Xcode 16
+      - name: Select Latest Xcode
         run: |
-          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_16*.app" | sort -V | tail -n 1)
-          if [ -n "$XCODE_PATH" ]; then
-            echo "Selecting $XCODE_PATH"
-            sudo xcode-select -s "$XCODE_PATH"
+          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_26*.app" | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
           fi
+          echo "Selecting $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
           xcodebuild -version
 
       - name: Setup Node.js 22
