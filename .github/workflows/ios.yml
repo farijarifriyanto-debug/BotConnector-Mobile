@@ -382,8 +382,11 @@ jobs:
             -workspace ios/PocketPal.xcworkspace \
             -scheme PocketPal \
             -configuration Release \
+            -destination 'generic/platform=iOS' \
             -archivePath build/BotConnector.xcarchive \
             archive \
+            CODE_SIGN_STYLE=Automatic \
+            DEVELOPMENT_TEAM=7DD999P944 \
             -allowProvisioningUpdates \
             -authenticationKeyPath "$KEY_PATH" \
             -authenticationKeyID "$KEY_ID" \
