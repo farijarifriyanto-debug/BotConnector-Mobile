@@ -142,11 +142,13 @@ def setup_mac_installer_certificate(token)
   create_resp = api_post('/v1/certificates', create_body, token)
 
   if create_resp.nil? && !existing_installer.empty?
-    oldest_id = existing_installer.first['id']
-    warn "Certificate creation limit reached. Revoking oldest MAC_INSTALLER_DISTRIBUTION certificate (#{oldest_id})..."
-    api_delete("/v1/certificates/#{oldest_id}", token)
-    puts "Retrying certificate creation..."
-    create_resp = api_post('/v1/certificates', create_body, token)
+    existing_installer.each do |c|
+      warn "Certificate creation limit reached. Revoking existing MAC_INSTALLER_DISTRIBUTION certificate (#{c['id']})..."
+      api_delete("/v1/certificates/#{c['id']}", token)
+      puts "Retrying certificate creation..."
+      create_resp = api_post('/v1/certificates', create_body, token)
+      break if create_resp && create_resp['data']
+    end
   end
 
   if create_resp && create_resp['data']
@@ -156,12 +158,30 @@ def setup_mac_installer_certificate(token)
     puts "Successfully created certificate: '#{cert_name}' (ID: #{create_resp['data']['id']})"
 
     cert = OpenSSL::X509::Certificate.new(Base64.decode64(cert_b64))
-    p12 = OpenSSL::PKCS12.create('', cert_name, rsa_key, cert)
+    cert_path = '/tmp/installer_cert.pem'
+    key_path = '/tmp/installer_key.pem'
     p12_path = '/tmp/mac_installer.p12'
-    File.binwrite(p12_path, p12.to_der)
+    p12_password = 'botconnector-installer-pass'
+
+    File.write(cert_path, cert.to_pem)
+    File.write(key_path, rsa_key.to_pem)
+
+    puts "Exporting legacy PKCS#12 compatible with macOS Keychain..."
+    cmd = [
+      'openssl', 'pkcs12', '-export', '-legacy',
+      '-in', cert_path,
+      '-inkey', key_path,
+      '-out', p12_path,
+      '-passout', "pass:#{p12_password}",
+      '-name', cert_name
+    ]
+    unless system(*cmd)
+      puts "Fallback: exporting PKCS#12 with default parameters..."
+      system('openssl', 'pkcs12', '-export', '-in', cert_path, '-inkey', key_path, '-out', p12_path, '-passout', "pass:#{p12_password}", '-name', cert_name)
+    end
 
     puts "Importing #{p12_path} into keychain #{keychain_path}..."
-    system('security', 'import', p12_path, '-k', keychain_path, '-P', '', '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/security')
+    system('security', 'import', p12_path, '-k', keychain_path, '-P', p12_password, '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/security')
     system('security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:,productbuild:', '-s', '-k', keychain_password, keychain_path)
 
     updated = `security find-identity -v "#{keychain_path}" 2>/dev/null`
