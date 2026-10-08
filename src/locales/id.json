@@ -1528,6 +1528,15 @@
     "increaseContextSuccess": "Konteks ditingkatkan menjadi {{target}} token.",
     "increaseContextFailure": "Gagal meningkatkan ukuran konteks. Pengaturan sebelumnya telah dipulihkan.",
     "palLoadHint": "Persona ini cenderung membutuhkan lebih banyak ruang daripada yang diizinkan ukuran konteks saat ini.",
+    "chart": {
+      "button": "Grafik",
+      "title": "Grafik",
+      "bar": "Batang",
+      "line": "Garis",
+      "pie": "Pai",
+      "share": "Bagikan grafik",
+      "shareError": "Grafik tidak dapat dibagikan."
+    },
     "webSearch": {
       "searched": "Dicari: {{query}}",
       "noResults": "Tidak ada hasil",

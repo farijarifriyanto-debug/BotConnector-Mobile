@@ -1539,6 +1539,15 @@
     "generatingPreviewPending": "Generating preview…",
     "toolUsedChip": "used {{name}}",
     "toolErrorBlock": "{{name}} failed",
+    "chart": {
+      "button": "Chart",
+      "title": "Chart",
+      "bar": "Bar",
+      "line": "Line",
+      "pie": "Pie",
+      "share": "Share chart",
+      "shareError": "Could not share the chart."
+    },
     "webSearch": {
       "searched": "Searched: {{query}}",
       "noResults": "No results",
