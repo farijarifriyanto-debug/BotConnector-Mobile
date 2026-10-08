@@ -77,6 +77,106 @@ def api_post(path, body, token)
   JSON.parse(res.body)
 end
 
+def api_delete(path, token)
+  uri = URI("https://api.appstoreconnect.apple.com#{path}")
+  req = Net::HTTP::Delete.new(uri)
+  req['Authorization'] = "Bearer #{token}"
+  req['Accept'] = 'application/json'
+
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  res = http.request(req)
+  unless res.is_a?(Net::HTTPSuccess) || res.code.to_i == 204
+    warn "API DELETE Error #{res.code}: #{res.body}"
+    return false
+  end
+  true
+end
+
+def setup_mac_installer_certificate(token)
+  keychain_path = ENV['KEYCHAIN_PATH']
+  keychain_password = ENV['KEYCHAIN_PASSWORD'] || ''
+  unless keychain_path && File.exist?(keychain_path)
+    warn "KEYCHAIN_PATH not set or missing (#{keychain_path.inspect}); skipping installer certificate setup."
+    return false
+  end
+
+  identities = `security find-identity -v "#{keychain_path}" 2>/dev/null`
+  puts "Current keychain identities:\n#{identities}"
+
+  if identities.include?('Mac Installer Distribution') || identities.include?('3rd Party Mac Developer Installer')
+    puts "✅ Keychain already contains a Mac Installer certificate."
+    return true
+  end
+
+  puts "No Mac Installer certificate found in keychain. Listing certificates from Apple Developer account..."
+  c_resp = api_get('/v1/certificates?limit=100', token)
+  all_certs = (c_resp && c_resp['data']) || []
+  all_certs.each do |c|
+    puts "Account Certificate: #{c['id']} - #{c.dig('attributes', 'name')} (#{c.dig('attributes', 'certificateType')})"
+  end
+
+  existing_installer = all_certs.select do |c|
+    c.dig('attributes', 'certificateType') == 'MAC_INSTALLER_DISTRIBUTION'
+  end
+  puts "Found #{existing_installer.size} existing MAC_INSTALLER_DISTRIBUTION certificate(s)."
+
+  puts "Generating 2048-bit RSA key and CSR for Mac Installer Distribution..."
+  rsa_key = OpenSSL::PKey::RSA.new(2048)
+  csr = OpenSSL::X509::Request.new
+  csr.version = 0
+  csr.subject = OpenSSL::X509::Name.parse('/CN=Mac Installer Distribution/O=BotConnector/C=ID')
+  csr.public_key = rsa_key.public_key
+  csr.sign(rsa_key, OpenSSL::Digest::SHA256.new)
+
+  create_body = {
+    data: {
+      type: 'certificates',
+      attributes: {
+        certificateType: 'MAC_INSTALLER_DISTRIBUTION',
+        csrContent: csr.to_pem
+      }
+    }
+  }
+
+  create_resp = api_post('/v1/certificates', create_body, token)
+
+  if create_resp.nil? && !existing_installer.empty?
+    oldest_id = existing_installer.first['id']
+    warn "Certificate creation limit reached. Revoking oldest MAC_INSTALLER_DISTRIBUTION certificate (#{oldest_id})..."
+    api_delete("/v1/certificates/#{oldest_id}", token)
+    puts "Retrying certificate creation..."
+    create_resp = api_post('/v1/certificates', create_body, token)
+  end
+
+  if create_resp && create_resp['data']
+    cert_attrs = create_resp['data']['attributes'] || {}
+    cert_b64 = cert_attrs['certificateContent']
+    cert_name = cert_attrs['name'] || 'Mac Installer Distribution: BotConnector'
+    puts "Successfully created certificate: '#{cert_name}' (ID: #{create_resp['data']['id']})"
+
+    cert = OpenSSL::X509::Certificate.new(Base64.decode64(cert_b64))
+    p12 = OpenSSL::PKCS12.create('', cert_name, rsa_key, cert)
+    p12_path = '/tmp/mac_installer.p12'
+    File.binwrite(p12_path, p12.to_der)
+
+    puts "Importing #{p12_path} into keychain #{keychain_path}..."
+    system('security', 'import', p12_path, '-k', keychain_path, '-P', '', '-T', '/usr/bin/codesign', '-T', '/usr/bin/productbuild', '-T', '/usr/bin/security')
+    system('security', 'set-key-partition-list', '-S', 'apple-tool:,apple:,codesign:,productbuild:', '-s', '-k', keychain_password, keychain_path)
+
+    updated = `security find-identity -v "#{keychain_path}" 2>/dev/null`
+    puts "Updated keychain identities:\n#{updated}"
+    true
+  else
+    warn "Failed to create MAC_INSTALLER_DISTRIBUTION certificate via API!"
+    false
+  end
+end
+
+if is_mac
+  setup_mac_installer_certificate(token)
+end
+
 # 2. Fetch Profiles
 puts "Fetching provisioning profiles for bundle ID: #{bundle_id}..."
 profiles_resp = api_get("/v1/profiles?include=bundleId&limit=100", token)
