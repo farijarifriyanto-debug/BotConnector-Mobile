@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- App Sandbox: Required by Apple for Mac App Store distribution -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+
+	<!-- Network Client: Required for outbound HTTP/WebSocket requests -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+
+	<!-- User Selected Files: Required for picking files and photos -->
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+
+	<!-- Keychain Access Groups: Required for authentication session persistence -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)id.botconnector.app</string>
+	</array>
+
+	<!-- Siri: Required for App Intents integration -->
+	<key>com.apple.developer.siri</key>
+	<true/>
+</dict>
+</plist>

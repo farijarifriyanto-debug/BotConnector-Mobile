@@ -1,5 +1,5 @@
 import React from 'react';
-import {Alert, StyleSheet, View} from 'react-native';
+import {Alert, Linking, StyleSheet, View} from 'react-native';
 import {Button, Text} from 'react-native-paper';
 import {observer} from 'mobx-react';
 
@@ -171,6 +171,31 @@ export const BotConnectorAccountCard: React.FC<Props> = observer(
               : l10n.settings.connectBotConnector}
           </Button>
         )}
+        {!readOnly && signedIn ? (
+          <Button
+            testID="botconnector-account-delete-request"
+            compact
+            mode="text"
+            onPress={() => {
+              Alert.alert(
+                'Request account deletion',
+                'Open BotConnector Support to request deletion of your account and associated data. Account ownership may need to be verified.',
+                [
+                  {text: l10n.common.cancel, style: 'cancel'},
+                  {
+                    text: 'Continue',
+                    onPress: () => {
+                      Linking.openURL('https://botconnector.id/delete-account').catch(() => {
+                        Alert.alert('Unable to open support', 'Visit https://botconnector.id/delete-account to request account deletion.');
+                      });
+                    },
+                  },
+                ],
+              );
+            }}>
+            Request account deletion
+          </Button>
+        ) : null}
       </View>
     );
   },

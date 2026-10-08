@@ -12,6 +12,11 @@ key_id = ENV['APP_STORE_CONNECT_API_KEY_ID'] || 'V5BH58HKB7'
 issuer_id = ENV['APP_STORE_CONNECT_API_ISSUER_ID'] || '6739aeaa-bae4-4779-9d8c-ae00213e33d9'
 key_path = ENV['KEY_PATH'] || File.expand_path("~/.appstoreconnect/private_keys/AuthKey_#{key_id}.p8")
 bundle_id = ENV['BUNDLE_ID'] || 'id.botconnector.app'
+platform = (ENV['PROFILE_PLATFORM'] || ENV['PLATFORM'] || 'ios').downcase
+is_mac = platform == 'mac' || platform == 'macos'
+target_ptype = is_mac ? 'MAC_APP_STORE' : 'IOS_APP_STORE'
+
+puts "Target platform: #{is_mac ? 'macOS (Mac Catalyst)' : 'iOS'} (Looking for profile type: #{target_ptype})"
 
 unless File.exist?(key_path)
   warn "Error: Key file not found at #{key_path}"
@@ -54,6 +59,24 @@ def api_get(path, token)
   JSON.parse(res.body)
 end
 
+def api_post(path, body, token)
+  uri = URI("https://api.appstoreconnect.apple.com#{path}")
+  req = Net::HTTP::Post.new(uri)
+  req['Authorization'] = "Bearer #{token}"
+  req['Content-Type'] = 'application/json'
+  req['Accept'] = 'application/json'
+  req.body = body.to_json
+
+  http = Net::HTTP.new(uri.host, uri.port)
+  http.use_ssl = true
+  res = http.request(req)
+  unless res.is_a?(Net::HTTPSuccess)
+    warn "API POST Error #{res.code}: #{res.body}"
+    return nil
+  end
+  JSON.parse(res.body)
+end
+
 # 2. Fetch Profiles
 puts "Fetching provisioning profiles for bundle ID: #{bundle_id}..."
 profiles_resp = api_get("/v1/profiles?include=bundleId&limit=100", token)
@@ -77,18 +100,66 @@ if profiles_resp && profiles_resp['data']
 
     puts "Found profile: '#{attrs['name']}' (Type: #{ptype}, UUID: #{attrs['uuid']}, State: #{state}, BundleID: #{matched_id})"
     if state == 'ACTIVE' && (matched_id == bundle_id || attrs['name']&.include?(bundle_id) || attrs['name']&.include?('BotConnector'))
-      target_profile = prof
-      break if ptype == 'IOS_APP_STORE'
+      if ptype == target_ptype
+        target_profile = prof
+        break
+      end
     end
   end
 end
 
+# If profile is missing for macOS, attempt to auto-create via API
+if target_profile.nil? && is_mac
+  puts "No existing #{target_ptype} profile found. Attempting to create one via App Store Connect API..."
+  b_resp = api_get("/v1/bundleIds?filter[identifier]=#{bundle_id}", token)
+  bundle_obj = (b_resp && b_resp['data'] || []).find { |b| b.dig('attributes', 'identifier') == bundle_id }
+  bundle_res_id = bundle_obj&.dig('id')
+
+  c_resp = api_get("/v1/certificates?limit=50", token)
+  certs = (c_resp && c_resp['data'] || []).select do |c|
+    ctype = c.dig('attributes', 'certificateType')
+    ['DISTRIBUTION', 'MAC_APP_DISTRIBUTION'].include?(ctype)
+  end
+
+  if bundle_res_id && !certs.empty?
+    cert_relationships = certs.map { |c| { type: 'certificates', id: c['id'] } }
+    create_body = {
+      data: {
+        type: 'profiles',
+        attributes: {
+          name: "BotConnector Mac App Store",
+          profileType: 'MAC_APP_STORE'
+        },
+        relationships: {
+          bundleId: {
+            data: { type: 'bundleIds', id: bundle_res_id }
+          },
+          certificates: {
+            data: cert_relationships
+          }
+        }
+      }
+    }
+    create_resp = api_post('/v1/profiles', create_body, token)
+    if create_resp && create_resp['data']
+      target_profile = create_resp['data']
+      puts "Successfully created profile: '#{target_profile.dig('attributes', 'name')}' (UUID: #{target_profile.dig('attributes', 'uuid')})"
+    else
+      warn "Auto-creation returned non-success; will check fallback profiles..."
+    end
+  else
+    warn "Cannot create profile: bundle_res_id=#{bundle_res_id.inspect}, valid certs count=#{certs.size}"
+  end
+end
+
 if target_profile.nil? && profiles_resp && profiles_resp['data']
-  target_profile = profiles_resp['data'].find { |p| p.dig('attributes', 'profileState') == 'ACTIVE' }
+  target_profile = profiles_resp['data'].find do |p|
+    p.dig('attributes', 'profileState') == 'ACTIVE' && p.dig('attributes', 'profileType') == target_ptype
+  end
 end
 
 if target_profile.nil?
-  warn "No active IOS_APP_STORE profile found via API! Listing all profiles..."
+  warn "No active #{target_ptype} profile found via API! Listing all profiles..."
   all_resp = api_get('/v1/profiles?limit=50', token)
   all_resp['data']&.each do |p|
     warn "- #{p.dig('attributes', 'name')} (#{p.dig('attributes', 'profileType')}, #{p.dig('attributes', 'profileState')})"
@@ -133,7 +204,7 @@ end
 ].each do |cfg_file|
   if File.exist?(cfg_file)
     File.open(cfg_file, 'a') do |f|
-      f.puts "\n// Automated Signing Configuration for Release"
+      f.puts "\n// Automated Signing Configuration for #{is_mac ? 'Mac Catalyst' : 'iOS'} Release"
       f.puts "CODE_SIGN_STYLE = Manual"
       f.puts "CODE_SIGN_IDENTITY = Apple Distribution"
       f.puts "DEVELOPMENT_TEAM = #{ENV['TEAM_ID'] || '7DD999P944'}"

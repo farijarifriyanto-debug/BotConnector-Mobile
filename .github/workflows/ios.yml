@@ -13,13 +13,14 @@ on:
           - "ios_simulator"
           - "macos_catalyst"
           - "ios_testflight"
+          - "macos_testflight"
       upload_testflight:
         description: "Upload to TestFlight if signing secrets are present"
         required: false
         default: true
         type: boolean
       build_number:
-        description: "iOS build number (e.g. 17). Inferred from branch name if blank."
+        description: "iOS/Mac build number (e.g. 17). Inferred from branch name if blank."
         required: false
         default: ""
         type: string
@@ -31,6 +32,7 @@ on:
     paths:
       - 'ios/**'
       - 'src/**'
+      - 'scripts/**'
       - 'package.json'
       - 'yarn.lock'
       - 'Gemfile'
@@ -45,7 +47,7 @@ jobs:
   ios_simulator:
     name: iOS Simulator Build
     runs-on: macos-15
-    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_simulator' || github.event.inputs.build_target == '' }}
+    if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_simulator' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -146,7 +148,7 @@ jobs:
   macos_catalyst:
     name: macOS Catalyst Build
     runs-on: macos-15
-    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos_catalyst' || github.event.inputs.build_target == '' }}
+    if: ${{ (github.event_name == 'push' && github.ref_name == 'main') || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos_catalyst' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -251,7 +253,7 @@ jobs:
   ios_testflight:
     name: iOS TestFlight / Release Build
     runs-on: macos-15
-    if: ${{ github.event_name == 'push' || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_testflight' || github.event.inputs.build_target == '' }}
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'release/ios-')) || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'ios_testflight' }}
     env:
       NODE_OPTIONS: '--max-old-space-size=4096'
       EXTRA_PACKAGER_ARGS: '--max-workers 2'
@@ -495,5 +497,232 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: BotConnector-iOS-Release
+          path: artifacts/*
+          retention-days: 14
+
+  macos_testflight:
+    name: macOS Catalyst TestFlight / Release Build
+    runs-on: macos-15
+    if: ${{ (github.event_name == 'push' && startsWith(github.ref_name, 'release/macos-')) || github.event.inputs.build_target == 'all' || github.event.inputs.build_target == 'macos_testflight' }}
+    env:
+      NODE_OPTIONS: '--max-old-space-size=4096'
+      EXTRA_PACKAGER_ARGS: '--max-workers 2'
+      BOTCONNECTOR_MAC_CATALYST: '1'
+      BUNDLE_ID: 'id.botconnector.app'
+      TEAM_ID: '7DD999P944'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Select Latest Xcode
+        run: |
+          XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode_26*.app" | sort -V | tail -n 1)
+          if [ -z "$XCODE_PATH" ]; then
+            XCODE_PATH=$(find /Applications -maxdepth 1 -name "Xcode*.app" | sort -V | tail -n 1)
+          fi
+          echo "Selecting $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH"
+          xcodebuild -version
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.21.0'
+          cache: 'yarn'
+
+      - name: Install Yarn
+        run: npm install --global yarn@1.22.22
+
+      - name: Install JavaScript dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Setup Ruby 3.2.3
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2.3'
+          bundler-cache: true
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: ${{ runner.os }}-pods-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-pods-
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: bundle exec pod install
+
+      - name: Release preflight
+        run: bash scripts/release-preflight.sh
+
+      - name: Set iOS/Mac Build Number
+        run: |
+          BRANCH_BUILD=$(echo "${{ github.ref_name }}" | sed -n 's/.*build-\([0-9]*\).*/\1/p')
+          INPUT_BUILD="${{ github.event.inputs.build_number }}"
+          BUILD_NUM="${INPUT_BUILD:-${BRANCH_BUILD:-17}}"
+          echo "Setting iOS/Mac build number to $BUILD_NUM"
+          cd ios
+          agvtool new-version -all "$BUILD_NUM"
+          agvtool what-version
+          cd ..
+
+      - name: Create iOS configuration files
+        run: |
+          if [ -n "${{ secrets.GOOGLE_SERVICES_PLIST_B64 }}" ]; then
+            echo "${{ secrets.GOOGLE_SERVICES_PLIST_B64 }}" | base64 --decode > ios/GoogleService-Info.plist
+            echo "Using production Google/Firebase configuration from secret"
+          elif [ -n "${{ secrets.GOOGLE_SERVICES_PLIST }}" ]; then
+            cat > ios/GoogleService-Info.plist << 'EOF'
+          ${{ secrets.GOOGLE_SERVICES_PLIST }}
+          EOF
+            echo "Using production Google/Firebase configuration from secret"
+          else
+            cat > ios/GoogleService-Info.plist <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+          <key>CLIENT_ID</key><string>ci-placeholder.apps.googleusercontent.com</string>
+          <key>REVERSED_CLIENT_ID</key><string>com.googleusercontent.apps.ci-placeholder</string>
+          <key>GOOGLE_APP_ID</key><string>1:000000000000:ios:0000000000000000</string>
+          <key>GCM_SENDER_ID</key><string>000000000000</string>
+          <key>API_KEY</key><string>ci-placeholder</string>
+          <key>PROJECT_ID</key><string>botconnector-ci</string>
+          <key>BUNDLE_ID</key><string>id.botconnector.app</string>
+          </dict></plist>
+          PLIST
+            echo "Using placeholder Google/Firebase configuration"
+          fi
+
+          cat > ios/Config/Env.xcconfig <<'EOF'
+          GOOGLE_WEB_CLIENT_ID = ci-placeholder.apps.googleusercontent.com
+          REVERSED_GOOGLE_IOS_CLIENT_ID = com.googleusercontent.apps.ci-placeholder
+          EOF
+
+      - name: Check Apple Code Signing Secrets
+        id: check_secrets
+        run: |
+          if [ -n "${{ secrets.APPLE_CERTIFICATE_BASE64 }}" ] && [ -n "${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}" ]; then
+            echo "has_signing=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Code signing secrets detected."
+          else
+            echo "has_signing=false" >> "$GITHUB_OUTPUT"
+            echo "⚠️ Code signing secrets not configured."
+          fi
+
+      - name: Setup Keychain and Certificates
+        if: steps.check_secrets.outputs.has_signing == 'true'
+        env:
+          CERT_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          CERT_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID || 'V5BH58HKB7' }}
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+
+          printf '%s' "$CERT_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN_PATH" -P "$CERT_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          mkdir -p ~/.appstoreconnect/private_keys
+          printf '%s' "$KEY_CONTENT" > ~/.appstoreconnect/private_keys/AuthKey_${KEY_ID}.p8
+
+      - name: Fetch and Install Provisioning Profile (macOS)
+        if: steps.check_secrets.outputs.has_signing == 'true'
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID || 'V5BH58HKB7' }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID || '6739aeaa-bae4-4779-9d8c-ae00213e33d9' }}
+          BUNDLE_ID: ${{ env.BUNDLE_ID }}
+          PROFILE_PLATFORM: 'mac'
+        run: |
+          ruby scripts/ci/fetch-provisioning-profile.rb
+
+      - name: Build & Archive Mac Catalyst (Signed)
+        if: steps.check_secrets.outputs.has_signing == 'true'
+        run: |
+          export HERMES_CLI_PATH="$GITHUB_WORKSPACE/scripts/ci/hermesc-no-og.sh"
+          mkdir -p build/mac-pkg
+
+          cat > build/MacExportOptions.plist <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>destination</key>
+              <string>export</string>
+              <key>method</key>
+              <string>app-store</string>
+              <key>teamID</key>
+              <string>${{ env.TEAM_ID }}</string>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>signingCertificate</key>
+              <string>Apple Distribution</string>
+              <key>installerSigningCertificate</key>
+              <string>Apple Distribution</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>${{ env.BUNDLE_ID }}</key>
+                  <string>${PROVISIONING_PROFILE_SPECIFIER}</string>
+              </dict>
+          </dict>
+          </plist>
+          EOF
+
+          xcodebuild \
+            -workspace ios/PocketPal.xcworkspace \
+            -scheme PocketPal \
+            -configuration Release \
+            -destination 'generic/platform=macOS,variant=Mac Catalyst' \
+            -archivePath build/BotConnector-Mac.xcarchive \
+            archive
+
+          xcodebuild -exportArchive \
+            -archivePath build/BotConnector-Mac.xcarchive \
+            -exportPath build/mac-pkg \
+            -exportOptionsPlist build/MacExportOptions.plist
+
+      - name: Upload to TestFlight (macOS)
+        if: steps.check_secrets.outputs.has_signing == 'true' && (github.event_name == 'push' || github.event.inputs.upload_testflight != 'false')
+        run: |
+          KEY_ID="${{ secrets.APP_STORE_CONNECT_API_KEY_ID || 'V5BH58HKB7' }}"
+          ISSUER_ID="${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID || '6739aeaa-bae4-4779-9d8c-ae00213e33d9' }}"
+          PKG_PATH="$(find build/mac-pkg -name '*.pkg' -o -name '*.ipa' -print -quit)"
+          test -n "$PKG_PATH"
+          echo "Uploading $PKG_PATH to App Store Connect / TestFlight (macOS)..."
+          xcrun altool --upload-app \
+            -f "$PKG_PATH" \
+            -t osx \
+            --apiKey "$KEY_ID" \
+            --apiIssuer "$ISSUER_ID"
+
+      - name: Package Mac Release Artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts
+          if [ -d "build/mac-pkg" ]; then
+            cp -r build/mac-pkg/* artifacts/ || true
+          fi
+          if [ -d "build/BotConnector-Mac.xcarchive" ]; then
+            cd build
+            zip -r "$GITHUB_WORKSPACE/artifacts/BotConnector-Mac.xcarchive.zip" BotConnector-Mac.xcarchive
+            cd ..
+          fi
+
+      - name: Upload Mac Release Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotConnector-Mac-Release
           path: artifacts/*
           retention-days: 14
