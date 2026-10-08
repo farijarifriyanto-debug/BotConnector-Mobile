@@ -675,6 +675,11 @@
         "thinkText": "Think",
         "cycleEffort": "Reasoning effort: {{level}}. Double tap to cycle effort level"
       },
+      "deepResearchToggle": {
+        "label": "Deep research",
+        "enable": "Turn on Deep research for the next answer",
+        "disable": "Turn off Deep research"
+      },
       "internetToggle": {
         "label": "Internet",
         "enable": "Turn on Internet search",

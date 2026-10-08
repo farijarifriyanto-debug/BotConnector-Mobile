@@ -33,6 +33,7 @@ import {
   PlusIcon,
   AtomIcon,
   GlobeIcon,
+  ResearchIcon,
   XSmIcon,
 } from '../../assets/icons';
 
@@ -116,6 +117,10 @@ export interface ChatInputTopLevelProps {
   onInternetToggle?: (enabled: boolean) => void;
   /** Called when the visible globe is pressed but Internet is unavailable. */
   onInternetUnavailable?: () => void;
+  /** Whether to show the Deep research toggle (one-shot report mode) */
+  showDeepResearchToggle?: boolean;
+  isDeepResearchEnabled?: boolean;
+  onDeepResearchToggle?: (enabled: boolean) => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -151,6 +156,10 @@ export interface ChatInputAdditionalProps {
   onInternetToggle?: (enabled: boolean) => void;
   /** Called when the visible globe is pressed but Internet is unavailable. */
   onInternetUnavailable?: () => void;
+  /** Whether to show the Deep research toggle (one-shot report mode) */
+  showDeepResearchToggle?: boolean;
+  isDeepResearchEnabled?: boolean;
+  onDeepResearchToggle?: (enabled: boolean) => void;
   /** Whether to show the thinking toggle button */
   showThinkingToggle?: boolean;
   /** Whether thinking mode is currently enabled */
@@ -200,6 +209,9 @@ export const ChatInput = observer(
     isInternetEnabled = false,
     onInternetToggle,
     onInternetUnavailable,
+    showDeepResearchToggle = false,
+    isDeepResearchEnabled = false,
+    onDeepResearchToggle,
     showThinkingToggle = false,
     isThinkingEnabled = false,
     onThinkingToggle,
@@ -1510,6 +1522,36 @@ export const ChatInput = observer(
                     height={17}
                     stroke={
                       isInternetEnabled
+                        ? inputBackgroundColor
+                        : onSurfaceColorVariant
+                    }
+                  />
+                </TouchableOpacity>
+              )}
+
+              {/* Deep research: the next answer is a researched, cited report (one-shot). */}
+              {showDeepResearchToggle && !isCameraActive && (
+                <TouchableOpacity
+                  hitSlop={8}
+                  testID="deep-research-toggle"
+                  style={[
+                    styles.internetToggle,
+                    isDeepResearchEnabled && {backgroundColor: onSurfaceColor},
+                    {borderColor: onSurfaceColorVariant},
+                  ]}
+                  onPress={() => onDeepResearchToggle?.(!isDeepResearchEnabled)}
+                  accessibilityLabel={
+                    isDeepResearchEnabled
+                      ? l10n.components.chatInput.deepResearchToggle.disable
+                      : l10n.components.chatInput.deepResearchToggle.enable
+                  }
+                  accessibilityState={{selected: isDeepResearchEnabled}}
+                  accessibilityRole="button">
+                  <ResearchIcon
+                    width={17}
+                    height={17}
+                    stroke={
+                      isDeepResearchEnabled
                         ? inputBackgroundColor
                         : onSurfaceColorVariant
                     }

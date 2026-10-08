@@ -36,6 +36,8 @@ class SearchProviderStore {
   hasConsentedToSearch = false;
   /** Explicit composer mode: force a live web search on the first turn. */
   forceInternetSearch = false;
+  /** One-shot composer mode: the next answer is a Deep research report (not persisted). */
+  deepResearch = false;
 
   /** In-memory mirror of each provider's BYOK key (source of truth: Keychain). */
   private keys: Partial<Record<SearchProviderId, string>> = {};
@@ -146,6 +148,7 @@ class SearchProviderStore {
       this.hasConsentedToSearch = consented;
       if (!consented) {
         this.forceInternetSearch = false;
+        this.deepResearch = false;
       }
     });
     resetSearchCache();
@@ -154,8 +157,20 @@ class SearchProviderStore {
   setForceInternetSearch(enabled: boolean) {
     runInAction(() => {
       this.forceInternetSearch = this.hasConsentedToSearch && enabled;
+      if (this.forceInternetSearch) {
+        this.deepResearch = false;
+      }
     });
     resetSearchCache();
+  }
+
+  setDeepResearch(enabled: boolean) {
+    runInAction(() => {
+      this.deepResearch = this.hasConsentedToSearch && enabled;
+      if (this.deepResearch) {
+        this.forceInternetSearch = false;
+      }
+    });
   }
 
   async setKey(id: SearchProviderId, key: string): Promise<boolean> {

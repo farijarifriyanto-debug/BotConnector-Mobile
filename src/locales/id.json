@@ -654,6 +654,11 @@
         "thinkText": "Berpikir",
         "cycleEffort": "Tingkat penalaran: {{level}}. Ketuk dua kali untuk mengganti tingkat penalaran"
       },
+      "deepResearchToggle": {
+        "label": "Riset mendalam",
+        "enable": "Aktifkan Riset mendalam untuk jawaban berikutnya",
+        "disable": "Matikan Riset mendalam"
+      },
       "internetToggle": {
         "label": "Internet",
         "enable": "Aktifkan pencarian Internet",

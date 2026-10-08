@@ -68,6 +68,7 @@ export const WebSearchResultsSheet: React.FC<WebSearchResultsSheetProps> = ({
             const rowContent = (
               <>
                 <Text variant="labelMedium" style={styles.title}>
+                  {item.id ? `[${item.id}] ` : ''}
                   {item.title || item.url}
                 </Text>
                 <Text style={styles.url} numberOfLines={1}>

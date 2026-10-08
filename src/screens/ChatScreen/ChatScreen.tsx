@@ -319,6 +319,34 @@ export const ChatScreen: React.FC = observer(() => {
     showLadder().catch(() => undefined);
   }, [l10n, activeServer, activeBotConnectorAccess]);
 
+  const handleDeepResearchToggle = React.useCallback(
+    (enabled: boolean) => {
+      if (!enabled) {
+        searchProviderStore.setDeepResearch(false);
+        return;
+      }
+      if (searchProviderStore.hasConsentedToSearch) {
+        searchProviderStore.setDeepResearch(true);
+        return;
+      }
+      Alert.alert(
+        l10n.settings.internetSearch.consentTitle,
+        l10n.settings.internetSearch.consentDescription,
+        [
+          {text: l10n.common.cancel, style: 'cancel'},
+          {
+            text: l10n.settings.internetSearch.consentAccept,
+            onPress: () => {
+              searchProviderStore.setConsent(true);
+              searchProviderStore.setDeepResearch(true);
+            },
+          },
+        ],
+      );
+    },
+    [l10n],
+  );
+
   const handleInternetToggle = React.useCallback(
     (enabled: boolean) => {
       if (!enabled) {
@@ -518,6 +546,10 @@ export const ChatScreen: React.FC = observer(() => {
           isInternetEnabled: internetForced,
           onInternetToggle: handleInternetToggle,
           onInternetUnavailable: handleInternetUnavailable,
+          showDeepResearchToggle:
+            Boolean(modelStore.activeModel) && internetAvailable,
+          isDeepResearchEnabled: searchProviderStore.deepResearch,
+          onDeepResearchToggle: handleDeepResearchToggle,
           showThinkingToggle: thinkingSupported,
           isThinkingEnabled: thinkingEnabled,
           onThinkingToggle: handleThinkingToggle,

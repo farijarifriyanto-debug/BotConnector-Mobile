@@ -20,6 +20,10 @@ import {useTheme} from '../../hooks';
 
 import {styles} from './styles';
 import {MarkdownView} from '../MarkdownView';
+import {
+  applyCitations,
+  citationSourcesFromSteps,
+} from '../../services/research/cite';
 
 import {AgentStep, MessageType} from '../../utils/types';
 import {
@@ -75,11 +79,21 @@ export const TextMessage = ({
   // authoritative source. For legacy `Text` messages, fall back to
   // `message.text`. Reasoning is rendered separately via
   // ReasoningBlock — TextMessage only owns the content side.
-  const visibleText: string = step
+  const rawText: string = step
     ? (step.content ?? '')
     : 'text' in message
       ? message.text
       : '';
+  // Deep research answers cite sources as [n]: make each one a link to its source.
+  const visibleText: string = React.useMemo(() => {
+    if (!step || !('steps' in message)) {
+      return rawText;
+    }
+    return applyCitations(
+      rawText,
+      citationSourcesFromSteps((message as MessageType.AssistantTurn).steps),
+    );
+  }, [rawText, step, message]);
   const theme = useTheme();
   const user = React.useContext(UserContext);
   const [previewData, setPreviewData] = React.useState(

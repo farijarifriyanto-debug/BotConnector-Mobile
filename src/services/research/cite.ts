@@ -41,3 +41,31 @@ export function applyCitations(
     })
     .join('');
 }
+
+interface OutcomeLike {
+  toolName?: string;
+  result?: {
+    type?: string;
+    results?: Array<{id?: number; url?: string; title?: string}>;
+  };
+}
+
+/** The numbered sources a turn's deep_research calls returned, by the number the model cites. */
+export function citationSourcesFromSteps(
+  steps: ReadonlyArray<{toolOutcomes?: ReadonlyArray<OutcomeLike>}> | undefined,
+): Map<number, CitationSource> {
+  const out = new Map<number, CitationSource>();
+  for (const step of steps ?? []) {
+    for (const o of step.toolOutcomes ?? []) {
+      if (o.toolName !== 'deep_research' || o.result?.type !== 'search') {
+        continue;
+      }
+      for (const r of o.result.results ?? []) {
+        if (typeof r.id === 'number' && typeof r.url === 'string') {
+          out.set(r.id, {url: r.url, title: r.title});
+        }
+      }
+    }
+  }
+  return out;
+}
