@@ -35,6 +35,7 @@ export {default as EyeOffIcon} from './eye-off.svg';
 export {default as FilterLinesIcon} from './filter-lines.svg';
 export {default as GithubIcon} from './github-outline.svg';
 export {default as GlobeIcon} from './globe.svg';
+export {default as ResearchIcon} from './research.svg';
 export {default as GoogleIcon} from './google.svg';
 export {default as GridIcon} from './grid.svg';
 export {default as HeartIcon} from './heart.svg';

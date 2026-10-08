@@ -1,4 +1,6 @@
 export interface WebSearchResultItem {
+  /** Deep research: the source number the model cites as [n]. */
+  id?: number;
   title: string;
   url: string;
   snippet: string;

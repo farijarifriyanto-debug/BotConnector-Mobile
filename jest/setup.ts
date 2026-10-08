@@ -73,6 +73,7 @@ const mockBotConnectorAuthStore = {
   revalidate: jest.fn(() => Promise.resolve()),
   startLogin: jest.fn(() => Promise.resolve()),
   logout: jest.fn(() => Promise.resolve()),
+  deleteAccount: jest.fn(() => Promise.resolve({ok: true})),
   isAuthCallback: jest.fn(() => false),
   handleAuthCallback: jest.fn(() => Promise.resolve(false)),
 };

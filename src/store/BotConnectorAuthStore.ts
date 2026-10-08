@@ -24,6 +24,17 @@ const LOGIN_START_URL = 'https://botconnector.id/app-login/start';
 const NATIVE_EXCHANGE_URL = 'https://botconnector.id/app-login/native/exchange';
 const NATIVE_SESSION_URL = 'https://botconnector.id/app-login/native/session';
 const NATIVE_LOGOUT_URL = 'https://botconnector.id/app-login/native/logout';
+const NATIVE_DELETE_ACCOUNT_URL =
+  'https://botconnector.id/app-login/native/delete-account';
+
+/** Why deleting the account did not happen (the dialog shows a specific message for each). */
+export type DeleteAccountFailure =
+  | 'wrong_password'
+  | 'confirmation'
+  | 'rate_limited'
+  | 'session'
+  | 'unavailable'
+  | 'network';
 
 const AUTH_KEYCHAIN_SERVICE = 'botconnector-native-auth-v1';
 const PENDING_KEYCHAIN_SERVICE = 'botconnector-native-login-pending-v1';
@@ -481,6 +492,55 @@ class BotConnectorAuthStore {
       }
     }
     await this.clearLocalAuth();
+  }
+
+  /**
+   * Permanently deletes the BotConnector account (App Store 5.1.1(v)). The server re-checks the password and the
+   * phrase "HAPUS AKUN" and erases the account and its data; on success the device is signed out as well.
+   * A wrong password is reported as such and never signs the user out.
+   */
+  async deleteAccount(
+    currentPassword: string,
+    confirmation: string,
+  ): Promise<{ok: true} | {ok: false; reason: DeleteAccountFailure}> {
+    const session = await this.readSession();
+    if (!session) {
+      return {ok: false, reason: 'session'};
+    }
+    let response: Response;
+    try {
+      response = await fetch(NATIVE_DELETE_ACCOUNT_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.sessionToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          current_password: currentPassword,
+          confirmation,
+        }),
+      });
+    } catch {
+      return {ok: false, reason: 'network'};
+    }
+    if (response.ok) {
+      await this.clearLocalAuth();
+      return {ok: true};
+    }
+    switch (response.status) {
+      case 403:
+        return {ok: false, reason: 'wrong_password'};
+      case 422:
+        return {ok: false, reason: 'confirmation'};
+      case 429:
+        return {ok: false, reason: 'rate_limited'};
+      case 401:
+        // the app session itself is gone: the account may already be deleted, so end the local session too
+        await this.clearLocalAuth();
+        return {ok: false, reason: 'session'};
+      default:
+        return {ok: false, reason: 'unavailable'};
+    }
   }
 }
 

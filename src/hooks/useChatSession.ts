@@ -40,6 +40,7 @@ import {
 import {
   collectSystemPromptFragments,
   deriveToolSchemas,
+  resetDeepResearchRun,
   seedReadUrlAllowlist,
   talentRegistry,
 } from '../services/talents';
@@ -137,6 +138,10 @@ const prepareCompletion = async ({
     const names = ['web_search'];
     if (activeBotConnectorAccess.capabilities.read_url === true) {
       names.push('read_url');
+    }
+    // One-shot Deep research mode adds the researcher tool (and its prompt) for this answer only.
+    if (searchProviderStore.deepResearch && toolsAllowed) {
+      names.push('deep_research');
     }
     const webTools = deriveToolSchemas(names);
     const merged = new Map<string, ToolDefinition>();
@@ -253,6 +258,7 @@ const prepareCompletion = async ({
   });
   const forceWebSearch =
     searchProviderStore.forceInternetSearch &&
+    !sessionToolNames.includes('deep_research') &&
     sessionToolNames.includes('web_search');
   if (forceWebSearch) {
     systemPromptFragments.push(
@@ -268,6 +274,8 @@ const prepareCompletion = async ({
   // Reseed the read_url exfiltration allowlist for this run; the trust policy
   // (which sources count) lives in the talents module.
   seedReadUrlAllowlist(messages, currentMessages);
+  // Web sources (web_search and deep_research) are numbered from 1 for every answer.
+  resetDeepResearchRun();
 
   const completionParamsWithAppProps = {
     ...sessionCompletionSettings,
@@ -715,6 +723,10 @@ export const useChatSession = (
       });
 
     currentMessageInfo.current = messageInfo;
+    // Deep research is a one-shot mode: a follow-up is a normal turn unless the user turns it on again.
+    if (searchProviderStore.deepResearch) {
+      searchProviderStore.setDeepResearch(false);
+    }
 
     // Allowed talent names for this Pal. The runner rejects any
     // tool call whose function.name isn't in this list.

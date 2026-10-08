@@ -15,6 +15,9 @@ import type {
 import type {Element} from '@native-html/transient-render-engine';
 
 import {useTheme} from '../../hooks';
+import {uiStore} from '../../store';
+import {chartDataFromRows, type ChartData} from '../../services/research/chart';
+import {TableChartButton} from './TableChart';
 import {createTableStyles} from './tableStyles';
 import {ScrollView} from 'react-native-gesture-handler';
 
@@ -85,6 +88,34 @@ function getTableRows(tableDOM: Element): {row: Element; isHeader: boolean}[] {
   return rows;
 }
 
+/** Plain text of a DOM node (cells can hold nested emphasis, code, links). */
+function domText(node: any): string {
+  if (!node) {
+    return '';
+  }
+  if (node.type === 'text') {
+    return node.data ?? '';
+  }
+  return (node.children ?? []).map(domText).join('');
+}
+
+/** Numbers behind a table, or null when it is not chartable (see research/chart). */
+export function chartDataFromTable(
+  tableDOM: Element,
+  idStyle: boolean,
+): ChartData | null {
+  const rows = getTableRows(tableDOM);
+  const head = rows.find(r => r.isHeader) ?? rows[0];
+  if (!head || rows.length < 3) {
+    return null;
+  }
+  const names = getDomChildrenByTag(head.row, 'th', 'td').map(domText);
+  const body = rows
+    .filter(r => r !== head)
+    .map(r => getDomChildrenByTag(r.row, 'td', 'th').map(domText));
+  return chartDataFromRows(names, body, idStyle);
+}
+
 // ---- TNode reverse mapping ----
 
 /**
@@ -120,6 +151,11 @@ const TableRenderer: CustomBlockRenderer = ({tnode}) => {
   const styles = useMemo(() => createTableStyles(theme), [theme]);
 
   const tableDOM = tnode.domNode as Element | null;
+  const language = uiStore.language;
+  const chart = useMemo(
+    () => (tableDOM ? chartDataFromTable(tableDOM, language === 'id') : null),
+    [tableDOM, language],
+  );
   if (!tableDOM) {
     return null;
   }
@@ -127,48 +163,52 @@ const TableRenderer: CustomBlockRenderer = ({tnode}) => {
   const rows = getTableRows(tableDOM);
 
   return (
-    <View style={styles.tableOuter}>
-      <ScrollView horizontal nestedScrollEnabled>
-        <View style={styles.tableInner}>
-          {rows.map(({row, isHeader}, rowIndex) => {
-            const cells = getDomChildrenByTag(row, 'td', 'th');
-            return (
-              <View
-                key={rowIndex}
-                style={[
-                  styles.row,
-                  isHeader && styles.headerRow,
-                  rowIndex === rows.length - 1 && styles.lastRow,
-                ]}>
-                {cells.map((cell, cellIndex) => {
-                  const cellTNode = findTNodeForDomElement(tnode, cell);
-                  const isHeaderCell = isHeader || cell.tagName === 'th';
-                  const align = cell.attribs?.align;
-                  return (
-                    <View
-                      key={cellIndex}
-                      style={[
-                        styles.cell,
-                        isHeaderCell && styles.headerCell,
-                        cellIndex < cells.length - 1 && styles.cellBorderRight,
-                        align === 'center' && styles.alignCenter,
-                        align === 'right' && styles.alignRight,
-                        align === 'left' && styles.alignLeft,
-                      ]}>
-                      {cellTNode ? (
-                        <TNodeChildrenRenderer tnode={cellTNode} />
-                      ) : (
-                        <RNText>{''}</RNText>
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
-    </View>
+    <>
+      {chart && <TableChartButton data={chart} language={language} />}
+      <View style={styles.tableOuter}>
+        <ScrollView horizontal nestedScrollEnabled>
+          <View style={styles.tableInner}>
+            {rows.map(({row, isHeader}, rowIndex) => {
+              const cells = getDomChildrenByTag(row, 'td', 'th');
+              return (
+                <View
+                  key={rowIndex}
+                  style={[
+                    styles.row,
+                    isHeader && styles.headerRow,
+                    rowIndex === rows.length - 1 && styles.lastRow,
+                  ]}>
+                  {cells.map((cell, cellIndex) => {
+                    const cellTNode = findTNodeForDomElement(tnode, cell);
+                    const isHeaderCell = isHeader || cell.tagName === 'th';
+                    const align = cell.attribs?.align;
+                    return (
+                      <View
+                        key={cellIndex}
+                        style={[
+                          styles.cell,
+                          isHeaderCell && styles.headerCell,
+                          cellIndex < cells.length - 1 &&
+                            styles.cellBorderRight,
+                          align === 'center' && styles.alignCenter,
+                          align === 'right' && styles.alignRight,
+                          align === 'left' && styles.alignLeft,
+                        ]}>
+                        {cellTNode ? (
+                          <TNodeChildrenRenderer tnode={cellTNode} />
+                        ) : (
+                          <RNText>{''}</RNText>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+    </>
   );
 };
 

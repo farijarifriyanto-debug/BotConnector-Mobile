@@ -9,12 +9,14 @@ import type {SearchHit} from '../search/types';
 import {budgetHits, getCachedHits, setCachedHits} from '../search/searchBudget';
 import {wrapUntrusted} from './untrustedContent';
 import {allowReadUrls} from './readUrlAllowlist';
+import {numberFor} from './sourceNumbers';
 
 const PER_SNIPPET_CHARS = 280;
 
-const formatHit = (hit: SearchHit): string => {
+const formatHit = (hit: SearchHit, n?: number): string => {
   const date = hit.publishedAt ? ` *(${hit.publishedAt})*` : '';
-  const lines = [`- **${hit.title || hit.url}**${date}`];
+  const num = n ? `[${n}] ` : '';
+  const lines = [`- ${num}**${hit.title || hit.url}**${date}`];
   if (hit.snippet) {
     lines.push(`  ${hit.snippet}`);
   }
@@ -22,11 +24,15 @@ const formatHit = (hit: SearchHit): string => {
   return lines.join('\n');
 };
 
-const formatMenu = (query: string, hits: SearchHit[]): string => {
+const formatMenu = (
+  query: string,
+  hits: SearchHit[],
+  numbers: number[],
+): string => {
   const retrievedAt = new Date().toISOString().slice(0, 10);
   return [
     `## Web search results for "${query}" (retrieved ${retrievedAt})`,
-    ...hits.map(formatHit),
+    ...hits.map((h, i) => formatHit(h, numbers[i])),
   ].join('\n');
 };
 
@@ -105,6 +111,8 @@ export class WebSearchEngine implements TalentEngine {
     // on replay, without retaining oversized provider snippets.
     setCachedHits(provider.id, query, maxResults, budgeted);
     allowReadUrls(budgeted.map(h => h.url));
+    // numbered like deep_research sources, so "[2]" in the answer links to result 2
+    const numbers = budgeted.map(h => numberFor(h.url));
 
     if (__DEV__) {
       console.log('[web_search]', {
@@ -118,12 +126,13 @@ export class WebSearchEngine implements TalentEngine {
     return {
       type: 'search',
       query,
-      results: budgeted.map(h => ({
+      results: budgeted.map((h, i) => ({
+        id: numbers[i],
         title: h.title,
         url: h.url,
         snippet: h.snippet,
       })),
-      summary: wrapUntrusted(formatMenu(query, budgeted)),
+      summary: wrapUntrusted(formatMenu(query, budgeted, numbers)),
     };
   }
 
@@ -139,7 +148,8 @@ export class WebSearchEngine implements TalentEngine {
       `Never claim that you cannot access the internet or the web while these tools are available. ` +
       `For time-sensitive or factual questions, search first; usually one or two searches suffice — ` +
       `you have a budget of ${budget} tool calls. Answer using the facts in the results and cite ` +
-      'source URLs. If the results do not contain the answer, say so rather than guessing.'
+      'the sources you use as [n], with the number shown before each result (for example [2]); never invent a number or a link. ' +
+      'If the results do not contain the answer, say so rather than guessing.'
     );
   }
 

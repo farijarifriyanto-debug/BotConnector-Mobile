@@ -3,6 +3,7 @@ import {CalculateEngine} from './CalculateEngine';
 import {DatetimeEngine} from './DatetimeEngine';
 import {WebSearchEngine} from './WebSearchEngine';
 import {ReadUrlEngine} from './ReadUrlEngine';
+import {DeepResearchEngine} from './DeepResearchEngine';
 import {talentRegistry} from './TalentRegistry';
 import type {SearchAccess} from './searchAccess';
 import type {ToolDefinition, SystemPromptContext} from './types';
@@ -21,6 +22,7 @@ export {CalculateEngine} from './CalculateEngine';
 export {DatetimeEngine} from './DatetimeEngine';
 export {WebSearchEngine} from './WebSearchEngine';
 export {ReadUrlEngine} from './ReadUrlEngine';
+export {DeepResearchEngine, resetDeepResearchRun} from './DeepResearchEngine';
 export type {SearchAccess} from './searchAccess';
 // Deliberately narrow: the raw allowlist writers stay module-internal so all
 // writes happen inside services/talents (seed at run start, WebSearchEngine
@@ -94,6 +96,7 @@ export function registerDefaultTalents(): void {
   const searchAccess = createSearchAccess();
   talentRegistry.register(new WebSearchEngine(searchAccess));
   talentRegistry.register(new ReadUrlEngine(searchAccess));
+  talentRegistry.register(new DeepResearchEngine(searchAccess));
   registered = true;
 }
 

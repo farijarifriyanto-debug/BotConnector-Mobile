@@ -8,6 +8,7 @@ class MockSearchProviderStore {
   resultCount = 5;
   hasConsentedToSearch = false;
   forceInternetSearch = false;
+  deepResearch = false;
 
   private keys: Partial<Record<SearchProviderId, string>> = {};
 
@@ -15,6 +16,7 @@ class MockSearchProviderStore {
   setResultCount: jest.Mock;
   setConsent: jest.Mock;
   setForceInternetSearch: jest.Mock;
+  setDeepResearch: jest.Mock;
   setKey: jest.Mock;
   clearKey: jest.Mock;
 
@@ -24,6 +26,7 @@ class MockSearchProviderStore {
       setResultCount: false,
       setConsent: false,
       setForceInternetSearch: false,
+      setDeepResearch: false,
       setKey: false,
       clearKey: false,
     });
@@ -38,10 +41,20 @@ class MockSearchProviderStore {
       this.hasConsentedToSearch = consented;
       if (!consented) {
         this.forceInternetSearch = false;
+        this.deepResearch = false;
       }
     });
     this.setForceInternetSearch = jest.fn((enabled: boolean) => {
       this.forceInternetSearch = this.hasConsentedToSearch && enabled;
+      if (this.forceInternetSearch) {
+        this.deepResearch = false;
+      }
+    });
+    this.setDeepResearch = jest.fn((enabled: boolean) => {
+      this.deepResearch = this.hasConsentedToSearch && enabled;
+      if (this.deepResearch) {
+        this.forceInternetSearch = false;
+      }
     });
     this.setKey = jest.fn(async (id: SearchProviderId, key: string) => {
       this.keys[id] = key;
