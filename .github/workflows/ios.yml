@@ -18,6 +18,11 @@ on:
         required: false
         default: true
         type: boolean
+      build_number:
+        description: "iOS build number (e.g. 17). Inferred from branch name if blank."
+        required: false
+        default: ""
+        type: string
   push:
     branches:
       - 'release/ios-*'
@@ -298,6 +303,17 @@ jobs:
 
       - name: Release preflight
         run: bash scripts/release-preflight.sh
+
+      - name: Set iOS Build Number
+        run: |
+          BRANCH_BUILD=$(echo "${{ github.ref_name }}" | sed -n 's/.*build-\([0-9]*\).*/\1/p')
+          INPUT_BUILD="${{ github.event.inputs.build_number }}"
+          BUILD_NUM="${INPUT_BUILD:-${BRANCH_BUILD:-17}}"
+          echo "Setting iOS build number to $BUILD_NUM"
+          cd ios
+          agvtool new-version -all "$BUILD_NUM"
+          agvtool what-version
+          cd ..
 
       - name: Create iOS configuration files
         run: |
