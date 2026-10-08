@@ -19,9 +19,5 @@
 	<array>
 		<string>$(AppIdentifierPrefix)id.botconnector.app</string>
 	</array>
-
-	<!-- Siri: Required for App Intents integration -->
-	<key>com.apple.developer.siri</key>
-	<true/>
 </dict>
 </plist>
