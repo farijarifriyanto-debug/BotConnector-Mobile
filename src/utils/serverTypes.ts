@@ -11,6 +11,7 @@ export const SERVER_TYPE_OPTIONS = [
   'Ollama',
   'OpenAI',
   'vLLM',
+  'Anthropic',
   'unknown',
 ] as const;
 

@@ -21,6 +21,12 @@ describe('profileFor', () => {
   it('resolves a known type to its own profile', () => {
     expect(profileFor('llama.cpp')).toBe(SERVER_PROFILES['llama.cpp']);
   });
+
+  it('resolves Anthropic to its own profile', () => {
+    expect(profileFor('Anthropic' as ServerType)).toBe(
+      SERVER_PROFILES.Anthropic,
+    );
+  });
 });
 
 describe('readFinish', () => {
