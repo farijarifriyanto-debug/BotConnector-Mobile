@@ -84,7 +84,7 @@ function dropServerEntries<T>(
   );
 }
 
-class ServerStore {
+export class ServerStore {
   servers: ServerConfig[] = [];
   // Remote reasoning capability keyed by full model id (`${serverId}/${remoteModelId}`).
   // Remote Models are rebuilt each launch and not persisted, so their capability
@@ -175,8 +175,10 @@ class ServerStore {
   }
 
   // Actions
-  addServer(config: Omit<ServerConfig, 'id'>): string {
-    const id = `server-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  addServer(config: Omit<ServerConfig, 'id'>, explicitId?: string): string {
+    const id =
+      explicitId ??
+      `server-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newServer: ServerConfig = {
       ...config,
       id,

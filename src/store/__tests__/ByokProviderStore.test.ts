@@ -2,6 +2,20 @@ import * as Keychain from 'react-native-keychain';
 import {makePersistable} from 'mobx-persist-store';
 
 import {ByokProviderStore} from '../ByokProviderStore';
+import {
+  removeByokServer,
+  syncByokProviderToServer,
+} from '../../services/byokServerBridge';
+
+// The bridge itself is covered in services/__tests__/byokServerBridge.test.ts;
+// here it is mocked so these tests pin only the wiring.
+jest.mock('../../services/byokServerBridge', () => ({
+  syncByokProviderToServer: jest.fn().mockResolvedValue('byok-openai'),
+  removeByokServer: jest.fn().mockResolvedValue(undefined),
+}));
+
+const syncMock = syncByokProviderToServer as jest.Mock;
+const removeMock = removeByokServer as jest.Mock;
 
 const persistMock = makePersistable as jest.Mock;
 
@@ -82,6 +96,31 @@ describe('ByokProviderStore', () => {
   });
 
   describe('saveProvider', () => {
+    it('bridges the saved provider into ServerStore', async () => {
+      const store = await newStore();
+      syncMock.mockClear();
+
+      const saved = await store.saveProvider(
+        {providerId: 'openai', selectedModels: ['a']},
+        'sk-key',
+      );
+
+      expect(saved).toBe(true);
+      expect(syncMock).toHaveBeenCalledWith('openai');
+    });
+
+    it('reports failure when the bridge rejects', async () => {
+      const store = await newStore();
+      syncMock.mockRejectedValueOnce(new Error('keychain full'));
+
+      const saved = await store.saveProvider(
+        {providerId: 'openai', selectedModels: ['a']},
+        'sk-key',
+      );
+
+      expect(saved).toBe(false);
+    });
+
     it('refuses to save without any key', async () => {
       const store = await newStore();
 
@@ -183,6 +222,7 @@ describe('ByokProviderStore', () => {
       expect(resetMock).toHaveBeenCalledWith({
         service: 'botconnector.byok.openai',
       });
+      expect(removeMock).toHaveBeenCalledWith('openai');
       expect(store.providers).toEqual([]);
       expect(store.hasKey('openai')).toBe(false);
       expect(store.getKey('openai')).toBe('');
@@ -205,6 +245,20 @@ describe('ByokProviderStore', () => {
   });
 
   describe('hydration normalization', () => {
+    it('syncs every hydrated provider into ServerStore', async () => {
+      const store = await newStore();
+      await store.saveProvider(
+        {providerId: 'openai', selectedModels: ['a']},
+        'sk-key',
+      );
+      syncMock.mockClear();
+
+      await store.syncAllServers();
+
+      expect(syncMock).toHaveBeenCalledTimes(1);
+      expect(syncMock).toHaveBeenCalledWith('openai');
+    });
+
     it('drops malformed and unknown entries', async () => {
       const store = await newStore();
       (store as any).providers = [
