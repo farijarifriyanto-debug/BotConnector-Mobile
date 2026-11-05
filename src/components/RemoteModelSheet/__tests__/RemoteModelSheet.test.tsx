@@ -346,6 +346,7 @@ describe('RemoteModelSheet', () => {
           'http://localhost:1234',
           undefined,
           600000,
+          undefined,
         );
       });
       // The add-path probe must NOT be involved in the chip flow.
@@ -368,6 +369,7 @@ describe('RemoteModelSheet', () => {
       await waitFor(() => {
         expect(mockedFetchModels).toHaveBeenCalledWith(
           'http://localhost:1234',
+          undefined,
           undefined,
           undefined,
         );
@@ -691,6 +693,7 @@ describe('RemoteModelSheet', () => {
           'http://100.100.1.20:1337',
           'stored_pair_key',
           undefined,
+          'OpenAI',
         );
         expect(getByText('local-model-2')).toBeTruthy();
       });

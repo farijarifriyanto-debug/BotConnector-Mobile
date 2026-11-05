@@ -301,7 +301,11 @@ export const SERVER_PROFILES = {
   },
   Anthropic: {
     // The wire's name for the cap is `max_tokens`, and the API requires it.
-    sendNames: {temperature: 'temperature', top_p: 'top_p', n_predict: 'max_tokens'},
+    sendNames: {
+      temperature: 'temperature',
+      top_p: 'top_p',
+      n_predict: 'max_tokens',
+    },
     reasoningExtras: anthropicReasoningExtras,
     hasProps: false,
     isLocalRuntime: false,

@@ -1087,6 +1087,7 @@ describe('ServerStore', () => {
         'http://localhost:1234',
         undefined,
         600000,
+        undefined,
       );
     });
 
@@ -1106,6 +1107,7 @@ describe('ServerStore', () => {
 
       expect(mockedFetchModels).toHaveBeenCalledWith(
         'http://localhost:1234',
+        undefined,
         undefined,
         undefined,
       );

@@ -537,7 +537,7 @@ class ServerStore {
     try {
       const apiKey = await this.getApiKey(serverId);
       const [models] = await Promise.all([
-        fetchModels(url, apiKey, server.requestTimeoutMs),
+        fetchModels(url, apiKey, server.requestTimeoutMs, server.serverType),
         this.refreshBotConnectorAccess(serverId, apiKey),
         isBotConnectorApiUrl(url)
           ? this.refreshBotConnectorCatalog()

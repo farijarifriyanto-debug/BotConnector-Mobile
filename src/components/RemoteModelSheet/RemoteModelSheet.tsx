@@ -270,6 +270,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
           server.url,
           key || undefined,
           server.requestTimeoutMs,
+          server.serverType,
         );
         runInAction(() => {
           serverStore.serverModels.set(server.id, models);
