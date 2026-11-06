@@ -15,6 +15,7 @@ import {
 } from 'react-native-gesture-handler';
 
 import {ttsStore, uiStore} from './src/store';
+import {runCloudAccountMigration} from './src/services/cloudAccountMigration';
 import {useTheme} from './src/hooks';
 import {useDeepLinking} from './src/hooks/useDeepLinking';
 import {Theme} from './src/utils/types';
@@ -31,13 +32,11 @@ import {
   AppWithMigration,
   TTSSetupSheet,
   DownloadOverlay,
-  HubRunSheetHost,
 } from './src/components';
 import {MarkdownProvider} from './src/components/MarkdownView';
 import {AutomationBridge, BenchmarkRunnerScreen} from './src/__automation__';
 import {
   ChatScreen,
-  ImageGenerationScreen,
   ModelsScreen,
   SettingsScreen,
   BenchmarkScreen,
@@ -99,6 +98,16 @@ const App = observer(() => {
     });
   }, []);
 
+  // One-time 2.1.0 upgrade migration: remove OAuth-created BotConnector
+  // Cloud servers and clear their Keychain entries. This component only
+  // mounts after uiStore hydration (AppWithMigrationWrapper), and the
+  // migration is idempotent via the persisted cloudAccountMigrated flag.
+  React.useEffect(() => {
+    runCloudAccountMigration().catch(() => {
+      // Best-effort: failures must never crash startup.
+    });
+  }, []);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       {__E2E__ ? <AutomationBridge /> : null}
@@ -133,19 +142,6 @@ const App = observer(() => {
                             component={gestureHandlerRootHOC(ChatScreen)}
                             options={{
                               headerShown: false,
-                            }}
-                          />
-                          <Drawer.Screen
-                            name={ROUTES.IMAGES}
-                            component={gestureHandlerRootHOC(
-                              ImageGenerationScreen,
-                            )}
-                            options={{
-                              headerStyle: styles.headerWithoutDivider,
-                              title:
-                                uiStore.language === 'id'
-                                  ? 'Gambar AI'
-                                  : 'AI Images',
                             }}
                           />
                           <Drawer.Screen
@@ -229,7 +225,6 @@ const App = observer(() => {
                     />
                     <TTSSetupSheet />
                     <DownloadOverlay />
-                    <HubRunSheetHost />
                   </BottomSheetModalProvider>
                 </NavigationContainer>
               </MarkdownProvider>

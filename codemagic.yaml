@@ -265,7 +265,9 @@ workflows:
       - name: Set iOS build number
         script: |
           cd ios
-          agvtool new-version -all "$BUILD_NUMBER"
+          # Floor at 124: 2.1.0's minimum App Store build number, even when
+          # Codemagic's BUILD_NUMBER counter restarts below it.
+          agvtool new-version -all "$(( ${BUILD_NUMBER:-0} > 124 ? ${BUILD_NUMBER:-0} : 124 ))"
 
       - name: Build signed IPA
         script: |

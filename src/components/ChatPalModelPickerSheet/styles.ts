@@ -43,6 +43,16 @@ export const createStyles = ({theme}: {theme: Theme}) =>
     activeTabText: {
       color: theme.colors.onPrimaryContainer,
     },
+    addProviderRow: {
+      paddingHorizontal: 16,
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.outline,
+    },
+    addProviderLabel: {
+      color: theme.colors.primary,
+      fontWeight: '600',
+    },
     listItem: {
       flexDirection: 'row',
       alignItems: 'center',

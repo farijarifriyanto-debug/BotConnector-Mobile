@@ -64,8 +64,8 @@ if git ls-files --error-unmatch ios/Config/Env.xcconfig >/dev/null 2>&1; then
   fail "ios/Config/Env.xcconfig must not be tracked"
 fi
 
-grep -q 'MARKETING_VERSION = 1.0;' ios/PocketPal.xcodeproj/project.pbxproj \
-  || fail "iOS marketing version is not aligned with App Store version 1.0"
+grep -q 'MARKETING_VERSION = 2.1.0;' ios/PocketPal.xcodeproj/project.pbxproj \
+  || fail "iOS marketing version is not aligned with App Store version 2.1.0"
 
 grep -q '<key>ITSAppUsesNonExemptEncryption</key>' ios/PocketPal/Info.plist \
   || fail "iOS export compliance declaration missing"
@@ -86,12 +86,21 @@ fi
 grep -q 'text="botconnector.id"' ios/PocketPal/LaunchScreen.storyboard \
   || fail "BotConnector launch-screen footer missing"
 
-if grep -q 'navigate(ROUTES.PALS)' src/components/SidebarContent/SidebarContent.tsx; then
-  fail "PalsHub marketplace is still exposed in the main sidebar"
+if grep -q 'ROUTES.IMAGES' src/components/SidebarContent/SidebarContent.tsx; then
+  fail "AI Images (Cloud media) must not be linked from the sidebar"
 fi
 
-grep -q 'EXTERNAL_PALSHUB_CHECKOUT_ENABLED = false' src/components/PalsHub/PalDetailSheet/PalDetailSheet.tsx \
-  || fail "external PalsHub checkout must stay disabled for store release"
+if [ -d src/components/PalsHub ]; then
+  fail "PalsHub marketplace components must be deleted, not just disabled"
+fi
+
+if [ -f src/store/CheckoutFlowStore.ts ]; then
+  fail "CheckoutFlowStore must be deleted, not just disabled"
+fi
+
+if grep -Rq "supabase" src/ --include='*.ts' --include='*.tsx'; then
+  fail "supabase references must not exist in src/"
+fi
 
 if grep -Rq --include='*.swift' -E '"Ask Pal"|"Open Pal Chat"' ios/PocketPal/AppIntents; then
   fail "stale Siri/App Shortcuts branding remains"
@@ -111,6 +120,36 @@ if missing:
 if not (root / "App_store_1024_1x.png").is_file():
     raise SystemExit("release-preflight: 1024x1024 App Store icon missing")
 PY
+
+# --- BYOK 2.1.0 hygiene gates ------------------------------------------------
+# 1. No console.* call may log a credential variable. A leaked key in a log
+#    survives in device console buffers and crash reports.
+if grep -RInE --include='*.ts' --include='*.tsx' \
+    'console\.(log|warn|error|info|debug)[^;]*\b(apiKey|accessToken|session_token)\b' \
+    src/ >/dev/null 2>&1; then
+  fail "a console.* call logs a credential (apiKey/accessToken/session_token)"
+fi
+
+# 2. No Cloud auth/payment endpoints may remain in the app source (supabase
+#    has its own guard above).
+for needle in 'botconnector.id/app-login' '/native/exchange' '/native/session' 'stripe.com'; do
+  if grep -Rq --include='*.ts' --include='*.tsx' -- "$needle" src/; then
+    fail "removed Cloud surface still present in src/: $needle"
+  fi
+done
+
+# 3. Cloud-only modules must be deleted, not merely unimported.
+for path in \
+  src/store/BotConnectorAuthStore.ts \
+  src/store/CheckoutFlowStore.ts \
+  src/api/botconnectorAccess.ts \
+  src/api/botconnectorMedia.ts \
+  src/api/botconnectorFiles.ts \
+  src/api/clientDevices.ts; do
+  if [ -e "$path" ]; then
+    fail "Cloud module must be deleted: $path"
+  fi
+done
 
 echo "release-preflight: PASS"
 echo "  app: BotConnector"

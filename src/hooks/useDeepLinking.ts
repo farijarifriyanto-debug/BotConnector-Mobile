@@ -6,17 +6,10 @@
  */
 
 import {useEffect, useCallback} from 'react';
-import {Alert, AppState, Linking, Platform} from 'react-native';
+import {Alert, Linking} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {deepLinkService, DeepLinkParams} from '../services/DeepLinkService';
-import {isHubLink, parseHubRunURL} from '../services/hubRunLink';
-import {
-  botConnectorAuthStore,
-  chatSessionStore,
-  palStore,
-  deepLinkStore,
-  uiStore,
-} from '../store';
+import {chatSessionStore, palStore, deepLinkStore} from '../store';
 import {ROUTES} from '../utils/navigationConstants';
 import {
   isBenchmarkRunnerUrl,
@@ -72,23 +65,6 @@ export const useDeepLinking = () => {
     [navigation],
   );
 
-  // Validates a raw hub/run URL and, if valid, parks it for the sheet host to
-  // present. Shared by the iOS native-emitter and Android prod Linking paths.
-  // An invalid link surfaces a message and writes nothing (validation precedes
-  // side effects).
-  const handleHubRunLink = useCallback((url: string) => {
-    const request = parseHubRunURL(url);
-    if (!request) {
-      Alert.alert(
-        uiStore.l10n.models.hubRun.invalidLinkTitle,
-        uiStore.l10n.models.hubRun.invalidLinkMessage,
-        [{text: uiStore.l10n.common.ok}],
-      );
-      return;
-    }
-    deepLinkStore.setPendingHubRun(request);
-  }, []);
-
   const handleDeepLink = useCallback(
     async (params: DeepLinkParams) => {
       console.log('Handling deep link:', params);
@@ -103,23 +79,6 @@ export const useDeepLinking = () => {
         }
       }
 
-      // BotConnector account login callback. Handle this before generic chat/
-      // hub routing so the one-time authorization code is consumed exactly once.
-      if (botConnectorAuthStore.isAuthCallback(params.url)) {
-        try {
-          await botConnectorAuthStore.handleAuthCallback(params.url);
-        } catch (error) {
-          Alert.alert(
-            'BotConnector',
-            error instanceof Error
-              ? error.message
-              : 'Login gagal. Silakan coba lagi.',
-            [{text: 'OK'}],
-          );
-        }
-        return;
-      }
-
       // Handle chat deep links
       if (params.host === 'chat' && params.queryParams) {
         const {palId, palName, message} = params.queryParams;
@@ -128,58 +87,9 @@ export const useDeepLinking = () => {
           await handleChatDeepLink(palId, palName, message);
         }
       }
-
-      // Handle hub/run download deep links (iOS native-emitter path). Only the
-      // exact hub/run route is handled; unknown hub paths are ignored silently,
-      // matching the prod Linking path.
-      if (isHubLink(params.url)) {
-        handleHubRunLink(params.url);
-      }
     },
-    [handleChatDeepLink, handleHubRunLink, navigation],
+    [handleChatDeepLink, navigation],
   );
-
-  useEffect(() => {
-    botConnectorAuthStore.restore().catch(() => {
-      // The account card will surface the restore error; startup stays usable.
-    });
-    const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        botConnectorAuthStore.revalidate().catch(() => undefined);
-      }
-    });
-    return () => sub.remove();
-  }, []);
-
-  // Android uses React Native Linking for the production callback. iOS and
-  // Mac Catalyst are handled by DeepLinkModule above; keeping one consumer per
-  // platform prevents a one-time auth code from being exchanged twice.
-  useEffect(() => {
-    if (Platform.OS === 'ios') {
-      return;
-    }
-    const handleNativeAuthUrl = (url: string | null) => {
-      if (!url || !botConnectorAuthStore.isAuthCallback(url)) {
-        return;
-      }
-      botConnectorAuthStore.handleAuthCallback(url).catch(error => {
-        Alert.alert(
-          'BotConnector',
-          error instanceof Error
-            ? error.message
-            : 'Login gagal. Silakan coba lagi.',
-          [{text: 'OK'}],
-        );
-      });
-    };
-    Linking.getInitialURL()
-      .then(handleNativeAuthUrl)
-      .catch(() => {});
-    const sub = Linking.addEventListener('url', ({url}) =>
-      handleNativeAuthUrl(url),
-    );
-    return () => sub.remove();
-  }, []);
 
   // E2E-only routing for the BenchmarkRunnerScreen. Two paths:
   //   1. Cold launch — Linking.getInitialURL() reads the launching intent's
@@ -242,55 +152,6 @@ export const useDeepLinking = () => {
       deepLinkService.cleanup();
     };
   }, [handleDeepLink]);
-
-  // Prod, always-on delivery for the hub/run route. iOS arrives via the native
-  // emitter above; Android prod has no native deep-link bridge, so this RN
-  // Linking path (cold getInitialURL + warm 'url' event) is the only delivery.
-  // Gated by isHubLink so non-hub URLs (chat, e2e/benchmark, memory) and unknown
-  // hub paths are ignored silently — only the exact hub/run route reaches
-  // handleHubRunLink, matching the native emitter path. A malformed hub/run
-  // payload still alerts.
-  useEffect(() => {
-    Linking.getInitialURL()
-      .then(url => {
-        if (url && isHubLink(url)) {
-          handleHubRunLink(url);
-        }
-      })
-      .catch(() => {
-        // getInitialURL rejects on some surfaces; the warm listener still runs.
-      });
-
-    // addEventListener is at the RN native bridge edge; contain a synchronous
-    // throw so it can't tear down the rest of the hook's lifecycle.
-    let sub: {remove: () => void} | null = null;
-    try {
-      sub = Linking.addEventListener('url', ({url}) => {
-        if (url && isHubLink(url)) {
-          handleHubRunLink(url);
-        }
-      });
-    } catch {
-      sub = null;
-    }
-
-    return () => {
-      sub?.remove();
-    };
-  }, [handleHubRunLink]);
-};
-
-/**
- * Hook for the hub/run landing-sheet host. Reads the parked request and clears
- * it once the sheet is dismissed (single-writer clear / consumed-once).
- */
-export const useHubRunSheet = () => {
-  return {
-    pendingHubRun: deepLinkStore.pendingHubRun,
-    clearPendingHubRun: () => {
-      deepLinkStore.clearPendingHubRun();
-    },
-  };
 };
 
 /**

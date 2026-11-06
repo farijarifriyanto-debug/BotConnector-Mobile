@@ -1,5 +1,4 @@
 import type {Pal} from '../../src/types/pal';
-import type {PalsHubPal} from '../../src/types/palshub';
 import {downloadedModel, basicModel} from './models';
 
 // Basic local pal
@@ -140,77 +139,6 @@ export const mockPalWithSettings: Pal = {
   },
 };
 
-// PalsHub pal (free, public)
-export const mockPalsHubPal: PalsHubPal = {
-  type: 'palshub',
-  id: 'palshub-pal-1',
-  title: 'PalsHub Test Pal',
-  description: 'A test pal from PalsHub',
-  creator_id: 'creator-1',
-  protection_level: 'public',
-  price_cents: 0,
-  system_prompt: 'You are a helpful assistant from PalsHub.',
-  thumbnail_url: 'https://example.com/thumb.jpg',
-  model_settings: {},
-  allow_fork: true,
-  created_at: '2023-01-01T00:00:00Z',
-  updated_at: '2023-01-01T00:00:00Z',
-  creator: {
-    id: 'creator-1',
-    full_name: 'Test Creator',
-    display_name: 'TestCreator',
-    provider: 'google',
-    created_at: '2023-01-01T00:00:00Z',
-    updated_at: '2023-01-01T00:00:00Z',
-  },
-  categories: [
-    {
-      id: 'cat-1',
-      name: 'Productivity',
-      sort_order: 1,
-      created_at: '2023-01-01T00:00:00Z',
-    },
-  ],
-  tags: [
-    {
-      id: 'tag-1',
-      name: 'assistant',
-      usage_count: 10,
-      created_at: '2023-01-01T00:00:00Z',
-    },
-  ],
-  average_rating: 4.5,
-  review_count: 10,
-  is_owned: false,
-};
-
-// PalsHub pal (premium, not owned)
-export const mockPremiumPalsHubPal: PalsHubPal = {
-  ...mockPalsHubPal,
-  id: 'palshub-pal-2',
-  title: 'Premium PalsHub Pal',
-  protection_level: 'reveal_on_purchase',
-  price_cents: 999,
-  is_owned: false,
-};
-
-// PalsHub pal (premium, owned)
-export const mockOwnedPremiumPal: PalsHubPal = {
-  ...mockPremiumPalsHubPal,
-  id: 'palshub-pal-3',
-  title: 'Owned Premium Pal',
-  is_owned: true,
-};
-
-// PalsHub pal (private)
-export const mockPrivatePalsHubPal: PalsHubPal = {
-  ...mockPalsHubPal,
-  id: 'palshub-pal-4',
-  title: 'Private PalsHub Pal',
-  protection_level: 'private',
-  is_owned: true,
-};
-
 // Partial pal for creation
 export const mockNewPalData: Partial<Pal> = {
   type: 'local',
@@ -231,14 +159,6 @@ export const createPal = (overrides: Partial<Pal> = {}): Pal => ({
   ...overrides,
 });
 
-// Factory function for creating custom PalsHub pals
-export const createPalsHubPal = (
-  overrides: Partial<PalsHubPal> = {},
-): PalsHubPal => ({
-  ...mockPalsHubPal,
-  ...overrides,
-});
-
 export const palsList: Pal[] = [
   mockLocalPal,
   mockLocalPalWithModel,
@@ -247,11 +167,4 @@ export const palsList: Pal[] = [
   mockAIPal,
   mockColoredPal,
   mockPalWithSettings,
-];
-
-export const palsHubPalsList: PalsHubPal[] = [
-  mockPalsHubPal,
-  mockPremiumPalsHubPal,
-  mockOwnedPremiumPal,
-  mockPrivatePalsHubPal,
 ];

@@ -191,12 +191,34 @@ const silentRows: Row[] = [
   ],
 ];
 
+/**
+ * Thinking is off by default, so only ON sends anything — a fixed 10000-token
+ * budget. The API takes a budget, not a named effort, so an effort is not
+ * mappable and is not forwarded.
+ */
+const THINKING_ON = {thinking: {type: 'enabled', budget_tokens: 10000}};
+const anthropicRows: Row[] = [
+  NO_INTENT,
+  ['off', {enabled: false}, {}],
+  ['off, an effort still stored', {enabled: false, effort: 'high'}, {}],
+  ['on, no effort', {enabled: true}, THINKING_ON],
+  ...EFFORT_LEVELS.map(
+    (effort): Row => [`on at ${effort}`, {enabled: true, effort}, THINKING_ON],
+  ),
+  [
+    'on at an effort that is not a level',
+    {enabled: true, effort: NOT_A_LEVEL},
+    THINKING_ON,
+  ],
+];
+
 const REASONING_ROWS: Record<ServerType, Row[]> = {
   'llama.cpp': llamaCppRows,
   'LM Studio': lmStudioRows,
   Ollama: ollamaRows,
   OpenAI: openaiRows,
   vLLM: vllmRows,
+  Anthropic: anthropicRows,
   unknown: silentRows,
 };
 
@@ -353,6 +375,38 @@ describe('bodyExtras (sampler forwarding)', () => {
 });
 
 // ---- Every profile ----
+
+describe('the Anthropic profile', () => {
+  const ANTHROPIC = 'Anthropic' as ServerType;
+
+  it('sends temperature, top_p and max_tokens under Anthropic wire names', () => {
+    expect(
+      bodyExtras(ANTHROPIC, {
+        samplers: {temperature: 0.7, top_p: 0.9, n_predict: 4096},
+      }),
+    ).toEqual({temperature: 0.7, top_p: 0.9, max_tokens: 4096});
+  });
+
+  it('enables thinking with a 10000-token budget when reasoning is on', () => {
+    expect(
+      bodyExtras(ANTHROPIC, {
+        samplers: {temperature: 0.7, n_predict: 4096},
+        reasoning: {enabled: true},
+      }),
+    ).toEqual({
+      temperature: 0.7,
+      max_tokens: 4096,
+      thinking: {type: 'enabled', budget_tokens: 10000},
+    });
+  });
+
+  it('sends no thinking key when reasoning is off or absent', () => {
+    expect(
+      bodyExtras(ANTHROPIC, {samplers: {}, reasoning: {enabled: false}}),
+    ).toEqual({});
+    expect(bodyExtras(ANTHROPIC, {samplers: {}})).toEqual({});
+  });
+});
 
 /** A full request, for the checks that hold for every profile alike. */
 function settingsForEveryProfile(): Samplers {

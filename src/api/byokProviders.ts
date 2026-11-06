@@ -3,6 +3,7 @@ import {
   buildHeaders,
   normalizeUrl,
   resolveTimeout,
+  versionedBaseUrl,
 } from './http';
 import type {RemoteModelInfo} from '../utils/types';
 
@@ -12,6 +13,9 @@ export type ByokProviderId =
   | 'gemini'
   | 'deepseek'
   | 'openrouter'
+  | 'xai'
+  | 'mistral'
+  | 'botconnector'
   | 'generic';
 
 export type ByokTransport = 'openai' | 'anthropic';
@@ -22,6 +26,12 @@ export interface ByokProviderMeta {
   transport: ByokTransport;
   defaultBaseUrl: string;
   requiresBaseUrl: boolean;
+  /**
+   * True when defaultBaseUrl is the API root without a version segment
+   * (e.g. https://api.botconnector.id) — the models URL then needs /v1
+   * appended, same rule as the generic provider.
+   */
+  baseIsApiRoot?: boolean;
 }
 
 // Anthropic transport — verified against official docs (2026-10-07):
@@ -76,6 +86,28 @@ export const BYOK_PROVIDERS: readonly ByokProviderMeta[] = [
     requiresBaseUrl: false,
   },
   {
+    id: 'xai',
+    label: 'xAI (Grok)',
+    transport: 'openai',
+    defaultBaseUrl: 'https://api.x.ai/v1',
+    requiresBaseUrl: false,
+  },
+  {
+    id: 'mistral',
+    label: 'Mistral',
+    transport: 'openai',
+    defaultBaseUrl: 'https://api.mistral.ai/v1',
+    requiresBaseUrl: false,
+  },
+  {
+    id: 'botconnector',
+    label: 'BotConnector',
+    transport: 'openai',
+    defaultBaseUrl: 'https://api.botconnector.id',
+    requiresBaseUrl: false,
+    baseIsApiRoot: true,
+  },
+  {
     id: 'generic',
     label: 'Custom endpoint',
     transport: 'openai',
@@ -115,11 +147,12 @@ export function resolveModelsUrl(
   meta: ByokProviderMeta,
   baseUrl?: string,
 ): string {
-  const base = normalizeUrl((baseUrl || '').trim() || meta.defaultBaseUrl);
-  if (meta.id === 'generic') {
-    return /\/v\d+/i.test(base) ? `${base}/models` : `${base}/v1/models`;
+  const base = (baseUrl || '').trim() || meta.defaultBaseUrl;
+  // One rule for every provider, the same one the transports use.
+  if (meta.id === 'generic' || meta.baseIsApiRoot) {
+    return `${versionedBaseUrl(base)}/models`;
   }
-  return `${base}/models`;
+  return `${normalizeUrl(base)}/models`;
 }
 
 function buildByokHeaders(

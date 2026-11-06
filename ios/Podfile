@@ -119,13 +119,18 @@ target 'PocketPal' do
     end
 
     # Workaround: pin the fmt pod to C++17 so it skips the consteval code path
-    # that Apple clang 21 (Xcode 26.4.1) rejects. Tracking facebook/react-native#55601.
-    # Disable code signing and provisioning profiles on all Pod targets
+    # that Apple clang 21 (Xcode 26.4.1) rejects, and disable code signing and
+    # provisioning profiles on all Pod targets. Tracking
+    # facebook/react-native#55601 - the fmt pin was lost when this block was
+    # rewritten for code signing, which is why the iOS build failed again.
     installer.pods_project.targets.each do |target|
       target.build_configurations.each do |config|
         config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
         config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
         config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
+        if target.name == 'fmt'
+          config.build_settings['CLANG_CXX_LANGUAGE_STANDARD'] = 'c++17'
+        end
       end
     end
   end

@@ -153,6 +153,20 @@ function openaiReasoningExtras(
 }
 
 /**
+ * Anthropic's default is thinking OFF, so only an explicit ON sends anything:
+ * extended thinking with a fixed 10000-token budget. Effort levels are not
+ * mappable — the API takes a token budget, not a named level.
+ */
+function anthropicReasoningExtras(
+  reasoning: ReasoningIntent | undefined,
+): Record<string, unknown> {
+  if (!reasoning?.enabled) {
+    return {};
+  }
+  return {thinking: {type: 'enabled', budget_tokens: 10000}};
+}
+
+/**
  * Modern vLLM ignores an unknown `chat_template_kwargs` entry, so both keys are
  * safe. Its sampler names are its own (`repetition_penalty`, not
  * `repeat_penalty`), so none is forwarded until one has been read back off a
@@ -282,6 +296,17 @@ export const SERVER_PROFILES = {
   vLLM: {
     sendNames: BASE_SEND_NAMES,
     reasoningExtras: vllmReasoningExtras,
+    hasProps: false,
+    isLocalRuntime: false,
+  },
+  Anthropic: {
+    // The wire's name for the cap is `max_tokens`, and the API requires it.
+    sendNames: {
+      temperature: 'temperature',
+      top_p: 'top_p',
+      n_predict: 'max_tokens',
+    },
+    reasoningExtras: anthropicReasoningExtras,
     hasProps: false,
     isLocalRuntime: false,
   },

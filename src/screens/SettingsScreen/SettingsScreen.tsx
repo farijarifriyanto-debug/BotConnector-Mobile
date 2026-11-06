@@ -36,7 +36,6 @@ import {
 } from '../../assets/icons';
 
 import {
-  BotConnectorAccountCard,
   TextInput,
   Menu,
   Divider,
@@ -45,6 +44,7 @@ import {
   SearchProviderKeySheet,
   InputSlider,
 } from '../../components';
+import {ProvidersSection} from '../../components/ProvidersSection';
 
 import {useTheme} from '../../hooks';
 
@@ -57,10 +57,8 @@ import {
   hfStore,
   ttsStore,
   searchProviderStore,
-  serverStore,
 } from '../../store';
 import type {SearchProviderId} from '../../services/search/types';
-import {isBotConnectorApiUrl} from '../../config/botconnector';
 
 import {CacheType, ModelType} from '../../utils/types';
 import {
@@ -356,14 +354,8 @@ export const SettingsScreen: React.FC = observer(() => {
   );
   const activeSearchProviderId = searchProviderStore.activeProviderId;
   const searchHasConsent = searchProviderStore.hasConsentedToSearch;
-  // With a BotConnector account, web search is included with the account and
-  // runs through BotConnector automatically; bring-your-own-key providers are
-  // an advanced option, collapsed by default.
-  const hasBotConnectorCloud = serverStore.servers.some(server =>
-    isBotConnectorApiUrl(server.url),
-  );
-  const [showByokSearch, setShowByokSearch] = useState(false);
-  const byokSearchVisible = !hasBotConnectorCloud || showByokSearch;
+  // BYOK-only: web search always runs through a bring-your-own-key provider.
+  const byokSearchVisible = true;
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
@@ -371,12 +363,14 @@ export const SettingsScreen: React.FC = observer(() => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
+          {/* BYOK providers (2.1.0: replaces the Cloud Account card) */}
           <Card elevation={0} style={styles.card}>
-            <Card.Title title={l10n.settings.accountSection} />
+            <Card.Title title={l10n.settings.providersSection.title} />
             <Card.Content>
-              <BotConnectorAccountCard />
+              <ProvidersSection />
             </Card.Content>
           </Card>
+
           {/* Model Initialization Settings */}
           <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />
@@ -1227,29 +1221,6 @@ export const SettingsScreen: React.FC = observer(() => {
                       {l10n.settings.internetSearch.consentRevoke}
                     </Button>
                   </View>
-                )}
-
-                {hasBotConnectorCloud && (
-                  <>
-                    <Divider style={styles.divider} />
-                    <View
-                      style={styles.textContainer}
-                      testID="botconnector-search-included">
-                      <Text variant="titleMedium" style={styles.textLabel}>
-                        {l10n.settings.internetSearch.botconnectorTitle}
-                      </Text>
-                      <Text variant="labelSmall" style={styles.textDescription}>
-                        {l10n.settings.internetSearch.botconnectorDescription}
-                      </Text>
-                    </View>
-                    <Button
-                      testID="search-byok-toggle"
-                      mode="text"
-                      onPress={() => setShowByokSearch(v => !v)}
-                      icon={showByokSearch ? 'chevron-up' : 'chevron-down'}>
-                      {l10n.settings.internetSearch.byokAdvanced}
-                    </Button>
-                  </>
                 )}
 
                 {byokSearchVisible && (

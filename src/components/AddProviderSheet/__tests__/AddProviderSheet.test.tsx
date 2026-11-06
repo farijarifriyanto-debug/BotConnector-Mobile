@@ -217,7 +217,7 @@ describe('AddProviderSheet', () => {
     it('shows an explicit empty state when the provider returns no models', async () => {
       fetchMock.mockResolvedValueOnce([]);
 
-      const {getByTestId} = renderSheet();
+      const {getByTestId, queryByTestId} = renderSheet();
       fireEvent.press(getByTestId('byok-provider-option-openai'));
       fireEvent.changeText(getByTestId('byok-key-input'), 'sk-good');
       fireEvent.press(getByTestId('byok-test-button'));
@@ -225,6 +225,8 @@ describe('AddProviderSheet', () => {
       await waitFor(() => {
         expect(getByTestId('byok-no-models')).toBeTruthy();
       });
+      // "Connected - 0 models found" above "no models" reads as a contradiction.
+      expect(queryByTestId('byok-test-success')).toBeNull();
       expect(
         getByTestId('byok-save-button').props.accessibilityState?.disabled,
       ).toBe(true);

@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from 'react';
 import {TouchableOpacity, View, Alert, SectionList} from 'react-native';
 import {observer} from 'mobx-react';
-import {Divider, Drawer, Icon, Text} from 'react-native-paper';
+import {Divider, Drawer, Text} from 'react-native-paper';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {DrawerContentComponentProps} from '@react-navigation/drawer';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -543,19 +543,6 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               onPress={() => props.navigation.navigate(ROUTES.CHAT)}
               style={styles.menuDrawerItem}
               testID="drawer-item-chat"
-            />
-            <Drawer.Item
-              label={l10n.screenTitles.images}
-              icon={() => (
-                <Icon
-                  source="image-multiple-outline"
-                  size={24}
-                  color={theme.colors.primary}
-                />
-              )}
-              onPress={() => props.navigation.navigate(ROUTES.IMAGES)}
-              style={styles.menuDrawerItem}
-              testID="drawer-item-images"
             />
             <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.models}

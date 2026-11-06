@@ -12,12 +12,14 @@ import {
   CONNECTION_TIMEOUT_MS,
   IDLE_TIMEOUT_MS,
   buildHeaders,
-  normalizeUrl,
+  versionedBaseUrl,
   resolveTimeout,
 } from './http';
+import {fetchAnthropicModels} from './anthropic';
 import {bodyExtras, readFinish} from './servers';
 import type {FinishRead, RemoteEndpoint} from './servers';
 import type {Samplers} from '../utils/samplerParams';
+import type {ServerType} from '../utils/serverTypes';
 
 /** Chat message type compatible with OpenAI API format */
 export interface OpenAIChatMessage {
@@ -211,7 +213,7 @@ export async function fetchModelsWithHeaders(
   apiKey?: string,
   timeoutMs?: number,
 ): Promise<FetchModelsResult> {
-  const url = `${normalizeUrl(serverUrl)}/v1/models`;
+  const url = `${versionedBaseUrl(serverUrl)}/models`;
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -260,12 +262,19 @@ export async function fetchModelsWithHeaders(
 /**
  * Fetch available models from an OpenAI-compatible server.
  * GET /v1/models
+ *
+ * A server typed `Anthropic` is dispatched to the native Models API — the
+ * OpenAI-compatible layer does not cover model listing the same way.
  */
 export async function fetchModels(
   serverUrl: string,
   apiKey?: string,
   timeoutMs?: number,
+  serverType?: ServerType,
 ): Promise<RemoteModelInfo[]> {
+  if (serverType === 'Anthropic') {
+    return fetchAnthropicModels(serverUrl, apiKey, timeoutMs);
+  }
   const {models} = await fetchModelsWithHeaders(serverUrl, apiKey, timeoutMs);
   return models;
 }
@@ -288,7 +297,7 @@ export async function testConnection(
 }
 
 /** A local image path needs inlining: not already a data: or http(s): url. */
-function isLocalImageUrl(url: string | undefined): url is string {
+export function isLocalImageUrl(url: string | undefined): url is string {
   return (
     !!url &&
     !url.startsWith('data:') &&
@@ -298,7 +307,9 @@ function isLocalImageUrl(url: string | undefined): url is string {
 }
 
 /** True when any message carries a local-path image that must be encoded. */
-function hasLocalImageAttachment(messages: OpenAIChatMessage[]): boolean {
+export function hasLocalImageAttachment(
+  messages: OpenAIChatMessage[],
+): boolean {
   return messages.some(
     m =>
       Array.isArray(m.content) &&
@@ -417,7 +428,7 @@ async function encodeImagePart(part: {
  * Encodes sequentially (outer messages and inner parts) so peak heap is one
  * base64 buffer at a time on a long or multi-image history.
  */
-async function encodeMessagesForRemote(
+export async function encodeMessagesForRemote(
   messages: OpenAIChatMessage[],
 ): Promise<OpenAIChatMessage[]> {
   const encoded: OpenAIChatMessage[] = [];
@@ -468,7 +479,7 @@ export async function streamChatCompletion(
   onToken?: (data: CompletionStreamData) => void,
 ): Promise<CompletionResult> {
   const {apiKey, serverType, timeoutMs} = endpoint;
-  const url = `${normalizeUrl(endpoint.url)}/v1/chat/completions`;
+  const url = `${versionedBaseUrl(endpoint.url)}/chat/completions`;
   const connectionTimeoutMs = resolveTimeout(timeoutMs, CONNECTION_TIMEOUT_MS);
   const idleTimeoutMs = resolveTimeout(timeoutMs, IDLE_TIMEOUT_MS);
   // Only pay the async encode when a local image is actually attached; the

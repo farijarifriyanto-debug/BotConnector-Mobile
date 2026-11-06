@@ -337,20 +337,6 @@ class PalRepository {
     }
   }
 
-  async getPalsHubPals(): Promise<Pal[]> {
-    try {
-      const palshubPals = await database.collections
-        .get<LocalPal>('local_pals')
-        .query(Q.where('source', 'palshub'))
-        .fetch();
-
-      return palshubPals.map(pal => pal.toPal());
-    } catch (error) {
-      console.error('Error fetching palshub pals:', error);
-      return [];
-    }
-  }
-
   async getVideoPals(): Promise<Pal[]> {
     try {
       const allPals = await this.getAllPals();

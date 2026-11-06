@@ -11,19 +11,11 @@ import {
   Linking,
 } from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
-import {
-  errorCodes,
-  isErrorWithCode,
-  keepLocalCopy,
-  pick,
-  types,
-} from '@react-native-documents/picker';
-import * as RNFS from '@dr.pogodin/react-native-fs';
 import {useCameraPermission} from 'react-native-vision-camera';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
 import {observer} from 'mobx-react';
-import {IconButton, ProgressBar, Text} from 'react-native-paper';
+import {IconButton, Text} from 'react-native-paper';
 
 import {hasVideoCapability} from '../../utils/pal-capabilities';
 
@@ -40,40 +32,12 @@ import {useTheme} from '../../hooks';
 
 import {createStyles} from './styles';
 
-import {
-  botConnectorAuthStore,
-  chatSessionStore,
-  modelStore,
-  palStore,
-  serverStore,
-  uiStore,
-} from '../../store';
+import {chatSessionStore, modelStore, palStore, uiStore} from '../../store';
 
 import {MessageType} from '../../utils/types';
 import {L10nContext, UserContext} from '../../utils';
 import {t} from '../../locales';
 import {recognizeSpeechOnce} from '../../utils/speechRecognition';
-import {isBotConnectorApiUrl} from '../../config/botconnector';
-import {
-  CapabilityDenialInput,
-  CapabilityDenialReason,
-  resolveCapabilityDenial,
-} from '../../utils/capabilityDenial';
-import {
-  BOTCONNECTOR_FILE_MAX_COUNT,
-  BOTCONNECTOR_FILE_MAX_TOTAL_BYTES,
-  BOTCONNECTOR_FILE_POLL_DEADLINE_MS,
-  BOTCONNECTOR_FILE_POLL_ERROR_LIMIT,
-  BotConnectorFile,
-  BotConnectorFileStatusError,
-  getBotConnectorFile,
-  isBotConnectorFileReady,
-  isKnownBotConnectorFileStatus,
-  isTerminalBotConnectorFileStatus,
-  nextFilePollDelayMs,
-  resolveFileFailureMessage,
-  uploadBotConnectorFile,
-} from '../../api/botconnectorFiles';
 
 import {SendButton, StopButton, Menu, VoiceChip} from '..';
 
@@ -221,26 +185,6 @@ export const ChatInput = observer(
     const {hasPermission, requestPermission} = useCameraPermission();
 
     const hasActiveModel = !!modelStore.activeModelId;
-    const activeServer = modelStore.activeModel?.serverId
-      ? serverStore.servers.find(
-          server => server.id === modelStore.activeModel?.serverId,
-        )
-      : undefined;
-    const isBotConnectorCloud = Boolean(
-      activeServer && isBotConnectorApiUrl(activeServer.url),
-    );
-    const activeAccess = isBotConnectorCloud
-      ? serverStore.botConnectorAccess[activeServer!.id]
-      : undefined;
-    const activeAccessState = isBotConnectorCloud
-      ? serverStore.botConnectorAccessState[activeServer!.id]
-      : undefined;
-    // Per-axis gate only: the legacy coarse `access` flag must never decide
-    // whether Files is offered (server reports files=false for plans without
-    // it, with reasons.files explaining why).
-    const botConnectorFilesEnabled = Boolean(
-      activeAccess && activeAccess.capabilities.files === true,
-    );
 
     // Use `defaultValue` if provided
     const [text, setText] = React.useState(textInputProps?.defaultValue ?? '');
@@ -251,11 +195,6 @@ export const ChatInput = observer(
     const selectedImages = defaultImages ?? internalSelectedImages;
     const setSelectedImages =
       onDefaultImagesChange ?? setInternalSelectedImages;
-    const [selectedFiles, setSelectedFiles] = React.useState<
-      BotConnectorFile[]
-    >([]);
-    const selectedFileKeysRef = React.useRef<Set<string>>(new Set());
-    selectedFileKeysRef.current = new Set(selectedFiles.map(file => file.uri));
     // State for image upload menu
     const [showImageUploadMenu, setShowImageUploadMenu] = React.useState(false);
     // State for showing "model not loaded" helper text
@@ -350,18 +289,9 @@ export const ChatInput = observer(
       }
     };
 
-    const readyFiles = botConnectorFilesEnabled
-      ? selectedFiles.filter(isBotConnectorFileReady)
-      : [];
-    const hasPendingFiles =
-      botConnectorFilesEnabled &&
-      selectedFiles.some(
-        file => !isTerminalBotConnectorFileStatus(file.status),
-      );
-
     const handleSend = () => {
       const trimmedValue = value.trim();
-      if ((trimmedValue || readyFiles.length > 0) && !hasPendingFiles) {
+      if (trimmedValue) {
         // Check if model is loaded before sending
         if (!hasActiveModel) {
           ReactNativeHapticFeedback.trigger(
@@ -377,21 +307,9 @@ export const ChatInput = observer(
           text: trimmedValue,
           type: 'text',
           imageUris: selectedImages.length > 0 ? selectedImages : undefined,
-          botConnectorFiles:
-            readyFiles.length > 0
-              ? readyFiles.map(file => ({
-                  id: file.id!,
-                  name: file.name,
-                  size: file.size,
-                  mediaType: file.mediaType,
-                  route: file.route,
-                }))
-              : undefined,
         });
         setText('');
         setSelectedImages([]);
-        selectedFiles.forEach(cleanupTemporaryFile);
-        setSelectedFiles([]);
       }
     };
 
@@ -454,154 +372,27 @@ export const ChatInput = observer(
       }
     };
 
-    const visionDenialInput = (
-      overrides: Partial<CapabilityDenialInput> = {},
-    ): CapabilityDenialInput => ({
-      enabled: false,
-      isBotConnectorServer: isBotConnectorCloud,
-      isSignedIn: botConnectorAuthStore.isSignedIn,
-      access: activeAccess,
-      accessLoading: activeAccessState?.loading,
-      accessError: activeAccessState?.error,
-      accessErrorKind: activeAccessState?.errorKind,
-      modelSupports: modelStore.activeModelCaps.visionActive === true,
-      capability: 'vision',
-      ...overrides,
-    });
-
-    const showVisionDeniedAlert = (
-      denial: CapabilityDenialReason | null,
-      retry: () => void,
-    ) => {
-      const capability = l10n.components.capability;
-      const chooseModelButton = {
-        text: l10n.camera.chooseVisionModel,
-        onPress: () => uiStore.openModelPicker('models'),
-      };
-      switch (denial) {
-        case 'signed_out':
-          Alert.alert(capability.signedOutTitle, l10n.camera.visionSignInBody, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {
-              text: l10n.settings.connectBotConnector,
-              onPress: () => {
-                botConnectorAuthStore.startLogin().catch(() => undefined);
-              },
-            },
-          ]);
-          return;
-        case 'checking':
-          Alert.alert(capability.checkingTitle, capability.checkingBody);
-          return;
-        case 'quota_rate_limited':
-          Alert.alert(capability.quotaRateTitle, capability.quotaRateBody, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {text: capability.retry, onPress: retry},
-          ]);
-          return;
-        case 'quota_balance':
-          Alert.alert(
-            capability.quotaBalanceTitle,
-            capability.quotaBalanceBody,
-            [
-              {text: l10n.common.cancel, style: 'cancel'},
-              {text: capability.retry, onPress: retry},
-            ],
-          );
-          return;
-        case 'unavailable':
-          Alert.alert(capability.unavailableTitle, capability.unavailableBody, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {text: capability.retry, onPress: retry},
-          ]);
-          return;
-        case 'plan_not_included':
-          Alert.alert(l10n.camera.visionPlanTitle, l10n.camera.visionPlanBody, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            chooseModelButton,
-          ]);
-          return;
-        default:
-          Alert.alert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            chooseModelButton,
-          ]);
-      }
-    };
-
-    const requireVision = (action: () => void) => async () => {
+    // BYOK-only: the only vision denial left is "the active model does not
+    // support vision" — explain it and offer the model picker.
+    const requireVision = (action: () => void) => () => {
       if (isVisionEnabled) {
         action();
         return;
       }
       setShowImageUploadMenu(false);
-
-      let denial = resolveCapabilityDenial(visionDenialInput());
-
-      // Account state is unknown/failed: revalidate once, then decide with
-      // fresh data. A definitive plan answer is never re-fetched here; quota
-      // refusals revalidate on demand so Retry can actually retry.
-      if (
-        denial === 'checking' ||
-        denial === 'unavailable' ||
-        denial === 'quota_rate_limited' ||
-        denial === 'quota_balance'
-      ) {
-        const fresh = activeServer
-          ? await serverStore
-              .refreshBotConnectorAccess(activeServer.id)
-              .catch(() => undefined)
-          : undefined;
-        denial = resolveCapabilityDenial(
-          visionDenialInput({
-            enabled: Boolean(
-              fresh &&
-                modelStore.activeModelCaps.visionActive === true &&
-                fresh.capabilities.vision === true,
-            ),
-            access: fresh,
-            accessLoading: false,
-            accessError: !fresh,
-          }),
-        );
-      }
-
-      if (!denial) {
-        action();
-        return;
-      }
-      showVisionDeniedAlert(denial, () => {
-        requireVision(action)().catch(() => undefined);
-      });
+      Alert.alert(l10n.camera.noVisionTitle, l10n.camera.noVisionMessage, [
+        {text: l10n.common.cancel, style: 'cancel'},
+        {
+          text: l10n.camera.chooseVisionModel,
+          onPress: () => uiStore.openModelPicker('models'),
+        },
+      ]);
     };
 
     // Accessibility hint for the camera/gallery rows when Vision is denied.
-    const visionMenuHint = (() => {
-      if (isVisionEnabled) {
-        return undefined;
-      }
-      const denial = resolveCapabilityDenial(visionDenialInput());
-      const capability = l10n.components.capability;
-      if (denial === 'signed_out') {
-        return capability.signedOutTitle;
-      }
-      if (denial === 'checking') {
-        return capability.checkingTitle;
-      }
-      if (denial === 'unavailable') {
-        return capability.unavailableTitle;
-      }
-      if (denial === 'quota_rate_limited') {
-        return capability.quotaRateTitle;
-      }
-      if (denial === 'quota_balance') {
-        return capability.quotaBalanceTitle;
-      }
-      if (denial === 'plan_not_included') {
-        return l10n.camera.visionPlanTitle;
-      }
-      return l10n.camera.noVisionTitle;
-    })();
+    const visionMenuHint = isVisionEnabled
+      ? undefined
+      : l10n.camera.noVisionTitle;
 
     // Handle selecting images from the gallery
     const handleSelectImages = async () => {
@@ -639,493 +430,6 @@ export const ChatInput = observer(
       }
     };
 
-    const localFilePath = (uri: string) =>
-      uri.startsWith('file://') ? decodeURIComponent(uri.slice(7)) : uri;
-
-    const cleanupTemporaryFile = (file: BotConnectorFile) => {
-      if (!file.temporary || !file.uri.startsWith('file://')) {
-        return;
-      }
-      RNFS.unlink(localFilePath(file.uri)).catch(() => undefined);
-    };
-
-    const updateSelectedFile = (
-      localKey: string,
-      patch: Partial<BotConnectorFile>,
-    ) => {
-      setSelectedFiles(current =>
-        current.map(file =>
-          file.uri === localKey ? {...file, ...patch} : file,
-        ),
-      );
-    };
-
-    // Server-side parsing/OCR of large files can take minutes: poll with the
-    // server-hinted cadence (never tighter than 3 s), back off on rate limits
-    // without counting them as failures, and stop as soon as the attachment
-    // is removed from the composer.
-    const pollFileStatus = async (
-      localKey: string,
-      serverUrl: string,
-      apiKey: string,
-      fileId: string,
-      seed?: {pollAfterMs?: number | null; status?: string},
-    ) => {
-      const deadline = Date.now() + BOTCONNECTOR_FILE_POLL_DEADLINE_MS;
-      let delay = nextFilePollDelayMs({
-        serverPollAfterMs: seed?.pollAfterMs,
-        status: seed?.status,
-      });
-      let knownStatus: string | undefined = seed?.status;
-      let consecutiveErrors = 0;
-      while (Date.now() < deadline) {
-        await new Promise(resolve => setTimeout(resolve, delay));
-        if (!selectedFileKeysRef.current.has(localKey)) {
-          return; // removed by the user
-        }
-        try {
-          const latest = await getBotConnectorFile({
-            serverUrl,
-            apiKey,
-            fileId,
-          });
-          consecutiveErrors = 0;
-          // The next wait comes from the response: poll_after_ms wins when
-          // positive, else waiting_parser polls slower than everything else.
-          delay = nextFilePollDelayMs({
-            serverPollAfterMs: latest.poll_after_ms,
-            status: latest.status,
-            previousDelay: delay,
-          });
-          if (!isKnownBotConnectorFileStatus(latest.status)) {
-            // A status newer than this app is not a failure: only the server
-            // saying `failed` (or the deadline) may fail an attachment. Keep
-            // the last known status on screen and keep polling.
-            continue;
-          }
-          knownStatus = latest.status;
-          updateSelectedFile(localKey, {
-            id: latest.id,
-            name: latest.filename,
-            size: latest.bytes,
-            mediaType: latest.media_type || 'application/octet-stream',
-            status: latest.status,
-            route: latest.route,
-            parser: latest.parser,
-            progress: 1,
-            // Failed: prefer the server's own message, else its localized
-            // error-code fallback; other statuses clear any stale error.
-            error:
-              latest.status === 'failed'
-                ? resolveFileFailureMessage(
-                    latest.error,
-                    l10n.components.chatInput,
-                  )
-                : undefined,
-          });
-          if (isTerminalBotConnectorFileStatus(latest.status)) {
-            return;
-          }
-        } catch (error) {
-          const statusCode =
-            error instanceof BotConnectorFileStatusError
-              ? error.statusCode
-              : undefined;
-          if (statusCode === 429) {
-            // Rate limiting is not a failure: double the wait, keep polling.
-            delay = nextFilePollDelayMs({
-              lastStatus: 429,
-              previousDelay: delay,
-              status: knownStatus,
-            });
-            continue;
-          }
-          consecutiveErrors += 1;
-          delay = nextFilePollDelayMs({
-            attempt: consecutiveErrors,
-            previousDelay: delay,
-            status: knownStatus,
-          });
-          // Network drops and 5xx/408 are transient: keep polling until the
-          // deadline. Only a definite client error (401/403/404...) that
-          // repeats gives up early.
-          const isTransient =
-            statusCode === undefined || statusCode >= 500 || statusCode === 408;
-          if (
-            isTransient ||
-            consecutiveErrors < BOTCONNECTOR_FILE_POLL_ERROR_LIMIT
-          ) {
-            continue;
-          }
-          updateSelectedFile(localKey, {
-            status: 'failed',
-            error:
-              error instanceof Error
-                ? error.message
-                : l10n.components.chatInput.fileProcessingError,
-          });
-          return;
-        }
-      }
-      updateSelectedFile(localKey, {
-        status: 'failed',
-        error: l10n.components.chatInput.fileProcessingTimeout,
-      });
-    };
-
-    // Localize failures the gateway rejected (esp. oversize 413) and fall
-    // back to the localized generic message when nothing usable is left.
-    const uploadFailureMessage = (error: unknown): string => {
-      const kind = (error as {kind?: string} | null)?.kind;
-      if (kind === 'too_large') {
-        return l10n.components.chatInput.fileServerTooLargeBody;
-      }
-      if (kind === 'transient') {
-        // 502/503/504 are temporary disruptions, not dead ends: explain the
-        // interruption and let the existing Retry button recover.
-        return l10n.components.chatInput.fileUploadInterruptedBody;
-      }
-      if (error instanceof Error && error.message) {
-        return error.message;
-      }
-      return l10n.components.chatInput.fileUploadErrorBody;
-    };
-
-    // Mark an upload as failed; a transient disruption also re-verifies the
-    // session/capability once (fire-and-forget) before the user retries.
-    const failSelectedFile = (localKey: string, error: unknown) => {
-      updateSelectedFile(localKey, {
-        status: 'failed',
-        error: uploadFailureMessage(error),
-      });
-      if (
-        (error as {kind?: string} | null)?.kind === 'transient' &&
-        activeServer
-      ) {
-        serverStore
-          .refreshBotConnectorAccess(activeServer.id)
-          .catch(() => undefined);
-      }
-    };
-
-    const retrySelectedFile = async (file: BotConnectorFile) => {
-      if (!activeServer || !botConnectorFilesEnabled) {
-        return;
-      }
-      const apiKey = await serverStore.getApiKey(activeServer.id);
-      if (!apiKey) {
-        updateSelectedFile(file.uri, {
-          status: 'failed',
-          error: l10n.components.chatInput.fileApiKeyRequired,
-        });
-        return;
-      }
-      if (file.id) {
-        updateSelectedFile(file.uri, {
-          status: 'processing',
-          error: undefined,
-        });
-        pollFileStatus(file.uri, activeServer.url, apiKey, file.id).catch(
-          () => undefined,
-        );
-        return;
-      }
-      updateSelectedFile(file.uri, {
-        status: 'uploading',
-        progress: 0,
-        error: undefined,
-      });
-      try {
-        const uploaded = await uploadBotConnectorFile({
-          serverUrl: activeServer.url,
-          apiKey,
-          file,
-          onProgress: progress => updateSelectedFile(file.uri, {progress}),
-        });
-        updateSelectedFile(file.uri, {
-          id: uploaded.id,
-          name: uploaded.filename,
-          size: uploaded.bytes,
-          mediaType: uploaded.media_type || file.mediaType,
-          status: uploaded.status,
-          route: uploaded.route,
-          parser: uploaded.parser,
-          progress: 1,
-        });
-        if (uploaded.status !== 'ready') {
-          pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id, {
-            pollAfterMs: uploaded.poll_after_ms,
-            status: uploaded.status,
-          }).catch(() => undefined);
-        }
-      } catch (error) {
-        failSelectedFile(file.uri, error);
-      }
-    };
-
-    const openFilePicker = async () => {
-      if (!activeServer) {
-        return;
-      }
-
-      const apiKey = await serverStore.getApiKey(activeServer.id);
-      if (!apiKey) {
-        Alert.alert(
-          l10n.components.chatInput.fileUploadUnavailableTitle,
-          l10n.components.chatInput.sessionUnavailableBody,
-        );
-        return;
-      }
-
-      try {
-        const picked = await pick({
-          type: [types.allFiles],
-          allowMultiSelection: true,
-          allowVirtualFiles: false,
-          mode: 'import',
-        });
-        const remaining = Math.max(
-          0,
-          BOTCONNECTOR_FILE_MAX_COUNT - selectedFiles.length,
-        );
-        const candidates = picked.slice(0, remaining);
-        let acceptedBytes = selectedFiles.reduce(
-          (sum, file) => sum + file.size,
-          0,
-        );
-        const accepted: BotConnectorFile[] = [];
-        const maxTotalSizeLabel = `${Math.round(
-          BOTCONNECTOR_FILE_MAX_TOTAL_BYTES / (1024 * 1024),
-        )} MB`;
-
-        for (const item of candidates) {
-          const name = item.name || 'file';
-          // Reject known-oversized files BEFORE copying them into the cache.
-          const reportedSize = Number(item.size || 0);
-          if (
-            reportedSize > 0 &&
-            (reportedSize > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
-              acceptedBytes + reportedSize > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES)
-          ) {
-            Alert.alert(
-              l10n.components.chatInput.fileTooLargeTitle,
-              t(l10n.components.chatInput.fileTooLargeBody, {
-                max: maxTotalSizeLabel,
-              }),
-            );
-            continue;
-          }
-          const copies = await keepLocalCopy({
-            files: [{uri: item.uri, fileName: name}],
-            destination: 'cachesDirectory',
-          });
-          const copy = copies[0];
-          if (!copy || copy.status !== 'success') {
-            Alert.alert(
-              l10n.components.chatInput.fileUploadErrorTitle,
-              copy?.status === 'error' && copy.copyError
-                ? copy.copyError
-                : t(l10n.components.chatInput.fileCopyFailedBody, {name}),
-            );
-            continue;
-          }
-
-          const localUri = copy.localUri;
-          let size = Number(item.size || 0);
-          try {
-            const stat = await RNFS.stat(localFilePath(localUri));
-            const actualSize = Number(stat.size || 0);
-            if (actualSize > 0) {
-              size = actualSize;
-            }
-          } catch {
-            // The strict size check below rejects unknown-size files.
-          }
-
-          if (!(size > 0)) {
-            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
-            Alert.alert(
-              l10n.components.chatInput.fileUploadErrorTitle,
-              t(l10n.components.chatInput.fileUnknownSizeBody, {name}),
-            );
-            continue;
-          }
-          if (
-            size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES ||
-            acceptedBytes + size > BOTCONNECTOR_FILE_MAX_TOTAL_BYTES
-          ) {
-            RNFS.unlink(localFilePath(localUri)).catch(() => undefined);
-            Alert.alert(
-              l10n.components.chatInput.fileTooLargeTitle,
-              t(l10n.components.chatInput.fileTooLargeBody, {
-                max: maxTotalSizeLabel,
-              }),
-            );
-            continue;
-          }
-
-          acceptedBytes += size;
-          accepted.push({
-            uri: localUri,
-            name,
-            size,
-            mediaType: item.type || 'application/octet-stream',
-            status: 'uploading',
-            progress: 0,
-            temporary: true,
-          });
-        }
-
-        if (accepted.length === 0) {
-          setShowImageUploadMenu(false);
-          return;
-        }
-        setSelectedFiles(current => [...current, ...accepted]);
-        setShowImageUploadMenu(false);
-
-        // Upload sequentially to avoid multiplying 512 MB transfers on mobile.
-        // Processing polling is detached so the next file can start uploading.
-        for (const file of accepted) {
-          try {
-            const uploaded = await uploadBotConnectorFile({
-              serverUrl: activeServer.url,
-              apiKey,
-              file,
-              onProgress: progress => updateSelectedFile(file.uri, {progress}),
-            });
-            updateSelectedFile(file.uri, {
-              id: uploaded.id,
-              name: uploaded.filename,
-              size: uploaded.bytes,
-              mediaType: uploaded.media_type || file.mediaType,
-              status: uploaded.status,
-              route: uploaded.route,
-              parser: uploaded.parser,
-              progress: 1,
-            });
-            if (uploaded.status !== 'ready' && uploaded.status !== 'failed') {
-              pollFileStatus(file.uri, activeServer.url, apiKey, uploaded.id, {
-                pollAfterMs: uploaded.poll_after_ms,
-                status: uploaded.status,
-              }).catch(() => undefined);
-            }
-          } catch (error) {
-            failSelectedFile(file.uri, error);
-          }
-        }
-      } catch (error) {
-        if (
-          isErrorWithCode(error) &&
-          error.code === errorCodes.OPERATION_CANCELED
-        ) {
-          return;
-        }
-        Alert.alert(
-          l10n.components.chatInput.fileUploadErrorTitle,
-          error instanceof Error
-            ? error.message
-            : l10n.components.chatInput.fileUploadErrorBody,
-        );
-      }
-    };
-
-    const handleSelectFiles = async () => {
-      if (activeServer && botConnectorFilesEnabled) {
-        await openFilePicker();
-        return;
-      }
-
-      setShowImageUploadMenu(false);
-      if (!botConnectorAuthStore.isSignedIn) {
-        botConnectorAuthStore.startLogin().catch(() => undefined);
-        return;
-      }
-      if (activeServer && isBotConnectorApiUrl(activeServer.url)) {
-        const fresh = await serverStore
-          .refreshBotConnectorAccess(activeServer.id)
-          .catch(() => undefined);
-        if (!fresh) {
-          // Capability check itself failed (network/backend): say that
-          // instead of blaming the account or the plan. 429/402 are quota
-          // refusals with their own explanation.
-          const capability = l10n.components.capability;
-          const errorKind =
-            serverStore.botConnectorAccessState[activeServer.id]?.errorKind;
-          const isQuota =
-            errorKind === 'quota_rate_limited' || errorKind === 'quota_balance';
-          const [title, body] = isQuota
-            ? errorKind === 'quota_rate_limited'
-              ? [capability.quotaRateTitle, capability.quotaRateBody]
-              : [capability.quotaBalanceTitle, capability.quotaBalanceBody]
-            : [capability.unavailableTitle, capability.unavailableBody];
-          Alert.alert(title, body, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {
-              text: capability.retry,
-              onPress: () => {
-                handleSelectFiles().catch(() => undefined);
-              },
-            },
-          ]);
-          return;
-        }
-        if (fresh.capabilities.files === true) {
-          await openFilePicker();
-          return;
-        }
-        // Plan does not include Files: reasons.files (e.g.
-        // paid_plan_required) explains the refusal server-side.
-        Alert.alert(
-          l10n.components.chatInput.fileUploadUnavailableTitle,
-          l10n.components.chatInput.fileUploadUnavailableAccountBody,
-        );
-        return;
-      }
-      Alert.alert(
-        l10n.components.chatInput.fileUploadUnavailableTitle,
-        l10n.components.chatInput.fileUploadUnavailableBody,
-      );
-    };
-
-    const handleRemoveFile = (uri: string) => {
-      const target = selectedFiles.find(file => file.uri === uri);
-      if (target) {
-        cleanupTemporaryFile(target);
-      }
-      setSelectedFiles(current => current.filter(file => file.uri !== uri));
-    };
-
-    const fileStatusLabel = (file: BotConnectorFile) => {
-      const status = l10n.components.chatInput;
-      if (file.status === 'uploading') {
-        return t(status.fileStatusUploading, {
-          percent: String(Math.round(file.progress * 100)),
-        });
-      }
-      if (file.status === 'ready') {
-        return status.fileStatusReady;
-      }
-      if (file.status === 'failed') {
-        return file.error || status.fileStatusFailed;
-      }
-      if (file.status === 'uploaded') {
-        return status.fileStatusUploaded;
-      }
-      if (file.status === 'queued') {
-        return status.fileStatusQueued;
-      }
-      if (file.status === 'waiting_parser') {
-        return status.fileStatusWaitingParser;
-      }
-      if (file.status === 'ocr_required') {
-        return status.fileStatusOcr;
-      }
-      if (file.status === 'waiting_retrieval') {
-        return status.fileStatusWaitingRetrieval;
-      }
-      return status.fileStatusProcessing;
-    };
-
     // Remove an image from the selection
     const handleRemoveImage = (index: number) => {
       const newImages = [...selectedImages];
@@ -1138,15 +442,14 @@ export const ChatInput = observer(
       onCancelEdit?.();
     };
 
-    const hasSendableContent = value.trim().length > 0 || readyFiles.length > 0;
+    const hasSendableContent = value.trim().length > 0;
     const isSendButtonVisible =
       !isStreaming &&
       !isStopVisible &&
       user &&
       !isVideoCapable &&
       (sendButtonVisibilityMode === 'always' || hasSendableContent);
-    const isSendButtonEnabled =
-      hasActiveModel && hasSendableContent && !hasPendingFiles;
+    const isSendButtonEnabled = hasActiveModel && hasSendableContent;
     const sendButtonOpacity = isSendButtonEnabled ? 1 : 0.4;
 
     const rotateInterpolate = iconRotation.interpolate({
@@ -1195,69 +498,6 @@ export const ChatInput = observer(
                 iconColor={theme.colors.onSurfaceVariant}
               />
             </Animated.View>
-          )}
-
-          {selectedFiles.length > 0 && (
-            <View style={styles.filePreviewContainer}>
-              {selectedFiles.map(file => (
-                <View key={file.uri} style={styles.filePreviewRow}>
-                  <IconButton
-                    hitSlop={8}
-                    icon="file-document-outline"
-                    size={20}
-                    style={styles.filePreviewIcon}
-                  />
-                  <View style={styles.filePreviewText}>
-                    <Text numberOfLines={1} style={styles.filePreviewName}>
-                      {file.name}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={[
-                        styles.filePreviewStatus,
-                        file.status === 'failed' && {
-                          color: theme.colors.error,
-                        },
-                      ]}>
-                      {fileStatusLabel(file)}
-                    </Text>
-                    {file.status === 'uploading' && (
-                      <ProgressBar
-                        progress={file.progress}
-                        style={styles.fileProgress}
-                      />
-                    )}
-                    {file.status !== 'uploading' &&
-                      file.status !== 'ready' &&
-                      file.status !== 'failed' && (
-                        // Server-side parsing has no byte progress: show activity.
-                        <ProgressBar
-                          indeterminate
-                          style={styles.fileProgress}
-                        />
-                      )}
-                  </View>
-                  {file.status === 'failed' && (
-                    <IconButton
-                      hitSlop={8}
-                      icon="refresh"
-                      size={18}
-                      onPress={() =>
-                        retrySelectedFile(file).catch(() => undefined)
-                      }
-                      accessibilityLabel={`Retry ${file.name}`}
-                    />
-                  )}
-                  <IconButton
-                    hitSlop={8}
-                    icon="close"
-                    size={18}
-                    onPress={() => handleRemoveFile(file.uri)}
-                    accessibilityLabel={`Remove ${file.name}`}
-                  />
-                </View>
-              ))}
-            </View>
           )}
 
           {/* Image Preview Section */}
@@ -1395,19 +635,6 @@ export const ChatInput = observer(
                         : `${l10n.common?.gallery || 'Gallery'} — ${visionMenuHint}`
                     }
                     onPress={requireVision(handleSelectImages)}
-                  />
-                  <Menu.Item
-                    label={l10n.common?.file || 'File'}
-                    icon="file-document-outline"
-                    labelStyle={
-                      !botConnectorFilesEnabled && styles.menuItemUnavailable
-                    }
-                    accessibilityLabel={
-                      botConnectorFilesEnabled
-                        ? undefined
-                        : `${l10n.common?.file || 'File'} — ${l10n.components.chatInput.fileUploadUnavailableTitle}`
-                    }
-                    onPress={handleSelectFiles}
                   />
                 </Menu>
               )}

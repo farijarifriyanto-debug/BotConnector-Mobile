@@ -1,8 +1,7 @@
 import React from 'react';
-import {Alert} from 'react-native';
 import {render, fireEvent, waitFor} from '../../../../jest/test-utils';
 import {RemoteModelSheet} from '../RemoteModelSheet';
-import {botConnectorAuthStore, serverStore} from '../../../store';
+import {serverStore} from '../../../store';
 import {byokProviderStore} from '../../../store/ByokProviderStore';
 import {fetchModels, fetchModelsWithHeaders} from '../../../api/openai';
 import {detectServerType} from '../../../api/servers/detect';
@@ -147,6 +146,22 @@ describe('RemoteModelSheet', () => {
 
     // The "Your Servers" label should not be present
     expect(queryByText('Your Servers')).toBeNull();
+  });
+
+  it('hides bridge-owned byok-* servers from the manual server chips', () => {
+    serverStore.servers = [
+      {id: 'srv-1', name: 'LM Studio', url: 'http://localhost:1234'},
+      {id: 'byok-openai', name: 'OpenAI', url: 'https://api.openai.com/v1'},
+    ];
+
+    const {getByTestId, queryByTestId} = render(
+      <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+    );
+
+    expect(getByTestId('server-chip-srv-1')).toBeTruthy();
+    // Editing this one here would silently lose the model on the next sync:
+    // its models belong to the provider config, not the manual add path.
+    expect(queryByTestId('server-chip-byok-openai')).toBeNull();
   });
 
   it('disables Add Model button when no model is selected', () => {
@@ -346,6 +361,7 @@ describe('RemoteModelSheet', () => {
           'http://localhost:1234',
           undefined,
           600000,
+          undefined,
         );
       });
       // The add-path probe must NOT be involved in the chip flow.
@@ -368,6 +384,7 @@ describe('RemoteModelSheet', () => {
       await waitFor(() => {
         expect(mockedFetchModels).toHaveBeenCalledWith(
           'http://localhost:1234',
+          undefined,
           undefined,
           undefined,
         );
@@ -475,237 +492,32 @@ describe('RemoteModelSheet', () => {
     });
   });
 
-  describe('BotConnector account (native login)', () => {
-    const authStore = botConnectorAuthStore as any;
+  it('other providers keep the API-key form (Custom / Advanced)', async () => {
+    serverStore.servers = [];
+    const {getByTestId} = render(
+      <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+    );
 
-    beforeEach(() => {
-      serverStore.servers = [];
-      authStore.isSignedIn = false;
-      authStore.account = null;
-      authStore.error = null;
-      authStore.isSigningIn = false;
-    });
+    mockedFetchModelsWithHeaders.mockResolvedValue({models: [], headers: {}});
+    fireEvent.changeText(
+      getByTestId('remote-url-input'),
+      'http://localhost:1234',
+    );
 
-    it('signed out: account card owns login and model selection never starts auth', async () => {
-      const {getByTestId, queryByTestId} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      expect(getByTestId('botconnector-account-card')).toBeTruthy();
-      expect(queryByTestId('botconnector-preset-button')).toBeNull();
-      fireEvent.press(getByTestId('botconnector-account-action'));
-
-      await waitFor(() => {
-        expect(authStore.startLogin).toHaveBeenCalledTimes(1);
-      });
-      expect(queryByTestId('remote-apikey-input')).toBeNull();
-      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
-      expect(serverStore.setApiKey).not.toHaveBeenCalled();
-    });
-
-    it('signed in: account identity is separate from Cloud selection and offers sign out', async () => {
-      authStore.isSignedIn = true;
-      authStore.account = {
-        plan: 'plus',
-        email: 'user@example.invalid',
-        display_name: 'Test User',
-      };
-
-      const {getByTestId, getByText} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      expect(getByText('Test User')).toBeTruthy();
-      expect(getByText('user@example.invalid')).toBeTruthy();
-      expect(getByText('PLUS')).toBeTruthy();
-      expect(getByText(/BotConnector Cloud · plus/)).toBeTruthy();
-      fireEvent.press(getByTestId('botconnector-preset-button'));
-      expect(authStore.startLogin).not.toHaveBeenCalled();
-
-      // Sign-out is destructive: the first press only asks for confirmation.
-      const alertSpy = jest
-        .spyOn(Alert, 'alert')
-        .mockImplementation(() => undefined);
-      fireEvent.press(getByTestId('botconnector-account-action'));
-      expect(authStore.logout).not.toHaveBeenCalled();
-      expect(alertSpy).toHaveBeenCalledTimes(1);
-      const buttons = alertSpy.mock.calls[0][2] as any[];
-      buttons.find((b: any) => b.style === 'destructive').onPress();
-      await waitFor(() => {
-        expect(authStore.logout).toHaveBeenCalledTimes(1);
-      });
-      alertSpy.mockRestore();
-    });
-
-    it('other providers keep the API-key form (Custom / Advanced)', async () => {
-      const {getByTestId} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      mockedFetchModelsWithHeaders.mockResolvedValue({models: [], headers: {}});
-      fireEvent.changeText(
-        getByTestId('remote-url-input'),
-        'http://localhost:1234',
-      );
-
-      await waitFor(() => {
-        expect(getByTestId('remote-apikey-input')).toBeTruthy();
-      });
-    });
-  });
-
-  describe('BotConnector Local preset', () => {
-    beforeEach(() => {
-      serverStore.servers = [];
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [],
-        headers: {},
-      });
-    });
-
-    it('asks for a laptop address and pairing key without probing early', () => {
-      const {getByTestId, queryByTestId} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      fireEvent.press(getByTestId('botconnector-local-preset-button'));
-
-      const urlInput = getByTestId('remote-url-input');
-      expect(urlInput.props.editable).not.toBe(false);
+    await waitFor(() => {
       expect(getByTestId('remote-apikey-input')).toBeTruthy();
-      expect(queryByTestId('remote-name-input')).toBeNull();
-      expect(queryByTestId('server-type-dropdown')).toBeNull();
-      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
-    });
-
-    it('loads laptop models after address and pairing key are entered', async () => {
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [
-          {
-            id: 'local-model-1',
-            object: 'model',
-            owned_by: 'BotConnector Local',
-          },
-        ],
-        headers: {},
-      });
-
-      const {getByTestId, getByText} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      fireEvent.press(getByTestId('botconnector-local-preset-button'));
-      fireEvent.changeText(
-        getByTestId('remote-url-input'),
-        'http://192.168.1.50:1337',
-      );
-      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
-
-      fireEvent.changeText(
-        getByTestId('remote-apikey-input'),
-        'local_pair_key',
-      );
-      fireEvent(getByTestId('remote-apikey-input'), 'blur');
-
-      await waitFor(() => {
-        expect(mockedFetchModelsWithHeaders).toHaveBeenCalledWith(
-          'http://192.168.1.50:1337',
-          'local_pair_key',
-          undefined,
-        );
-        expect(getByText('local-model-1')).toBeTruthy();
-      });
-    });
-
-    it('persists the laptop and pairing key for reconnect', async () => {
-      mockedFetchModelsWithHeaders.mockResolvedValue({
-        models: [
-          {
-            id: 'local-model-1',
-            object: 'model',
-            owned_by: 'BotConnector Local',
-          },
-        ],
-        headers: {},
-      });
-
-      const {getByTestId, getByText} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      fireEvent.press(getByTestId('botconnector-local-preset-button'));
-      fireEvent.changeText(
-        getByTestId('remote-url-input'),
-        'http://192.168.1.50:1337',
-      );
-      fireEvent.changeText(
-        getByTestId('remote-apikey-input'),
-        'local_pair_key',
-      );
-      fireEvent(getByTestId('remote-apikey-input'), 'blur');
-
-      await waitFor(() => {
-        expect(getByText('local-model-1')).toBeTruthy();
-      });
-
-      fireEvent.press(getByTestId('add-model-button'));
-
-      await waitFor(() => {
-        expect(serverStore.addServer).toHaveBeenCalledWith(
-          expect.objectContaining({
-            name: 'BotConnector Local · 192.168.1.50',
-            url: 'http://192.168.1.50:1337',
-            serverType: 'OpenAI',
-          }),
-        );
-        expect(serverStore.setApiKey).toHaveBeenCalledWith(
-          expect.anything(),
-          'local_pair_key',
-        );
-      });
-    });
-
-    it('reconnects a saved laptop with the stored Keychain credential', async () => {
-      serverStore.servers = [
-        {
-          id: 'local-server-1',
-          name: 'BotConnector Local · laptop',
-          url: 'http://100.100.1.20:1337',
-          serverType: 'OpenAI',
-        },
-      ];
-      (serverStore.getApiKey as jest.Mock).mockResolvedValue('stored_pair_key');
-      mockedFetchModels.mockResolvedValue([
-        {id: 'local-model-2', object: 'model', owned_by: 'BotConnector Local'},
-      ]);
-
-      const {getByTestId, getByText} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      fireEvent.press(getByTestId('server-chip-local-server-1'));
-
-      await waitFor(() => {
-        expect(serverStore.getApiKey).toHaveBeenCalledWith('local-server-1');
-        expect(mockedFetchModels).toHaveBeenCalledWith(
-          'http://100.100.1.20:1337',
-          'stored_pair_key',
-          undefined,
-        );
-        expect(getByText('local-model-2')).toBeTruthy();
-      });
     });
   });
 
-  // Spec M: the add-model sheet is reorganised into the four-part hierarchy
-  // (BotConnector Cloud → BotConnector Local → Other AI Providers →
-  // Advanced Connections) so a normal user never has to think in "servers".
-  describe('four-part provider hierarchy', () => {
+  // The add-model sheet is reorganised into a two-part hierarchy
+  // (Other AI Providers → Advanced Connections) so a normal user never has
+  // to think in "servers".
+  describe('provider hierarchy', () => {
     afterEach(() => {
       byokProviderStore.providers = [];
     });
 
-    it('presents the four sections in spec order', () => {
+    it('presents the sections in spec order', () => {
       serverStore.servers = [];
 
       const {getAllByTestId} = render(
@@ -714,12 +526,7 @@ describe('RemoteModelSheet', () => {
 
       expect(
         getAllByTestId(/^section-/).map(node => node.props.testID),
-      ).toEqual([
-        'section-cloud',
-        'section-local',
-        'section-providers',
-        'section-advanced',
-      ]);
+      ).toEqual(['section-providers', 'section-advanced']);
     });
 
     it('routes the Other AI Providers entry to the add-provider flow', () => {

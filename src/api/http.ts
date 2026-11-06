@@ -36,3 +36,19 @@ export function buildHeaders(apiKey?: string): Record<string, string> {
 export function normalizeUrl(serverUrl: string): string {
   return serverUrl.replace(/\/+$/, '');
 }
+
+/**
+ * The base a request path is appended to, always carrying exactly one API
+ * version segment.
+ *
+ * `ServerConfig.url` is a root base for manually added servers
+ * ("http://192.168.1.100:1234"), but every provider preset stores a versioned
+ * base ("https://api.openai.com/v1", ".../v1beta/openai",
+ * "https://openrouter.ai/api/v1"). Appending a hardcoded `/v1` to those
+ * produced `/v1/v1/chat/completions` and a 404 for six of the eight presets,
+ * so the segment is added only when the base has none.
+ */
+export function versionedBaseUrl(serverUrl: string): string {
+  const base = normalizeUrl(serverUrl);
+  return /\/v\d+/i.test(base) ? base : `${base}/v1`;
+}

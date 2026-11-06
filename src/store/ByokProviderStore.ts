@@ -5,7 +5,17 @@ import * as Keychain from 'react-native-keychain';
 
 import {BYOK_PROVIDERS} from '../api/byokProviders';
 import type {ByokProviderId} from '../api/byokProviders';
+import {
+  removeByokServer,
+  syncByokProviderToServer,
+} from '../services/byokServerBridge';
 
+// The provider's own copy of the key, used by the provider sheet (show/edit/
+// remove) without waking the chat-side server. The bridge writes the SAME
+// secret a second time under ServerStore's `pocketpal-server-byok-<id>` so the
+// OpenAI transport can read it; both are cleared together on remove. Keeping
+// the two in sync matters: a key edited here but not there would leave chat
+// calling with a stale credential.
 const keychainService = (id: ByokProviderId): string =>
   `botconnector.byok.${id}`;
 
@@ -32,13 +42,17 @@ class ByokProviderStore {
   constructor() {
     makeAutoObservable(this);
 
-    makePersistable(this, {
-      name: 'ByokProviderStore',
-      properties: ['providers'],
-      storage: AsyncStorage,
-    }).then(() => this.normalizeHydratedProviders());
-
-    this.loadKeysFromSecureStorage();
+    // Hydration and key loading both feed the server bridge, so the sync runs
+    // only once both have settled — providers saved on older app versions gain
+    // their `byok-<id>` servers here.
+    Promise.all([
+      makePersistable(this, {
+        name: 'ByokProviderStore',
+        properties: ['providers'],
+        storage: AsyncStorage,
+      }).then(() => this.normalizeHydratedProviders()),
+      this.loadKeysFromSecureStorage(),
+    ]).then(() => this.syncAllServers());
   }
 
   normalizeHydratedProviders() {
@@ -84,7 +98,7 @@ class ByokProviderStore {
     });
   }
 
-  private async loadKeysFromSecureStorage() {
+  private async loadKeysFromSecureStorage(): Promise<void> {
     for (const {id} of BYOK_PROVIDERS) {
       try {
         const credentials = await Keychain.getGenericPassword({
@@ -97,6 +111,24 @@ class ByokProviderStore {
         }
       } catch (error) {
         console.error(`Failed to load ${id} BYOK key:`, error);
+      }
+    }
+  }
+
+  /**
+   * Bridge every saved provider into ServerStore. Runs once after hydration +
+   * key load, so providers saved before the bridge existed gain their servers.
+   * Errors are logged, never thrown: one broken provider must not block the rest.
+   */
+  async syncAllServers(): Promise<void> {
+    for (const provider of this.providers) {
+      try {
+        await syncByokProviderToServer(provider.providerId);
+      } catch (error) {
+        console.error(
+          `Failed to sync ${provider.providerId} BYOK server:`,
+          error,
+        );
       }
     }
   }
@@ -175,6 +207,15 @@ class ByokProviderStore {
         this.providers.push(entry);
       }
     });
+    // Bridge into ServerStore so the provider is chat-able. A bridge failure
+    // (e.g. Keychain rollback) is reported as a save failure — the config stays
+    // persisted and the next hydration sync retries it.
+    try {
+      await syncByokProviderToServer(providerId);
+    } catch (error) {
+      console.error(`Failed to sync ${providerId} BYOK server:`, error);
+      return false;
+    }
     return true;
   }
 
@@ -186,6 +227,12 @@ class ByokProviderStore {
     runInAction(() => {
       this.providers = this.providers.filter(p => p.providerId !== providerId);
     });
+    try {
+      await removeByokServer(providerId);
+    } catch (error) {
+      // The provider config is gone; a leftover server is retried at next sync.
+      console.error(`Failed to remove ${providerId} BYOK server:`, error);
+    }
     return true;
   }
 }

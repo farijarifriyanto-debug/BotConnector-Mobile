@@ -17,7 +17,7 @@ import {t} from '../../locales';
 import type {Pal} from '../../types/pal';
 import {CloseIcon, SettingsIcon} from '../../assets/icons';
 import {ModelPickerList} from '../ModelPickerList';
-import {BotConnectorAccountCard} from '../BotConnectorAccountCard';
+import {AddProviderSheet} from '../AddProviderSheet';
 
 type Tab = 'models' | 'pals';
 
@@ -25,8 +25,6 @@ interface ChatPalModelPickerSheetProps {
   isVisible: boolean;
   /** Tab shown when the sheet opens. Models first: Persona is optional. */
   initialTab?: Tab;
-  /** Opens the place where a BotConnector account can be connected. */
-  onConnectAccount?: () => void;
   chatInputHeight: number;
   onClose: () => void;
   onModelSelect?: (modelId: string) => void;
@@ -38,7 +36,6 @@ export const ChatPalModelPickerSheet = observer(
   ({
     isVisible,
     initialTab = 'models',
-    onConnectAccount,
     onClose,
     onModelSelect,
     onPalSelect,
@@ -47,6 +44,7 @@ export const ChatPalModelPickerSheet = observer(
   }: ChatPalModelPickerSheetProps) => {
     const [activeTab, setActiveTab] = React.useState<Tab>(initialTab);
     const searchFocusedRef = useRef(false);
+    const [addProviderVisible, setAddProviderVisible] = React.useState(false);
     const theme = useTheme();
     const l10n = useContext(L10nContext);
     const styles = createStyles({theme});
@@ -264,16 +262,27 @@ export const ChatPalModelPickerSheet = observer(
           <BottomSheetScrollView
             contentContainerStyle={{paddingBottom: chatInputHeight + 66}}>
             {item.id === 'models' ? (
-              <ModelPickerList
-                onSelected={() => {
-                  onModelSelect?.(modelStore.activeModelId ?? '');
-                  onClose();
-                }}
-                onConnectAccount={onConnectAccount}
-                onSearchFocusChange={focused => {
-                  searchFocusedRef.current = focused;
-                }}
-              />
+              <>
+                <Pressable
+                  testID="model-picker-add-provider"
+                  accessibilityRole="button"
+                  accessibilityLabel={l10n.components.modelPicker.addProvider}
+                  style={styles.addProviderRow}
+                  onPress={() => setAddProviderVisible(true)}>
+                  <Text style={styles.addProviderLabel}>
+                    {l10n.components.modelPicker.addProvider}
+                  </Text>
+                </Pressable>
+                <ModelPickerList
+                  onSelected={() => {
+                    onModelSelect?.(modelStore.activeModelId ?? '');
+                    onClose();
+                  }}
+                  onSearchFocusChange={focused => {
+                    searchFocusedRef.current = focused;
+                  }}
+                />
+              </>
             ) : (
               [renderDisablePalItem(), ...palStore.pals.map(renderPalItem)]
             )}
@@ -286,7 +295,9 @@ export const ChatPalModelPickerSheet = observer(
         renderPalItem,
         onModelSelect,
         onClose,
-        onConnectAccount,
+        l10n.components.modelPicker.addProvider,
+        styles.addProviderRow,
+        styles.addProviderLabel,
       ],
     );
 
@@ -308,54 +319,57 @@ export const ChatPalModelPickerSheet = observer(
     const snapPoints = React.useMemo(() => ['70%'], []);
 
     return (
-      <BottomSheet
-        ref={bottomSheetRef}
-        // index={-1} // remove this line to make it visible by default
-        onClose={onClose}
-        enablePanDownToClose
-        snapPoints={snapPoints} // Dynamic sizing is not working properly in all situations, like keyboard open/close android/ios ...
-        enableDynamicSizing={false}
-        backdropComponent={isVisible ? CustomBackdrop : undefined} // on android we need this check to ensure it doenst' block interaction
-        backgroundStyle={{
-          backgroundColor: theme.colors.background,
-        }}
-        handleIndicatorStyle={{
-          backgroundColor: theme.colors.primary,
-        }}
-        // Add these props to better handle gestures
-        enableContentPanningGesture={false}
-        enableHandlePanningGesture
-        // Disable accessible so Appium/e2e tests can access child elements on iOS.
-        // Without this, BottomSheet sets accessible={true} which collapses all
-        // children from the accessibility tree. Same fix as Sheet.tsx.
-        // See: https://github.com/gorhom/react-native-bottom-sheet/issues/1141
-        accessible={false}>
-        <View style={{paddingHorizontal: 16, paddingBottom: 8}}>
-          <BotConnectorAccountCard compact />
-        </View>
-        <View style={styles.tabs}>
-          {TABS.map((tab, index) => renderTab(tab.id, tab.label, index))}
-        </View>
-        <BottomSheetFlatList
-          ref={flatListRef}
-          data={TABS}
-          initialScrollIndex={initialTab === 'pals' ? 1 : 0}
-          getItemLayout={(_, index) => ({
-            length: Dimensions.get('window').width,
-            offset: Dimensions.get('window').width * index,
-            index,
-          })}
-          renderItem={renderContent}
-          bounces={false}
-          showsVerticalScrollIndicator={false}
-          keyExtractor={item => item.id}
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          onViewableItemsChanged={onViewableItemsChanged}
-          viewabilityConfig={viewabilityConfig}
+      <>
+        <BottomSheet
+          ref={bottomSheetRef}
+          // index={-1} // remove this line to make it visible by default
+          onClose={onClose}
+          enablePanDownToClose
+          snapPoints={snapPoints} // Dynamic sizing is not working properly in all situations, like keyboard open/close android/ios ...
+          enableDynamicSizing={false}
+          backdropComponent={isVisible ? CustomBackdrop : undefined} // on android we need this check to ensure it doenst' block interaction
+          backgroundStyle={{
+            backgroundColor: theme.colors.background,
+          }}
+          handleIndicatorStyle={{
+            backgroundColor: theme.colors.primary,
+          }}
+          // Add these props to better handle gestures
+          enableContentPanningGesture={false}
+          enableHandlePanningGesture
+          // Disable accessible so Appium/e2e tests can access child elements on iOS.
+          // Without this, BottomSheet sets accessible={true} which collapses all
+          // children from the accessibility tree. Same fix as Sheet.tsx.
+          // See: https://github.com/gorhom/react-native-bottom-sheet/issues/1141
+          accessible={false}>
+          <View style={styles.tabs}>
+            {TABS.map((tab, index) => renderTab(tab.id, tab.label, index))}
+          </View>
+          <BottomSheetFlatList
+            ref={flatListRef}
+            data={TABS}
+            initialScrollIndex={initialTab === 'pals' ? 1 : 0}
+            getItemLayout={(_, index) => ({
+              length: Dimensions.get('window').width,
+              offset: Dimensions.get('window').width * index,
+              index,
+            })}
+            renderItem={renderContent}
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+            keyExtractor={item => item.id}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onViewableItemsChanged={onViewableItemsChanged}
+            viewabilityConfig={viewabilityConfig}
+          />
+        </BottomSheet>
+        <AddProviderSheet
+          isVisible={addProviderVisible}
+          onDismiss={() => setAddProviderVisible(false)}
         />
-      </BottomSheet>
+      </>
     );
   },
 );

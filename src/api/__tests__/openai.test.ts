@@ -2199,3 +2199,61 @@ describe('streamChatCompletion sampler payload', () => {
     });
   });
 });
+
+describe('provider base paths (chat)', () => {
+  let originalXHR: typeof XMLHttpRequest;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    __clearRemoteImageCache();
+    MockXHR.instances = [];
+    originalXHR = global.XMLHttpRequest;
+    (global as any).XMLHttpRequest = MockXHR;
+  });
+
+  afterEach(() => {
+    global.XMLHttpRequest = originalXHR;
+  });
+
+  const chatUrlFor = async (url: string): Promise<string> => {
+    const promise = streamChatCompletion(
+      {samplers: {}, messages: [{role: 'user', content: 'Hi'}], model: 'm'},
+      endpointFor({url}),
+    );
+    const xhr = MockXHR.instances[MockXHR.instances.length - 1];
+    const captured = xhr.url;
+    xhr.simulateHeaders(200);
+    xhr.simulateProgress('data: [DONE]\n\n');
+    xhr.simulateLoad();
+    await promise;
+    return captured;
+  };
+
+  it('keeps one version segment for a versioned preset base', async () => {
+    expect(await chatUrlFor('https://api.openai.com/v1')).toBe(
+      'https://api.openai.com/v1/chat/completions',
+    );
+    expect(await chatUrlFor('https://openrouter.ai/api/v1')).toBe(
+      'https://openrouter.ai/api/v1/chat/completions',
+    );
+    expect(await chatUrlFor('https://api.x.ai/v1')).toBe(
+      'https://api.x.ai/v1/chat/completions',
+    );
+  });
+
+  it('keeps the Gemini version path', async () => {
+    expect(
+      await chatUrlFor(
+        'https://generativelanguage.googleapis.com/v1beta/openai',
+      ),
+    ).toBe(
+      'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    );
+  });
+
+  it('appends /v1 to a bare host base', async () => {
+    expect(await chatUrlFor('https://api.botconnector.id')).toBe(
+      'https://api.botconnector.id/v1/chat/completions',
+    );
+  });
+});

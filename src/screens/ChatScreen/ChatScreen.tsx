@@ -1,5 +1,4 @@
 import React, {useRef, ReactNode, useState} from 'react';
-import {Alert} from 'react-native';
 
 import {observer} from 'mobx-react';
 import {runInAction} from 'mobx';
@@ -17,29 +16,18 @@ import {usePendingMessage} from '../../hooks/useDeepLinking';
 import {Pal} from '../../types/pal';
 
 import {
-  botConnectorAuthStore,
   modelStore,
   chatSessionStore,
   palStore,
-  searchProviderStore,
   serverStore,
   uiStore,
 } from '../../store';
-import {hasVideoCapability} from '../../utils/pal-capabilities';
 
 import {L10nContext} from '../../utils';
 import {resolveReasoningCapability} from '../../utils/reasoningCapability';
-import {richFeaturesAllowed} from '../../utils/mobileFeatureAccess';
-import {
-  CapabilityDenialInput,
-  resolveCapabilityDenial,
-} from '../../utils/capabilityDenial';
-import {isBotConnectorApiUrl} from '../../config/botconnector';
 import {MessageType} from '../../utils/types';
 import {ErrorState} from '../../utils/errors';
 import {user, assistant} from '../../utils/chat';
-
-import {VideoPalScreen} from './VideoPalScreen';
 
 const renderBubble = ({
   child,
@@ -72,7 +60,6 @@ export const ChatScreen: React.FC = observer(() => {
   const activePal = activePalId
     ? palStore.pals.find(p => p.id === activePalId)
     : undefined;
-  const isVideoPal = activePal && hasVideoCapability(activePal);
 
   // State for pal sheet
   const [isPalSheetVisible, setIsPalSheetVisible] = useState(false);
@@ -113,241 +100,9 @@ export const ChatScreen: React.FC = observer(() => {
     setErrorToReport(null);
   }, []);
 
-  const richFeaturesEnabled = richFeaturesAllowed(
-    modelStore.activeModel,
-    serverStore.servers,
-    serverStore.botConnectorAccess,
-  );
-  const activeServer = modelStore.activeModel?.serverId
-    ? serverStore.servers.find(
-        server => server.id === modelStore.activeModel?.serverId,
-      )
-    : undefined;
-  const activeBotConnectorAccess =
-    activeServer && isBotConnectorApiUrl(activeServer.url)
-      ? serverStore.botConnectorAccess[activeServer.id]
-      : undefined;
-  // BotConnector Cloud exposes account capabilities independently. Do not let
-  // the legacy coarse `chat_only/full` flag suppress a model's real vision or
-  // Web Search capability.
-  const visionEnabled = Boolean(
-    modelStore.activeModelCaps.visionActive &&
-      (activeBotConnectorAccess
-        ? activeBotConnectorAccess.capabilities.vision === true
-        : richFeaturesEnabled),
-  );
-  const internetAvailable =
-    activeBotConnectorAccess?.capabilities.web_search === true;
-  const internetForced =
-    internetAvailable && searchProviderStore.forceInternetSearch;
-  // Per-axis account gates (never derived from the coarse chat_only/full
-  // flag): Files stays paid-only (server reports files=false + a plan
-  // reason), Media drives the video-pal screen, and the attachment entry
-  // point shows when at least one attachment axis works.
-  const filesEnabled = Boolean(
-    activeBotConnectorAccess &&
-      activeBotConnectorAccess.capabilities.files === true,
-  );
-  const mediaEnabled = activeBotConnectorAccess
-    ? activeBotConnectorAccess.capabilities.media === true
-    : richFeaturesEnabled;
-
-  const isSignedIn = botConnectorAuthStore.isSignedIn;
-  const accessMissing = activeBotConnectorAccess === undefined;
-  const accessPlan = activeBotConnectorAccess?.plan;
-  const catalogEmpty =
-    Object.keys(serverStore.botConnectorCatalog).length === 0;
-  const capabilityHealInFlight = React.useRef(false);
-  React.useEffect(() => {
-    if (
-      !activeServer ||
-      !isBotConnectorApiUrl(activeServer.url) ||
-      !isSignedIn
-    ) {
-      return;
-    }
-    if (
-      (accessMissing || accessPlan === 'unknown') &&
-      !capabilityHealInFlight.current
-    ) {
-      capabilityHealInFlight.current = true;
-      serverStore
-        .refreshBotConnectorAccess(activeServer.id)
-        .catch(() => undefined)
-        .finally(() => {
-          capabilityHealInFlight.current = false;
-        });
-    }
-    if (catalogEmpty) {
-      serverStore.refreshBotConnectorCatalog().catch(() => undefined);
-    }
-  }, [activeServer, isSignedIn, accessMissing, accessPlan, catalogEmpty]);
-
-  const handleInternetUnavailable = React.useCallback(() => {
-    const showLadder = async () => {
-      if (!botConnectorAuthStore.isSignedIn) {
-        Alert.alert(
-          l10n.components.chatInput.internetSignIn.title,
-          l10n.components.chatInput.internetSignIn.body,
-          [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {
-              text: l10n.settings.connectBotConnector,
-              onPress: () => {
-                botConnectorAuthStore.startLogin().catch(() => undefined);
-              },
-            },
-          ],
-        );
-        return;
-      }
-      const capability = l10n.components.capability;
-      const buildInput = (
-        overrides: Partial<CapabilityDenialInput> = {},
-      ): CapabilityDenialInput => ({
-        enabled: false,
-        isBotConnectorServer: Boolean(
-          activeServer && isBotConnectorApiUrl(activeServer.url),
-        ),
-        isSignedIn: botConnectorAuthStore.isSignedIn,
-        access: activeBotConnectorAccess,
-        accessLoading: activeServer
-          ? serverStore.botConnectorAccessState[activeServer.id]?.loading
-          : undefined,
-        accessError: activeServer
-          ? serverStore.botConnectorAccessState[activeServer.id]?.error
-          : undefined,
-        accessErrorKind: activeServer
-          ? serverStore.botConnectorAccessState[activeServer.id]?.errorKind
-          : undefined,
-        // Web Search is an account capability; there is no per-model axis.
-        modelSupports: true,
-        capability: 'web_search',
-        ...overrides,
-      });
-
-      let denial = resolveCapabilityDenial(buildInput());
-      // Account state is unknown/failed: revalidate once, then decide with
-      // fresh data. A definitive plan answer is never re-fetched here; quota
-      // refusals revalidate on demand so Retry can actually retry.
-      if (
-        denial === 'checking' ||
-        denial === 'unavailable' ||
-        denial === 'quota_rate_limited' ||
-        denial === 'quota_balance'
-      ) {
-        const fresh = activeServer
-          ? await serverStore
-              .refreshBotConnectorAccess(activeServer.id)
-              .catch(() => undefined)
-          : undefined;
-        denial = resolveCapabilityDenial(
-          buildInput({
-            enabled: fresh?.capabilities.web_search === true,
-            access: fresh,
-            accessLoading: false,
-            accessError: !fresh,
-          }),
-        );
-      }
-      if (!denial) {
-        // Capabilities came back enabled while the user waited; the globe
-        // re-renders as available, nothing else to explain.
-        return;
-      }
-      const cancelButton = {
-        text: l10n.common.cancel,
-        style: 'cancel' as const,
-      };
-      switch (denial) {
-        case 'checking':
-          Alert.alert(capability.checkingTitle, capability.checkingBody);
-          return;
-        case 'quota_rate_limited':
-          Alert.alert(capability.quotaRateTitle, capability.quotaRateBody, [
-            cancelButton,
-            {
-              text: capability.retry,
-              onPress: () => {
-                showLadder().catch(() => undefined);
-              },
-            },
-          ]);
-          return;
-        case 'quota_balance':
-          Alert.alert(
-            capability.quotaBalanceTitle,
-            capability.quotaBalanceBody,
-            [
-              cancelButton,
-              {
-                text: capability.retry,
-                onPress: () => {
-                  showLadder().catch(() => undefined);
-                },
-              },
-            ],
-          );
-          return;
-        case 'unavailable':
-          Alert.alert(capability.unavailableTitle, capability.unavailableBody, [
-            {text: l10n.common.cancel, style: 'cancel'},
-            {
-              text: capability.retry,
-              onPress: () => {
-                showLadder().catch(() => undefined);
-              },
-            },
-          ]);
-          return;
-        default:
-          // Covers model-unsupported and plan-not-included: the existing
-          // copy already blames "this account/model".
-          Alert.alert(
-            l10n.components.chatInput.internetUnavailable.title,
-            l10n.components.chatInput.internetUnavailable.body,
-            [
-              {text: l10n.common.cancel, style: 'cancel'},
-              {
-                text: l10n.camera.chooseVisionModel,
-                onPress: () => uiStore.openModelPicker('models'),
-              },
-            ],
-          );
-      }
-    };
-    showLadder().catch(() => undefined);
-  }, [l10n, activeServer, activeBotConnectorAccess]);
-
-  const handleInternetToggle = React.useCallback(
-    (enabled: boolean) => {
-      if (!enabled) {
-        searchProviderStore.setForceInternetSearch(false);
-        return;
-      }
-      if (searchProviderStore.hasConsentedToSearch) {
-        searchProviderStore.setForceInternetSearch(true);
-        return;
-      }
-      Alert.alert(
-        l10n.settings.internetSearch.consentTitle,
-        l10n.settings.internetSearch.consentDescription,
-        [
-          {text: l10n.common.cancel, style: 'cancel'},
-          {
-            text: l10n.settings.internetSearch.consentAccept,
-            onPress: () => {
-              searchProviderStore.setConsent(true);
-              searchProviderStore.setForceInternetSearch(true);
-            },
-          },
-        ],
-      );
-    },
-    [l10n],
-  );
-
-  // Resolver is the single source of truth for reasoning capability.
+  // BYOK-only: no account capability axis. Vision follows the active model's
+  // own capability; video pals render the regular chat view.
+  const visionEnabled = Boolean(modelStore.activeModelCaps.visionActive);
   // Pill is reachable whenever the model is not known to be non-reasoning
   // (fail-open on 'unknown' so remote + missed-local models are reachable).
   const reasoningCapability = resolveReasoningCapability(
@@ -489,10 +244,8 @@ export const ChatScreen: React.FC = observer(() => {
     await persistReasoning(nextEnabled, nextEffort);
   };
 
-  // If the active pal is a video pal, show the video pal screen
-  if (isVideoPal && mediaEnabled) {
-    return <VideoPalScreen activePal={activePal} />;
-  }
+  // If the active pal is a video pal, it now renders the regular chat view
+  // (Cloud media lane removed; VideoPalScreen itself is deleted in T7).
 
   // Otherwise, show the regular chat view
   return (
@@ -508,16 +261,12 @@ export const ChatScreen: React.FC = observer(() => {
         isStopVisible={modelStore.inferencing}
         isStreaming={modelStore.isStreaming}
         sendButtonVisibilityMode="always"
-        showImageUpload={visionEnabled || filesEnabled}
+        showImageUpload={visionEnabled}
         isVisionEnabled={visionEnabled}
         initialInputText={pendingMessage || undefined}
         onInitialTextConsumed={clearPendingMessage}
         inputProps={{
-          showInternetToggle: Boolean(modelStore.activeModel),
-          isInternetAvailable: internetAvailable,
-          isInternetEnabled: internetForced,
-          onInternetToggle: handleInternetToggle,
-          onInternetUnavailable: handleInternetUnavailable,
+          showInternetToggle: false,
           showThinkingToggle: thinkingSupported,
           isThinkingEnabled: thinkingEnabled,
           onThinkingToggle: handleThinkingToggle,

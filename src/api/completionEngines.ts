@@ -1,5 +1,6 @@
 import {LlamaContext} from 'llama.rn';
 
+import {streamAnthropicCompletion} from './anthropic';
 import {streamChatCompletion} from './openai';
 import type {RemoteEndpoint} from './servers';
 import {pickSamplers} from '../utils/samplerParams';
@@ -68,22 +69,35 @@ export class OpenAICompletionEngine implements CompletionEngine {
   ): Promise<CompletionResult> {
     this.abortController = new AbortController();
 
+    const streamParams = {
+      messages: params.messages || [],
+      model: this.endpoint.remoteModelId,
+      samplers: pickSamplers(params),
+      stop: params.stop,
+      stream: true,
+      // llama.rn's `tools` typedef is structurally compatible with OpenAI's
+      // function-tool shape but lives under a different name.
+      tools: (params as any).tools,
+      tool_choice: (params as any).tool_choice,
+      response_format: (params as any).response_format,
+      // Reasoning intent carried on the params; the server profile owns the wire shape.
+      reasoning: params.reasoning,
+      botconnector_file_ids: params.botconnector_file_ids,
+    };
+
+    // A server typed Anthropic speaks the native Messages API, not the
+    // OpenAI-compatible chat-completions wire.
+    if (this.endpoint.serverType === 'Anthropic') {
+      return streamAnthropicCompletion(
+        streamParams,
+        this.endpoint,
+        this.abortController.signal,
+        callback,
+      );
+    }
+
     return streamChatCompletion(
-      {
-        messages: params.messages || [],
-        model: this.endpoint.remoteModelId,
-        samplers: pickSamplers(params),
-        stop: params.stop,
-        stream: true,
-        // llama.rn's `tools` typedef is structurally compatible with OpenAI's
-        // function-tool shape but lives under a different name.
-        tools: (params as any).tools,
-        tool_choice: (params as any).tool_choice,
-        response_format: (params as any).response_format,
-        // Reasoning intent carried on the params; the server profile owns the wire shape.
-        reasoning: params.reasoning,
-        botconnector_file_ids: params.botconnector_file_ids,
-      },
+      streamParams,
       this.endpoint,
       this.abortController.signal,
       callback,

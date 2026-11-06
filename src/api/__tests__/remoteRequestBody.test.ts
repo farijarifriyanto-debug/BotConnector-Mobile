@@ -120,7 +120,11 @@ const MOVED_SAMPLERS = {
 
 const REASONING: ReasoningIntent = {enabled: true, effort: 'high'};
 
-describe.each(SERVER_TYPE_OPTIONS)('a turn to a %s server', serverType => {
+// Anthropic speaks the native Messages API (covered in anthropic.test.ts), so
+// the OpenAI-wire assertions below iterate the OpenAI-compatible types only.
+const OPENAI_WIRE_TYPES = SERVER_TYPE_OPTIONS.filter(t => t !== 'Anthropic');
+
+describe.each(OPENAI_WIRE_TYPES)('a turn to a %s server', serverType => {
   // Against the table rather than a restatement of it: the wire names and the
   // reasoning keys are pinned where the table is, and a turn that dropped the
   // samplers, the reasoning intent or the server type shows up here as a body

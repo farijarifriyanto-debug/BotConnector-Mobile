@@ -18,9 +18,6 @@ import {
 } from '../store';
 import type {PersistedTurnTimings} from '../utils/completionTypes';
 import {resolveReasoningCapability} from '../utils/reasoningCapability';
-import {richFeaturesAllowed} from '../utils/mobileFeatureAccess';
-import {cloudModelSupportsTools} from '../utils/botconnectorModels';
-import {isBotConnectorApiUrl} from '../config/botconnector';
 
 import {MessageType, ModelOrigin, User} from '../utils/types';
 import {createMultimodalWarning} from '../utils/errors';
@@ -39,7 +36,6 @@ import {
 } from '../utils/completionTypes';
 import {
   collectSystemPromptFragments,
-  deriveToolSchemas,
   seedReadUrlAllowlist,
   talentRegistry,
 } from '../services/talents';
@@ -81,107 +77,12 @@ const prepareCompletion = async ({
   let sessionCompletionSettings =
     await chatSessionStore.getCurrentCompletionSettings();
   const stopWords = toJS(modelStore.activeModel?.stopWords);
-  const allowRichFeatures = richFeaturesAllowed(
-    modelStore.activeModel,
-    serverStore.servers,
-    serverStore.botConnectorAccess,
-  );
-  const activeServer = modelStore.activeModel?.serverId
-    ? serverStore.servers.find(
-        server => server.id === modelStore.activeModel?.serverId,
-      )
-    : undefined;
+  // BYOK-only: every remote server is user-configured, so there is no account
+  // capability axis. Tools pass through as configured; the server enforces
+  // its own limits.
+  const allowRichFeatures = true;
 
-  // BotConnector Cloud exposes feature entitlements independently from the
-  // coarse `chat_only/full` compatibility flag. Keep each axis separate so a
-  // Starter account can use Vision/Web Search without accidentally unlocking
-  // Files/Media/other paid-only features.
-  const activeBotConnectorAccess =
-    activeServer && isBotConnectorApiUrl(activeServer.url)
-      ? serverStore.botConnectorAccess[activeServer.id]
-      : undefined;
-  // Contract: tools is a MODEL axis (verified by /v1/models), not an account
-  // axis — an account capability must never disable tool calling for a model
-  // that supports it, nor enable it for one that does not.
-  const toolsAllowed = (() => {
-    if (activeBotConnectorAccess) {
-      const modelTools = cloudModelSupportsTools(
-        activeServer
-          ? serverStore.serverModels.get(activeServer.id)
-          : undefined,
-        modelStore.activeModel?.remoteModelId,
-        serverStore.botConnectorCatalog,
-      );
-      if (modelTools !== undefined) {
-        return modelTools;
-      }
-      // Unknown answer: do not block (the server enforces its own limits).
-      return true;
-    }
-    return allowRichFeatures;
-  })();
-  if (!toolsAllowed && sessionCompletionSettings.tools) {
-    sessionCompletionSettings = {
-      ...sessionCompletionSettings,
-      tools: undefined,
-    };
-  }
-
-  // BotConnector Web Search is an account capability, not a Pal-only talent.
-  // Merge it after account capability resolution, while preserving the explicit
-  // privacy-consent gate.
-  if (
-    searchProviderStore.hasConsentedToSearch &&
-    activeBotConnectorAccess?.capabilities.web_search === true
-  ) {
-    const names = ['web_search'];
-    if (activeBotConnectorAccess.capabilities.read_url === true) {
-      names.push('read_url');
-    }
-    const webTools = deriveToolSchemas(names);
-    const merged = new Map<string, ToolDefinition>();
-    const existingTools = Array.isArray(sessionCompletionSettings.tools)
-      ? (sessionCompletionSettings.tools as ToolDefinition[])
-      : [];
-    for (const tool of existingTools) {
-      merged.set(tool.function?.name ?? JSON.stringify(tool), tool);
-    }
-    for (const tool of webTools) {
-      merged.set(tool.function?.name ?? JSON.stringify(tool), tool);
-    }
-    sessionCompletionSettings = {
-      ...sessionCompletionSettings,
-      tools: [...merged.values()],
-    };
-  }
-
-  const officialBotConnectorFiles = Boolean(
-    activeServer &&
-      isBotConnectorApiUrl(activeServer.url) &&
-      activeBotConnectorAccess?.capabilities.files === true,
-  );
-
-  const historicalFileIds = currentMessages.flatMap(current => {
-    const attachments = current.metadata?.botconnectorFiles;
-    if (!Array.isArray(attachments)) {
-      return [];
-    }
-    return attachments
-      .map(item => (typeof item?.id === 'string' ? item.id : ''))
-      .filter((id): id is string => id.startsWith('file_bc_'));
-  });
-  const currentFileIds = (message.botConnectorFiles ?? [])
-    .map(file => file.id)
-    .filter(id => id.startsWith('file_bc_'));
-  const botConnectorFileIds = officialBotConnectorFiles
-    ? [...new Set([...historicalFileIds, ...currentFileIds])].slice(0, 10)
-    : [];
-
-  const effectiveMultimodalEnabled =
-    isMultimodalEnabled &&
-    (activeBotConnectorAccess
-      ? activeBotConnectorAccess.capabilities.vision === true
-      : allowRichFeatures);
+  const effectiveMultimodalEnabled = isMultimodalEnabled;
 
   // Check if we have images and if multimodal is enabled
   const hasImages = imageUris && imageUris.length > 0;
@@ -202,11 +103,7 @@ const prepareCompletion = async ({
       })),
     ];
   } else {
-    userMessageContent =
-      message.text ||
-      (botConnectorFileIds.length > 0
-        ? 'Please analyze the attached file(s).'
-        : '');
+    userMessageContent = message.text || '';
 
     if (hasImages && !effectiveMultimodalEnabled) {
       uiStore.setChatWarning(
@@ -273,9 +170,6 @@ const prepareCompletion = async ({
     ...sessionCompletionSettings,
     messages,
     stop: stopWords,
-    ...(botConnectorFileIds.length > 0
-      ? {botconnector_file_ids: botConnectorFileIds}
-      : {}),
   };
 
   const cleanCompletionParams = toApiCompletionParams(

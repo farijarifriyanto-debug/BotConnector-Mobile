@@ -19,7 +19,7 @@ import {renderHook} from '@testing-library/react-native';
 import {useDeepLinking} from '../useDeepLinking';
 import {ROUTES} from '../../utils/navigationConstants';
 import {deepLinkService} from '../../services/DeepLinkService';
-import {checkoutFlowStore, chatSessionStore, palStore} from '../../store';
+import {chatSessionStore, palStore} from '../../store';
 
 // Stable navigate spy that we re-assert across the file. The hook reads
 // `useNavigation()` once per render, so capturing the function from a
@@ -79,9 +79,9 @@ describe('useDeepLinking — cold-launch routing', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    // Both the __E2E__ benchmark effect and the always-on prod hub/run effect
-    // read getInitialURL on cold launch.
-    expect(getInitialURLSpy).toHaveBeenCalledTimes(2);
+    // Only the __E2E__ benchmark effect reads getInitialURL on cold launch
+    // (the prod hub/run effect was removed with the marketplace).
+    expect(getInitialURLSpy).toHaveBeenCalledTimes(1);
     // Bare URL still routes; autostart resolves false so the screen stays
     // idle and waits for a tap — current behaviour preserved.
     expect(mockNavigate).toHaveBeenCalledWith(ROUTES.BENCHMARK_RUNNER, {
@@ -114,9 +114,8 @@ describe('useDeepLinking — cold-launch routing', () => {
     await Promise.resolve();
 
     // The benchmark effect's `if (!__E2E__) return;` guard keeps it from
-    // navigating. The prod hub/run effect still reads getInitialURL, but a
-    // benchmark URL is not a valid hub link, so it never navigates.
-    expect(getInitialURLSpy).toHaveBeenCalledTimes(1);
+    // navigating; no other effect reads getInitialURL anymore.
+    expect(getInitialURLSpy).toHaveBeenCalledTimes(0);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
@@ -128,8 +127,8 @@ describe('useDeepLinking — cold-launch routing', () => {
     await Promise.resolve();
     await Promise.resolve();
 
-    // Both the benchmark and prod hub/run effects read getInitialURL.
-    expect(getInitialURLSpy).toHaveBeenCalledTimes(2);
+    // Only the benchmark effect reads getInitialURL.
+    expect(getInitialURLSpy).toHaveBeenCalledTimes(1);
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
@@ -255,12 +254,12 @@ describe('useDeepLinking — cold-launch routing', () => {
     await Promise.resolve();
     unmount();
 
-    // Both the benchmark and prod hub/run 'url' listeners are removed.
-    expect(removeSpy).toHaveBeenCalledTimes(2);
+    // The benchmark 'url' listener is removed on unmount.
+    expect(removeSpy).toHaveBeenCalledTimes(1);
     addEventListenerSpy.mockRestore();
   });
 
-  it('still registers the prod hub/run url listener when __E2E__=false', async () => {
+  it('registers no url listener when __E2E__=false', async () => {
     (global as any).__E2E__ = false;
     getInitialURLSpy.mockResolvedValue(null);
     const addEventListenerSpy = jest
@@ -270,13 +269,9 @@ describe('useDeepLinking — cold-launch routing', () => {
     renderHook(() => useDeepLinking());
     await Promise.resolve();
 
-    // The benchmark listener is gated off, but the prod hub/run effect is
-    // always on, so a 'url' listener is still registered.
-    expect(addEventListenerSpy).toHaveBeenCalledWith(
-      'url',
-      expect.any(Function),
-    );
-    expect(addEventListenerSpy).toHaveBeenCalledTimes(1);
+    // The benchmark listener is gated off and the prod hub/run effect is
+    // gone, so nothing subscribes to 'url'.
+    expect(addEventListenerSpy).not.toHaveBeenCalled();
     addEventListenerSpy.mockRestore();
   });
 
@@ -310,7 +305,7 @@ describe('useDeepLinking — deep-link routing', () => {
     jest.spyOn(Linking, 'getInitialURL').mockResolvedValue(null);
   });
 
-  it('does not route checkout for the chat host link (no regression)', async () => {
+  it('routes the chat host link to pal activation', async () => {
     (palStore as any).pals = [{id: 'p1'}];
     renderHook(() => useDeepLinking());
     await getHandler()({
@@ -319,7 +314,6 @@ describe('useDeepLinking — deep-link routing', () => {
       host: 'chat',
       queryParams: {palId: 'p1'},
     });
-    expect(checkoutFlowStore.onReturn).not.toHaveBeenCalled();
     expect(chatSessionStore.setActivePal).toHaveBeenCalledWith('p1');
   });
 });

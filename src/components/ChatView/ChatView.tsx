@@ -54,12 +54,7 @@ import {t} from '../../locales';
 import {getModelMemoryRequirement} from '../../utils/memoryEstimator';
 import {CONTEXT_LADDER} from '../../utils/bannerVariantResolver';
 
-import {
-  botConnectorAuthStore,
-  chatSessionStore,
-  modelStore,
-  uiStore,
-} from '../../store';
+import {chatSessionStore, modelStore, uiStore} from '../../store';
 
 import {MessageType, User} from '../../utils/types';
 import {Pal} from '../../types/pal';
@@ -1298,10 +1293,6 @@ export const ChatView = observer(
               <ChatPalModelPickerSheet
                 isVisible={isPickerVisible}
                 initialTab={uiStore.modelPickerTab}
-                onConnectAccount={() => {
-                  setIsPickerVisible(false);
-                  botConnectorAuthStore.startLogin().catch(() => undefined);
-                }}
                 onClose={() => setIsPickerVisible(false)}
                 onModelSelect={handleModelSelect}
                 onPalSelect={handlePalSelect}
