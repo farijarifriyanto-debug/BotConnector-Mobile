@@ -78,6 +78,10 @@ export class UIStore {
   // lifetime.
   hasCompletedOnboarding: boolean = false;
 
+  // One-time 2.1.0 upgrade migration (Cloud account removal) has run.
+  // Persisted so it never executes twice.
+  cloudAccountMigrated: boolean = false;
+
   // Frozen at onboarding completion; consumed by future Homepage
   // pal-suggestion surfaces. Never re-edited after the single write in
   // `completeOnboarding`.
@@ -133,6 +137,7 @@ export class UIStore {
         '_language',
         'toolCompatWarnedModels',
         'hasCompletedOnboarding',
+        'cloudAccountMigrated',
         'onboardingTopicsSnapshot',
       ],
       storage: AsyncStorage,

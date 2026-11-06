@@ -15,6 +15,7 @@ import {
 } from 'react-native-gesture-handler';
 
 import {ttsStore, uiStore} from './src/store';
+import {runCloudAccountMigration} from './src/services/cloudAccountMigration';
 import {useTheme} from './src/hooks';
 import {useDeepLinking} from './src/hooks/useDeepLinking';
 import {Theme} from './src/utils/types';
@@ -94,6 +95,16 @@ const App = observer(() => {
   React.useEffect(() => {
     ttsStore.init().catch(() => {
       // init() swallows its own errors; catch to satisfy no-floating-promises.
+    });
+  }, []);
+
+  // One-time 2.1.0 upgrade migration: remove OAuth-created BotConnector
+  // Cloud servers and clear their Keychain entries. This component only
+  // mounts after uiStore hydration (AppWithMigrationWrapper), and the
+  // migration is idempotent via the persisted cloudAccountMigrated flag.
+  React.useEffect(() => {
+    runCloudAccountMigration().catch(() => {
+      // Best-effort: failures must never crash startup.
     });
   }, []);
 
