@@ -1,4 +1,4 @@
-import {act, fireEvent, waitFor} from '@testing-library/react-native';
+import {fireEvent, waitFor} from '@testing-library/react-native';
 import * as React from 'react';
 import {ScrollView, Alert} from 'react-native';
 import {launchCamera, launchImageLibrary} from 'react-native-image-picker';
@@ -13,7 +13,6 @@ import {
   palStore,
   chatSessionStore,
   modelStore,
-  serverStore,
 } from '../../../store';
 import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
 
