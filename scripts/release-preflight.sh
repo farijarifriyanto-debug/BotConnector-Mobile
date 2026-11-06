@@ -64,8 +64,8 @@ if git ls-files --error-unmatch ios/Config/Env.xcconfig >/dev/null 2>&1; then
   fail "ios/Config/Env.xcconfig must not be tracked"
 fi
 
-grep -q 'MARKETING_VERSION = 1.0;' ios/PocketPal.xcodeproj/project.pbxproj \
-  || fail "iOS marketing version is not aligned with App Store version 1.0"
+grep -q 'MARKETING_VERSION = 2.1.0;' ios/PocketPal.xcodeproj/project.pbxproj \
+  || fail "iOS marketing version is not aligned with App Store version 2.1.0"
 
 grep -q '<key>ITSAppUsesNonExemptEncryption</key>' ios/PocketPal/Info.plist \
   || fail "iOS export compliance declaration missing"
