@@ -357,7 +357,7 @@ export const AddProviderSheet: React.FC<AddProviderSheetProps> = observer(
                 </Text>
               )}
 
-              {testState === 'ok' && (
+              {testState === 'ok' && models.length > 0 && (
                 <Text
                   testID="byok-test-success"
                   accessibilityLiveRegion="polite"

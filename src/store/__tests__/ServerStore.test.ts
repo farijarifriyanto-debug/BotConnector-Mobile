@@ -56,7 +56,6 @@ describe('ServerStore', () => {
       serverStore.serverModels.clear();
       serverStore.userSelectedModels = [];
       serverStore.isLoading = false;
-      serverStore.error = null;
       serverStore.privacyNoticeAcknowledged = false;
       serverStore.remoteReasoning = {};
       serverStore.remoteCaps = {};
@@ -79,8 +78,8 @@ describe('ServerStore', () => {
       expect('botConnectorPayg' in serverStore).toBe(false);
     });
 
-    it('has no error', () => {
-      expect(serverStore.error).toBeNull();
+    it('has no store-wide error field (nothing rendered it)', () => {
+      expect('error' in serverStore).toBe(false);
     });
 
     it('has privacyNoticeAcknowledged false', () => {
@@ -854,10 +853,9 @@ describe('ServerStore', () => {
 
       expect(serverStore.serverModels.get(id)).toEqual(mockModels);
       expect(serverStore.isLoading).toBe(false);
-      expect(serverStore.error).toBeNull();
     });
 
-    it('sets error on failure', async () => {
+    it('keeps the previous list and clears loading on failure', async () => {
       const id = serverStore.addServer({
         name: 'Server',
         url: 'http://localhost:1234',
@@ -869,7 +867,7 @@ describe('ServerStore', () => {
 
       await serverStore.fetchModelsForServer(id);
 
-      expect(serverStore.error).toBe('Connection refused');
+      expect(serverStore.serverModels.get(id)).toBeUndefined();
       expect(serverStore.isLoading).toBe(false);
     });
 
@@ -920,7 +918,6 @@ describe('ServerStore', () => {
         undefined,
         undefined,
       );
-      expect(serverStore.error).toBeNull();
     });
 
     it('updates lastConnected timestamp on success', async () => {
@@ -1000,7 +997,6 @@ describe('ServerStore', () => {
         rejectA(new Error('Connection refused'));
         await fetchA;
 
-        expect(serverStore.error).toBeNull();
         expect(serverStore.isLoading).toBe(false);
       });
 

@@ -13,8 +13,10 @@ services; Guideline 3.1.1 was cited for that gate. In 2.1.0:
 - The user configures their own AI provider (OpenAI, Anthropic, Google Gemini,
   DeepSeek, OpenRouter, xAI, Mistral, or a custom OpenAI-compatible endpoint)
   with **their own API key**, and the app talks **directly from the device to
-  that provider's endpoint**. Traffic does not pass through BotConnector
-  servers.
+  that provider's endpoint**. BotConnector does not proxy, store, or bill any
+  of this traffic. (The preset named "BotConnector" simply points at
+  `api.botconnector.id` using the reviewer's own key — it is one provider
+  choice among the others, not a gate.)
 - API keys are stored **only in the iOS Keychain** on the device
   (`react-native-keychain`). They are never written to logs, analytics, or
   crash reports. Removing a provider deletes its key from the Keychain.

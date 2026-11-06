@@ -10,6 +10,12 @@ import {
   syncByokProviderToServer,
 } from '../services/byokServerBridge';
 
+// The provider's own copy of the key, used by the provider sheet (show/edit/
+// remove) without waking the chat-side server. The bridge writes the SAME
+// secret a second time under ServerStore's `pocketpal-server-byok-<id>` so the
+// OpenAI transport can read it; both are cleared together on remove. Keeping
+// the two in sync matters: a key edited here but not there would leave chat
+// calling with a stale credential.
 const keychainService = (id: ByokProviderId): string =>
   `botconnector.byok.${id}`;
 

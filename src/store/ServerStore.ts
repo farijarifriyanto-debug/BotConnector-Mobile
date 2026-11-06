@@ -78,7 +78,6 @@ export class ServerStore {
 
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   isLoading = false;
-  error: string | null = null;
   privacyNoticeAcknowledged = false;
 
   private lastFetchTime = 0;
@@ -314,7 +313,6 @@ export class ServerStore {
 
     runInAction(() => {
       this.isLoading = true;
-      this.error = null;
     });
 
     const {url} = server;
@@ -335,12 +333,12 @@ export class ServerStore {
         }
         this.isLoading = false;
       });
-    } catch (error: any) {
+    } catch {
+      // A failed refresh leaves the previous model list in place. There is no
+      // store-wide error surface to raise here (removed with the Cloud
+      // account); the provider sheet reports its own probe errors, and the
+      // picker shows the no-models guidance instead of a banner.
       runInAction(() => {
-        const current = this.servers.find(s => s.id === serverId);
-        if (current?.url === url) {
-          this.error = error.message || 'Failed to fetch models';
-        }
         this.isLoading = false;
       });
     }
