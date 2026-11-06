@@ -9,8 +9,8 @@ import type {
 import {
   CONNECTION_TIMEOUT_MS,
   IDLE_TIMEOUT_MS,
-  normalizeUrl,
   resolveTimeout,
+  versionedBaseUrl,
 } from './http';
 import {bodyExtras} from './servers';
 import type {RemoteEndpoint} from './servers';
@@ -33,6 +33,51 @@ import type {RemoteModelInfo} from '../utils/types';
 
 const ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_MAX_TOKENS = 4096;
+
+/**
+ * Anthropic requires 1 <= max_tokens, and thinking needs
+ * 1024 <= budget_tokens < max_tokens.
+ */
+const MIN_THINKING_BUDGET = 1024;
+const MAX_THINKING_BUDGET = 10000;
+
+/**
+ * The app's sampler default is `n_predict: -1` ("unlimited"), which is a legal
+ * llama.cpp value and an illegal Anthropic max_tokens: it reaches the wire as
+ * -1 and every message 400s. Any non-positive or non-finite cap falls back to
+ * the default instead.
+ */
+function resolveMaxTokens(requested: unknown): number {
+  return typeof requested === 'number' &&
+    Number.isFinite(requested) &&
+    requested > 0
+    ? Math.floor(requested)
+    : DEFAULT_MAX_TOKENS;
+}
+
+/**
+ * Keep the thinking budget strictly below max_tokens, shrinking it when the
+ * user's cap is small. With no room for the 1024-token minimum the block is
+ * dropped: Anthropic rejects the pair, and a wrong pair is worse than no
+ * thinking at all.
+ */
+function fitThinkingBudget(
+  thinking: unknown,
+  maxTokens: number,
+): Record<string, unknown> | undefined {
+  if (!thinking || typeof thinking !== 'object') {
+    return undefined;
+  }
+  const block = thinking as {type?: string; budget_tokens?: number};
+  if (block.type !== 'enabled') {
+    return undefined;
+  }
+  const requested = block.budget_tokens ?? MAX_THINKING_BUDGET;
+  const budget = Math.min(requested, maxTokens - MIN_THINKING_BUDGET);
+  return budget >= MIN_THINKING_BUDGET
+    ? {...block, budget_tokens: budget}
+    : undefined;
+}
 
 type AnthropicBlock = Record<string, any>;
 
@@ -247,7 +292,7 @@ export async function streamAnthropicCompletion(
   onToken?: (data: CompletionStreamData) => void,
 ): Promise<CompletionResult> {
   const {apiKey, timeoutMs} = endpoint;
-  const url = `${normalizeUrl(endpoint.url)}/messages`;
+  const url = `${versionedBaseUrl(endpoint.url)}/messages`;
   const connectionTimeoutMs = resolveTimeout(timeoutMs, CONNECTION_TIMEOUT_MS);
   const idleTimeoutMs = resolveTimeout(timeoutMs, IDLE_TIMEOUT_MS);
   const encodedMessages = hasLocalImageAttachment(params.messages)
@@ -260,16 +305,20 @@ export async function streamAnthropicCompletion(
   });
   const {system, messages} = convertMessages(encodedMessages);
 
+  const maxTokens = resolveMaxTokens(extras.max_tokens);
   const requestBody: Record<string, unknown> = {
     ...extras,
     model: params.model,
-    max_tokens:
-      typeof extras.max_tokens === 'number'
-        ? extras.max_tokens
-        : DEFAULT_MAX_TOKENS,
+    max_tokens: maxTokens,
     messages,
     stream: true,
   };
+  const thinking = fitThinkingBudget(extras.thinking, maxTokens);
+  if (thinking) {
+    requestBody.thinking = thinking;
+  } else {
+    delete requestBody.thinking;
+  }
   if (system) {
     requestBody.system = system;
   }
@@ -623,7 +672,7 @@ export async function fetchAnthropicModels(
   apiKey?: string,
   timeoutMs?: number,
 ): Promise<RemoteModelInfo[]> {
-  const modelsUrl = `${normalizeUrl(url)}/models?limit=1000`;
+  const modelsUrl = `${versionedBaseUrl(url)}/models?limit=1000`;
   const controller = new AbortController();
   const timer = setTimeout(
     () => controller.abort(),

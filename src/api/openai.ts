@@ -12,7 +12,7 @@ import {
   CONNECTION_TIMEOUT_MS,
   IDLE_TIMEOUT_MS,
   buildHeaders,
-  normalizeUrl,
+  versionedBaseUrl,
   resolveTimeout,
 } from './http';
 import {fetchAnthropicModels} from './anthropic';
@@ -213,7 +213,7 @@ export async function fetchModelsWithHeaders(
   apiKey?: string,
   timeoutMs?: number,
 ): Promise<FetchModelsResult> {
-  const url = `${normalizeUrl(serverUrl)}/v1/models`;
+  const url = `${versionedBaseUrl(serverUrl)}/models`;
   const controller = new AbortController();
   const timeout = setTimeout(
     () => controller.abort(),
@@ -479,7 +479,7 @@ export async function streamChatCompletion(
   onToken?: (data: CompletionStreamData) => void,
 ): Promise<CompletionResult> {
   const {apiKey, serverType, timeoutMs} = endpoint;
-  const url = `${normalizeUrl(endpoint.url)}/v1/chat/completions`;
+  const url = `${versionedBaseUrl(endpoint.url)}/chat/completions`;
   const connectionTimeoutMs = resolveTimeout(timeoutMs, CONNECTION_TIMEOUT_MS);
   const idleTimeoutMs = resolveTimeout(timeoutMs, IDLE_TIMEOUT_MS);
   // Only pay the async encode when a local image is actually attached; the

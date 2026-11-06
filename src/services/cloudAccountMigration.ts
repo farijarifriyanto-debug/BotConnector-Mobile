@@ -1,4 +1,5 @@
 import {runInAction} from 'mobx';
+import {isHydrated} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
 
 import {isBotConnectorApiUrl} from '../config/botconnector';
@@ -27,6 +28,13 @@ const LOGIN_PENDING_SERVICE = 'botconnector-native-login-pending-v1';
  */
 export async function runCloudAccountMigration(): Promise<void> {
   if (!uiStore.hasCompletedOnboarding || uiStore.cloudAccountMigrated) {
+    return;
+  }
+
+  // The server list must be the hydrated one: removing from a pre-hydration
+  // empty array would look like "nothing to migrate" and the flag would make
+  // that permanent. Returning without the flag retries on the next launch.
+  if (!isHydrated(serverStore)) {
     return;
   }
 

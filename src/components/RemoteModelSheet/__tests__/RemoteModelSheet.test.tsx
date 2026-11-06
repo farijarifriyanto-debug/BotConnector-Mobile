@@ -148,6 +148,22 @@ describe('RemoteModelSheet', () => {
     expect(queryByText('Your Servers')).toBeNull();
   });
 
+  it('hides bridge-owned byok-* servers from the manual server chips', () => {
+    serverStore.servers = [
+      {id: 'srv-1', name: 'LM Studio', url: 'http://localhost:1234'},
+      {id: 'byok-openai', name: 'OpenAI', url: 'https://api.openai.com/v1'},
+    ];
+
+    const {getByTestId, queryByTestId} = render(
+      <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
+    );
+
+    expect(getByTestId('server-chip-srv-1')).toBeTruthy();
+    // Editing this one here would silently lose the model on the next sync:
+    // its models belong to the provider config, not the manual add path.
+    expect(queryByTestId('server-chip-byok-openai')).toBeNull();
+  });
+
   it('disables Add Model button when no model is selected', () => {
     const {getByTestId} = render(
       <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,

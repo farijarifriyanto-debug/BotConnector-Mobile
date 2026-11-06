@@ -242,4 +242,18 @@ describe('byokServerBridge', () => {
     // The previously working server is not destroyed by a failed update.
     expect(servers.servers.find(s => s.id === 'byok-openai')).toBeDefined();
   });
+
+  it('releases the active model even when the server is already gone', async () => {
+    const {servers, byok} = await primedStores('openai', 'sk-test', ['gpt-a']);
+    const models = fakeModelStore('byok-openai/gpt-a');
+    await syncByokProviderToServer('openai', {byok, servers, models});
+
+    // A previous removal that failed between removeServer and the release
+    // leaves exactly this state: no server, still-bound active model.
+    servers.removeServer('byok-openai');
+
+    await removeByokServer('openai', {byok, servers, models});
+
+    expect(models.releaseContext).toHaveBeenCalledWith(true);
+  });
 });

@@ -13,8 +13,11 @@ import {modelStore} from '../store/ModelStore';
  * ModelStore → engine chat path serves BYOK providers unchanged.
  */
 
+/** Prefix every bridge-owned server id carries; the manual add path skips them. */
+export const BYOK_SERVER_ID_PREFIX = 'byok-';
+
 export const byokServerId = (providerId: ByokProviderId): string =>
-  `byok-${providerId}`;
+  `${BYOK_SERVER_ID_PREFIX}${providerId}`;
 
 /** The narrow slice of ModelStore the bridge touches (injectable for tests). */
 export interface BridgeModelStore {
@@ -114,9 +117,9 @@ export async function removeByokServer(
   const models = deps.models ?? modelStore;
 
   const id = byokServerId(providerId);
-  if (!servers.servers.some(s => s.id === id)) {
-    return;
-  }
+  // Release first: a previous removal that died between removeServer and the
+  // release leaves no server but a still-bound active model, and returning on
+  // "no server" would leave chat calling a released engine.
   servers.removeServer(id);
 
   if (models.activeModelId?.startsWith(`${id}/`)) {

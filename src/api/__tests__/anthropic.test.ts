@@ -381,9 +381,12 @@ describe('streamAnthropicCompletion', () => {
     );
     const xhr = MockXHR.instances[0];
 
+    // Default cap is 4096, so the 10000-token budget is shrunk to fit:
+    // Anthropic rejects budget_tokens >= max_tokens.
+    expect(postedBody(xhr).max_tokens).toBe(4096);
     expect(postedBody(xhr).thinking).toEqual({
       type: 'enabled',
-      budget_tokens: 10000,
+      budget_tokens: 3072,
     });
 
     xhr.simulateHeaders(200);
@@ -597,5 +600,78 @@ describe('Anthropic dispatch', () => {
     expect(models).toEqual([
       {id: 'claude-a', object: 'model', owned_by: 'anthropic'},
     ]);
+  });
+});
+
+describe('Anthropic request safety', () => {
+  let originalXHR: typeof XMLHttpRequest;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    MockXHR.instances = [];
+    originalXHR = global.XMLHttpRequest;
+    (global as any).XMLHttpRequest = MockXHR;
+  });
+
+  afterEach(() => {
+    global.XMLHttpRequest = originalXHR;
+  });
+
+  const finish = async (index: number, promise: Promise<unknown>) => {
+    MockXHR.instances[index].simulateHeaders(200);
+    MockXHR.instances[index].simulateProgress(
+      'data: {"type":"message_stop"}\n\n',
+    );
+    MockXHR.instances[index].simulateLoad();
+    await promise;
+  };
+
+  it('substitutes the default cap when the app default leaves tokens unlimited', async () => {
+    // The app sampler default is n_predict: -1 ("unlimited"), a legal
+    // llama.cpp value and an illegal Anthropic max_tokens.
+    const promise = streamAnthropicCompletion(
+      textParams({samplers: {n_predict: -1}}),
+      endpointFor(),
+    );
+
+    expect(postedBody(MockXHR.instances[0]).max_tokens).toBe(4096);
+    await finish(0, promise);
+  });
+
+  it('keeps the thinking budget below max_tokens', async () => {
+    const promise = streamAnthropicCompletion(
+      textParams({samplers: {n_predict: 2048}, reasoning: {enabled: true}}),
+      endpointFor(),
+    );
+
+    const body = postedBody(MockXHR.instances[0]);
+    expect(body.max_tokens).toBe(2048);
+    expect(body.thinking).toEqual(expect.objectContaining({type: 'enabled'}));
+    expect(body.thinking.budget_tokens).toBeLessThan(body.max_tokens);
+    await finish(0, promise);
+  });
+
+  it('drops thinking when the cap leaves no room for a valid budget', async () => {
+    const promise = streamAnthropicCompletion(
+      textParams({samplers: {n_predict: 1024}, reasoning: {enabled: true}}),
+      endpointFor(),
+    );
+
+    const body = postedBody(MockXHR.instances[0]);
+    expect(body.max_tokens).toBe(1024);
+    expect(body.thinking).toBeUndefined();
+    await finish(0, promise);
+  });
+
+  it('builds the native path from a root base too', async () => {
+    const promise = streamAnthropicCompletion(
+      textParams(),
+      endpointFor({url: 'https://api.anthropic.com'}),
+    );
+
+    expect(MockXHR.instances[0].url).toBe(
+      'https://api.anthropic.com/v1/messages',
+    );
+    await finish(0, promise);
   });
 });

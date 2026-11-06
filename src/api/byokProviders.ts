@@ -3,6 +3,7 @@ import {
   buildHeaders,
   normalizeUrl,
   resolveTimeout,
+  versionedBaseUrl,
 } from './http';
 import type {RemoteModelInfo} from '../utils/types';
 
@@ -146,11 +147,12 @@ export function resolveModelsUrl(
   meta: ByokProviderMeta,
   baseUrl?: string,
 ): string {
-  const base = normalizeUrl((baseUrl || '').trim() || meta.defaultBaseUrl);
+  const base = (baseUrl || '').trim() || meta.defaultBaseUrl;
+  // One rule for every provider, the same one the transports use.
   if (meta.id === 'generic' || meta.baseIsApiRoot) {
-    return /\/v\d+/i.test(base) ? `${base}/models` : `${base}/v1/models`;
+    return `${versionedBaseUrl(base)}/models`;
   }
-  return `${base}/models`;
+  return `${normalizeUrl(base)}/models`;
 }
 
 function buildByokHeaders(

@@ -24,6 +24,7 @@ import debounce from 'lodash/debounce';
 import {Sheet, TextInput} from '..';
 import {useTheme} from '../../hooks';
 import {serverStore} from '../../store';
+import {BYOK_SERVER_ID_PREFIX} from '../../services/byokServerBridge';
 import {byokProviderStore} from '../../store/ByokProviderStore';
 import {getProviderMeta} from '../../api/byokProviders';
 import type {ByokProviderId} from '../../api/byokProviders';
@@ -84,6 +85,12 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     // Known server selection
     const [selectedServerId, setSelectedServerId] = useState<string | null>(
       null,
+    );
+
+    // Bridge-owned provider servers are managed from Settings → Providers;
+    // listing them here would let the next sync prune a model the user added.
+    const serversForChips = serverStore.servers.filter(
+      server => !server.id.startsWith(BYOK_SERVER_ID_PREFIX),
     );
 
     // Saving
@@ -404,14 +411,16 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             {l10n.settings.sectionAdvanced}
           </Text>
 
-          {/* Known Server Chips */}
-          {serverStore.servers.length > 0 && (
+          {/* Known Server Chips — bridge-owned byok-* servers are excluded:
+              their models belong to the provider config, and editing them
+              here would be pruned by the next bridge sync. */}
+          {serversForChips.length > 0 && (
             <View style={styles.chipsSection}>
               <Text style={styles.chipsSectionLabel}>
                 {l10n.settings.yourServers}
               </Text>
               <View style={styles.chipsRow}>
-                {serverStore.servers.map(server => (
+                {serversForChips.map(server => (
                   <Chip
                     key={server.id}
                     testID={`server-chip-${server.id}`}

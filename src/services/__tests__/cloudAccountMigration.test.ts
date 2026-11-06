@@ -1,9 +1,11 @@
 import {AppState} from 'react-native';
 import {runInAction} from 'mobx';
+import {isHydrated} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
 
 jest.mock('mobx-persist-store', () => ({
   makePersistable: jest.fn().mockReturnValue(Promise.resolve()),
+  isHydrated: jest.fn(() => true),
 }));
 
 jest.mock('../../api/openai', () => ({
@@ -141,5 +143,19 @@ describe('runCloudAccountMigration', () => {
 
     expect(chatSessionStore.sessions).toEqual([session]);
     expect(chatSessionStore.activeSessionId).toBe('session-1');
+  });
+
+  it('waits for server hydration instead of migrating on an empty list', async () => {
+    keychainGet.mockResolvedValue({username: 'session', password: 'token'});
+    addCloudServer('server-cloud');
+    (isHydrated as jest.Mock).mockReturnValueOnce(false);
+
+    await runCloudAccountMigration();
+
+    // Nothing removed, and the flag stays unset so the next launch retries.
+    expect(
+      serverStore.servers.find(s => s.id === 'server-cloud'),
+    ).toBeDefined();
+    expect(uiStore.cloudAccountMigrated).toBe(false);
   });
 });
