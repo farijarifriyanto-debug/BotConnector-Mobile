@@ -23,10 +23,6 @@ import {
 
 import {uiStore, hfStore} from '.';
 import {serverStore} from './ServerStore';
-import {
-  BOTCONNECTOR_REQUEST_TIMEOUT_MS,
-  isBotConnectorApiUrl,
-} from '../config/botconnector';
 import {chatSessionStore} from './ChatSessionStore';
 import {
   draftCacheDefaults,
@@ -2678,8 +2674,8 @@ class ModelStore {
       if (!server) {
         continue;
       }
-      // BotConnector Cloud ids can be internal route ids (payg:provider:model):
-      // show the catalog/humanized name; other servers keep their raw id.
+      // Remote model ids are shown as-is: every server is user-configured
+      // (BYOK), so there is no catalog to humanize internal route ids.
       models.push(
         createRemoteModel({
           serverId: selected.serverId,
@@ -2719,20 +2715,12 @@ class ModelStore {
 
     const serverType = toServerType(server.serverType);
 
-    // Official BotConnector Cloud access is account-scoped. Revalidate before
-    // activating the model so a stale paid state can never open rich features.
-    await serverStore.refreshBotConnectorAccess(model.serverId, apiKey);
-
     runInAction(() => {
       this.engine = new OpenAICompletionEngine({
         url: server.url,
         remoteModelId: model.remoteModelId!,
         apiKey,
-        timeoutMs:
-          server.requestTimeoutMs ??
-          (isBotConnectorApiUrl(server.url)
-            ? BOTCONNECTOR_REQUEST_TIMEOUT_MS
-            : undefined),
+        timeoutMs: server.requestTimeoutMs,
         serverType,
       });
       this.activeRemoteBinding = {

@@ -488,57 +488,6 @@ describe('RemoteModelSheet', () => {
       authStore.isSigningIn = false;
     });
 
-    it('signed out: account card owns login and model selection never starts auth', async () => {
-      const {getByTestId, queryByTestId} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      expect(getByTestId('botconnector-account-card')).toBeTruthy();
-      expect(queryByTestId('botconnector-preset-button')).toBeNull();
-      fireEvent.press(getByTestId('botconnector-account-action'));
-
-      await waitFor(() => {
-        expect(authStore.startLogin).toHaveBeenCalledTimes(1);
-      });
-      expect(queryByTestId('remote-apikey-input')).toBeNull();
-      expect(mockedFetchModelsWithHeaders).not.toHaveBeenCalled();
-      expect(serverStore.setApiKey).not.toHaveBeenCalled();
-    });
-
-    it('signed in: account identity is separate from Cloud selection and offers sign out', async () => {
-      authStore.isSignedIn = true;
-      authStore.account = {
-        plan: 'plus',
-        email: 'user@example.invalid',
-        display_name: 'Test User',
-      };
-
-      const {getByTestId, getByText} = render(
-        <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,
-      );
-
-      expect(getByText('Test User')).toBeTruthy();
-      expect(getByText('user@example.invalid')).toBeTruthy();
-      expect(getByText('PLUS')).toBeTruthy();
-      expect(getByText(/BotConnector Cloud · plus/)).toBeTruthy();
-      fireEvent.press(getByTestId('botconnector-preset-button'));
-      expect(authStore.startLogin).not.toHaveBeenCalled();
-
-      // Sign-out is destructive: the first press only asks for confirmation.
-      const alertSpy = jest
-        .spyOn(Alert, 'alert')
-        .mockImplementation(() => undefined);
-      fireEvent.press(getByTestId('botconnector-account-action'));
-      expect(authStore.logout).not.toHaveBeenCalled();
-      expect(alertSpy).toHaveBeenCalledTimes(1);
-      const buttons = alertSpy.mock.calls[0][2] as any[];
-      buttons.find((b: any) => b.style === 'destructive').onPress();
-      await waitFor(() => {
-        expect(authStore.logout).toHaveBeenCalledTimes(1);
-      });
-      alertSpy.mockRestore();
-    });
-
     it('other providers keep the API-key form (Custom / Advanced)', async () => {
       const {getByTestId} = render(
         <RemoteModelSheet isVisible={true} onDismiss={jest.fn()} />,

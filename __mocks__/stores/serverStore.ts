@@ -7,61 +7,19 @@ import {
 } from '../../src/utils/types';
 import {ReasoningCapability} from '../../src/utils/reasoningCapability';
 import {deriveListCapsMap} from '../../src/api/servers';
-import {isBotConnectorApiUrl} from '../../src/config/botconnector';
-import {catalogSupportsVision} from '../../src/utils/botconnectorModels';
 
 class MockServerStore {
   servers: ServerConfig[] = [];
   serverModels: Map<string, RemoteModelInfo[]> = observable.map();
 
-  // Mirrors the real ServerStore.listCaps: the derived map plus the
-  // BotConnector catalog vision merge, so suites exercising catalog-driven
-  // vision run against the same derivation the app ships with.
+  // Mirrors the real ServerStore.listCaps: the derived map from server type
+  // plus the fetched model rows (BYOK-only: no Cloud catalog merge).
   get listCaps() {
-    const map = deriveListCapsMap(this.servers, this.serverModels);
-    for (const server of this.servers) {
-      if (!isBotConnectorApiUrl(server.url)) {
-        continue;
-      }
-      for (const row of this.serverModels.get(server.id) ?? []) {
-        const vision = catalogSupportsVision(row, this.botConnectorCatalog);
-        if (vision !== undefined) {
-          const key = `${server.id}/${row.id}`;
-          map[key] = {
-            ...(map[key] ?? {tier: 'list'}),
-            supportsVision: vision,
-            authoritative: true,
-          };
-        }
-      }
-    }
-    return map;
+    return deriveListCapsMap(this.servers, this.serverModels);
   }
 
-  botConnectorAccess: Record<string, any> = {};
-  botConnectorAccessState: Record<
-    string,
-    {loading: boolean; error: boolean; errorKind?: string}
-  > = {};
-  botConnectorCatalog: Record<string, any> = {};
-
-  /** Same derivation as the real store: first payload that carried `payg`. */
-  get botConnectorPayg(): any {
-    for (const caps of Object.values(this.botConnectorAccess)) {
-      if (caps && caps.payg) {
-        return caps.payg;
-      }
-    }
-    return undefined;
-  }
-
-  isBotConnectorServer(serverId: string | undefined): boolean {
-    const server = this.servers.find(s => s.id === serverId);
-    return !!server && server.url.startsWith('https://api.botconnector.id');
-  }
-
-  cloudModelsForServer(_serverId: string): any[] {
-    return [];
+  remoteModelsForServer(serverId: string): RemoteModelInfo[] {
+    return this.serverModels.get(serverId) ?? [];
   }
 
   remoteDisplayName(_serverId: string, remoteModelId: string): string {
@@ -93,8 +51,6 @@ class MockServerStore {
   getUserSelectedModelsForServer: jest.Mock;
   recordRemoteReasoningObserved: jest.Mock;
   setRemoteReasoningOverride: jest.Mock;
-  refreshBotConnectorCatalog: jest.Mock;
-  refreshBotConnectorAccess: jest.Mock;
 
   constructor() {
     makeAutoObservable(this, {
@@ -116,8 +72,6 @@ class MockServerStore {
       getUserSelectedModelsForServer: false,
       recordRemoteReasoningObserved: false,
       setRemoteReasoningOverride: false,
-      refreshBotConnectorCatalog: false,
-      refreshBotConnectorAccess: false,
     });
     this.addServer = jest.fn().mockReturnValue('mock-server-id');
     this.updateServer = jest.fn().mockReturnValue(false);
@@ -139,8 +93,6 @@ class MockServerStore {
     this.getUserSelectedModelsForServer = jest.fn().mockReturnValue([]);
     this.recordRemoteReasoningObserved = jest.fn();
     this.setRemoteReasoningOverride = jest.fn();
-    this.refreshBotConnectorCatalog = jest.fn().mockResolvedValue(undefined);
-    this.refreshBotConnectorAccess = jest.fn().mockResolvedValue(undefined);
   }
 }
 

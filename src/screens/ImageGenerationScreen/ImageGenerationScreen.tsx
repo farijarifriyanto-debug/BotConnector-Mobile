@@ -25,7 +25,7 @@ import {
   fetchBotConnectorImageModels,
   generateBotConnectorImage,
 } from '../../api/botconnectorMedia';
-import {BotConnectorAccountCard, TextInput} from '../../components';
+import {TextInput} from '../../components';
 import {BicoMascot} from '../../components/BicoMascot';
 import {ModelArtwork} from '../../components/ModelArtwork';
 import {Dropdown} from '../../components/ui';
@@ -567,7 +567,6 @@ export const ImageGenerationScreen = observer(() => {
     return (
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <View style={styles.connectContainer}>
-          <BotConnectorAccountCard />
           <View style={styles.centerState}>
             <Text variant="titleMedium">{copy.connectTitle}</Text>
             <Text style={styles.muted}>{copy.connectBody}</Text>
@@ -1127,12 +1126,6 @@ export const ImageGenerationScreen = observer(() => {
                 </ScrollView>
               </View>
             ) : null}
-          </View>
-
-          {/* Account / plan status lives at the bottom: useful, not the focus. */}
-          <View style={styles.field}>
-            <Text style={styles.sectionLabel}>{copy.accountTitle}</Text>
-            <BotConnectorAccountCard compact />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>

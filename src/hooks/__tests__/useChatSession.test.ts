@@ -387,7 +387,7 @@ describe('useChatSession', () => {
     expect(JSON.stringify(arg)).toContain(l10n.en.chat.multimodalNotEnabled);
   });
 
-  it('sends an image on paid BotConnector when the model reports vision', async () => {
+  it('sends an image when the BYOK model reports vision', async () => {
     runInAction(() => {
       serverStore.servers = [
         {
@@ -397,27 +397,6 @@ describe('useChatSession', () => {
           serverType: 'OpenAI',
         },
       ];
-      serverStore.botConnectorAccess = {
-        'srv-1': {
-          object: 'botconnector.client_capabilities',
-          plan: 'plus',
-          access: 'full',
-          paid: true,
-          entitlement_sources: {
-            subscription: true,
-            payg: false,
-            family: false,
-          },
-          capabilities: {
-            chat: true,
-            web_search: true,
-            read_url: true,
-            tools: true,
-            vision: true,
-            media: true,
-          },
-        },
-      };
       modelStore.models = [
         {
           id: 'srv-1/gemma-4-e2b',
@@ -464,150 +443,14 @@ describe('useChatSession', () => {
 
     runInAction(() => {
       serverStore.remoteCaps = {};
-      serverStore.botConnectorAccess = {};
       serverStore.servers = [];
       modelStore.activeModelId = undefined;
     });
   });
 
-  it('sends stable file ids only for paid official BotConnector Cloud', async () => {
-    runInAction(() => {
-      serverStore.servers = [
-        {
-          id: 'bc-files',
-          name: 'BotConnector',
-          url: 'https://api.botconnector.id',
-          serverType: 'OpenAI',
-        },
-      ];
-      serverStore.botConnectorAccess = {
-        'bc-files': {
-          object: 'botconnector.client_capabilities',
-          plan: 'plus',
-          access: 'full',
-          paid: true,
-          entitlement_sources: {
-            subscription: true,
-            payg: false,
-            family: false,
-          },
-          capabilities: {
-            chat: true,
-            web_search: true,
-            read_url: true,
-            tools: true,
-            vision: true,
-            media: true,
-            files: true,
-          },
-        },
-      };
-      modelStore.models = [
-        {
-          id: 'bc-files/text-model',
-          origin: ModelOrigin.REMOTE,
-          serverId: 'bc-files',
-          remoteModelId: 'text-model',
-        } as any,
-      ];
-      modelStore.activeModelId = 'bc-files/text-model';
-    });
-
-    let captured: any;
-    if (modelStore.context) {
-      modelStore.context.completion = jest.fn().mockImplementation(params => {
-        captured = params;
-        return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
-      });
-    }
-
-    const {result} = renderHook(() =>
-      useChatSession({current: null}, textMessage.author, mockAssistant),
-    );
-    await act(async () => {
-      await result.current.handleSendPress({
-        text: 'summarize this',
-        type: 'text',
-        botConnectorFiles: [
-          {
-            id: 'file_bc_11111111-1111-1111-1111-111111111111',
-            name: 'report.pdf',
-            size: 1234,
-            mediaType: 'application/pdf',
-            route: 'retrieval',
-          },
-        ],
-      });
-    });
-
-    expect(captured.botconnector_file_ids).toEqual([
-      'file_bc_11111111-1111-1111-1111-111111111111',
-    ]);
-
-    runInAction(() => {
-      serverStore.botConnectorAccess = {};
-      serverStore.servers = [];
-      modelStore.activeModelId = undefined;
-    });
-  });
-
-  it('does not leak BotConnector file ids to an external cloud server', async () => {
-    runInAction(() => {
-      serverStore.servers = [
-        {
-          id: 'external-files',
-          name: 'External Cloud',
-          url: 'https://api.external.example',
-          serverType: 'OpenAI',
-        },
-      ];
-      serverStore.botConnectorAccess = {};
-      modelStore.models = [
-        {
-          id: 'external-files/text-model',
-          origin: ModelOrigin.REMOTE,
-          serverId: 'external-files',
-          remoteModelId: 'text-model',
-        } as any,
-      ];
-      modelStore.activeModelId = 'external-files/text-model';
-    });
-
-    let captured: any;
-    if (modelStore.context) {
-      modelStore.context.completion = jest.fn().mockImplementation(params => {
-        captured = params;
-        return Promise.resolve({text: 'ok', content: 'ok', timings: {}});
-      });
-    }
-
-    const {result} = renderHook(() =>
-      useChatSession({current: null}, textMessage.author, mockAssistant),
-    );
-    await act(async () => {
-      await result.current.handleSendPress({
-        text: 'hello',
-        type: 'text',
-        botConnectorFiles: [
-          {
-            id: 'file_bc_11111111-1111-1111-1111-111111111111',
-            name: 'report.pdf',
-            size: 1234,
-            mediaType: 'application/pdf',
-          },
-        ],
-      });
-    });
-
-    expect(captured.botconnector_file_ids).toBeUndefined();
-
-    runInAction(() => {
-      serverStore.servers = [];
-      modelStore.activeModelId = undefined;
-    });
-  });
-
-  it('keeps a vision-capable external cloud provider text-only', async () => {
+  it('sends an image for a vision-capable non-BotConnector BYOK server', async () => {
+    // BYOK-only: there is no account axis; vision follows the model's own
+    // capability on ANY user-configured server.
     runInAction(() => {
       serverStore.servers = [
         {
@@ -617,7 +460,6 @@ describe('useChatSession', () => {
           serverType: 'OpenAI',
         },
       ];
-      serverStore.botConnectorAccess = {};
       modelStore.models = [
         {
           id: 'external-1/vision-model',
@@ -651,18 +493,14 @@ describe('useChatSession', () => {
     const sent = (modelStore.engine!.completion as jest.Mock).mock
       .calls[0][0] as {messages: Array<{role: string; content: any}>};
     const lastUser = [...sent.messages].reverse().find(m => m.role === 'user')!;
-    expect(lastUser.content).toBe('look at this');
-
-    const warnings = (uiStore.setChatWarning as jest.Mock).mock.calls;
-    expect(
-      warnings.some(call =>
-        JSON.stringify(call[0]).includes(l10n.en.chat.multimodalNotEnabled),
-      ),
-    ).toBe(true);
+    expect(lastUser.content).toEqual(
+      expect.arrayContaining([
+        {type: 'image_url', image_url: {url: 'file:///photo.jpg'}},
+      ]),
+    );
 
     runInAction(() => {
       serverStore.remoteCaps = {};
-      serverStore.botConnectorAccess = {};
       serverStore.servers = [];
       modelStore.activeModelId = undefined;
     });

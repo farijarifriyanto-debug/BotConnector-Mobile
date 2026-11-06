@@ -26,7 +26,6 @@ export * from './HeaderRight';
 export * from './HeaderLeft';
 export * from './HFTokenSheet';
 export * from './SearchProviderKeySheet';
-export * from './BotConnectorAccountCard';
 export * from './IncreaseContextSheet';
 export * from './GreetingBubble';
 export * from './HtmlPreviewBubble';

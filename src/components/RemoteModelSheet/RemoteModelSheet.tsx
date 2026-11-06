@@ -21,7 +21,7 @@ import {observer} from 'mobx-react';
 import {runInAction} from 'mobx';
 import debounce from 'lodash/debounce';
 
-import {BotConnectorAccountCard, Sheet, TextInput} from '..';
+import {Sheet, TextInput} from '..';
 import {LocalDevicePair} from '../LocalDevicePair';
 import {useTheme} from '../../hooks';
 import {botConnectorAuthStore, serverStore} from '../../store';
@@ -303,8 +303,7 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
     }, []);
 
     const handleBotConnectorPreset = useCallback(async () => {
-      // Authentication is owned by BotConnectorAccountCard. Model selection
-      // must never start a browser login as a side effect.
+      // Model selection must never start a browser login as a side effect.
       if (!botConnectorAuthStore.isSignedIn) {
         return;
       }
@@ -447,10 +446,6 @@ export const RemoteModelSheet: React.FC<RemoteModelSheetProps> = observer(
             style={styles.sectionHeader}>
             {l10n.settings.sectionCloud}
           </Text>
-
-          <View style={styles.inputSpacing}>
-            <BotConnectorAccountCard />
-          </View>
 
           {botConnectorAuthStore.isSignedIn ? (
             <View style={styles.inputSpacing}>

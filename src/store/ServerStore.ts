@@ -5,25 +5,6 @@ import {makePersistable} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
 
 import {fetchModels, testConnection} from '../api/openai';
-import {
-  BotConnectorCapabilityError,
-  BotConnectorCapabilityErrorKind,
-  BotConnectorClientCapabilities,
-  BotConnectorPaygInfo,
-  chatOnlyBotConnectorCapabilities,
-  fetchBotConnectorClientCapabilities,
-} from '../api/botconnectorAccess';
-import {isBotConnectorApiUrl} from '../config/botconnector';
-import {
-  BotConnectorCatalog,
-  fetchBotConnectorCatalog,
-} from '../api/botconnectorCatalog';
-import {
-  catalogSupportsVision,
-  describeCloudModel,
-  CloudModelDisplay,
-  isChatCatalogEntry,
-} from '../utils/botconnectorModels';
 import {fetchServerProps, PROPS_TIMEOUT_MS} from '../api/llamaServer/props';
 import {
   ListDerivedCaps,
@@ -94,39 +75,6 @@ export class ServerStore {
   // answers per model on a multi-model server, so caps cannot live per server.
   remoteCaps: Record<string, RemoteModelCaps> = {};
   serverModels: Map<string, RemoteModelInfo[]> = observable.map();
-  // Account-level mobile capability returned only by the official BotConnector API.
-  // Not persisted: every launch/foreground refresh revalidates entitlement.
-  botConnectorAccess: Record<string, BotConnectorClientCapabilities> = {};
-  // Load/error bookkeeping for the capability fetch above so the UI can say
-  // "checking…" / "couldn't verify" instead of blaming the model or the plan.
-  // errorKind separates a quota refusal (429/402) from a backend failure.
-  // Not persisted; derived from the latest refresh attempt.
-  botConnectorAccessState: Record<
-    string,
-    {
-      loading: boolean;
-      error: boolean;
-      errorKind?: BotConnectorCapabilityErrorKind;
-    }
-  > = {};
-  // Public BotConnector catalog: display names + capability tags. Not persisted.
-  botConnectorCatalog: BotConnectorCatalog = {};
-  private catalogFetchedAt = 0;
-  private catalogInFlight: Promise<void> | null = null;
-
-  /**
-   * PAYG balance state exactly as the capabilities payload reported it.
-   * UI derives unavailable/zero/active from `state` — never from a made-up
-   * number. Absent when no capability payload carried a `payg` block yet.
-   */
-  get botConnectorPayg(): BotConnectorPaygInfo | undefined {
-    for (const caps of Object.values(this.botConnectorAccess)) {
-      if (caps.payg) {
-        return caps.payg;
-      }
-    }
-    return undefined;
-  }
 
   userSelectedModels: Array<{serverId: string; remoteModelId: string}> = [];
   isLoading = false;
@@ -137,10 +85,8 @@ export class ServerStore {
   private appStateSubscription: any = null;
 
   constructor() {
-    makeAutoObservable<this, 'catalogFetchedAt' | 'catalogInFlight'>(this, {
+    makeAutoObservable<this>(this, {
       serverModels: observable,
-      catalogFetchedAt: false,
-      catalogInFlight: false,
     });
 
     makePersistable(this, {
@@ -219,9 +165,6 @@ export class ServerStore {
     if (invalidatesDiscovery) {
       this.remoteCaps = dropServerEntries(this.remoteCaps, id);
       this.serverModels.delete(id);
-      this.botConnectorAccess = Object.fromEntries(
-        Object.entries(this.botConnectorAccess).filter(([key]) => key !== id),
-      );
     }
     return invalidatesDiscovery;
   }
@@ -229,9 +172,6 @@ export class ServerStore {
   removeServer(id: string): void {
     this.servers = this.servers.filter(s => s.id !== id);
     this.serverModels.delete(id);
-    this.botConnectorAccess = Object.fromEntries(
-      Object.entries(this.botConnectorAccess).filter(([key]) => key !== id),
-    );
     // Remove all user-selected models for this server
     this.userSelectedModels = this.userSelectedModels.filter(
       m => m.serverId !== id,
@@ -297,84 +237,20 @@ export class ServerStore {
    * dropped with the server, so these cannot outlive the url they came from.
    */
   get listCaps(): Record<string, ListDerivedCaps> {
-    const map = deriveListCapsMap(this.servers, this.serverModels);
-    // BotConnector Cloud has no /props probe; its catalog is the authoritative
-    // answer for image input, so it may open the live vision axis.
-    for (const server of this.servers) {
-      if (!isBotConnectorApiUrl(server.url)) {
-        continue;
-      }
-      for (const row of this.serverModels.get(server.id) ?? []) {
-        const vision = catalogSupportsVision(row, this.botConnectorCatalog);
-        if (vision !== undefined) {
-          const key = `${server.id}/${row.id}`;
-          map[key] = {
-            ...(map[key] ?? {tier: 'list'}),
-            supportsVision: vision,
-            authoritative: true,
-          };
-        }
-      }
-    }
-    return map;
-  }
-
-  /** True for the official BotConnector Cloud server. */
-  isBotConnectorServer(serverId: string | undefined): boolean {
-    const server = this.servers.find(s => s.id === serverId);
-    return !!server && isBotConnectorApiUrl(server.url);
+    return deriveListCapsMap(this.servers, this.serverModels);
   }
 
   /**
-   * Chat models the BotConnector account may use, straight from /v1/models
-   * (entitlement), enriched with catalog names/badges. Never a hardcoded lineup.
+   * The fetched model rows for a server, exactly as the server reported them.
+   * Every server is BYOK now: no catalog enrichment, no filtering.
    */
-  cloudModelsForServer(serverId: string): CloudModelDisplay[] {
-    if (!this.isBotConnectorServer(serverId)) {
-      return [];
-    }
-    const webSearch =
-      this.botConnectorAccess[serverId]?.capabilities?.web_search === true;
-    return (this.serverModels.get(serverId) ?? [])
-      .filter(row => isChatCatalogEntry(row, this.botConnectorCatalog))
-      .map(row =>
-        describeCloudModel(row, this.botConnectorCatalog, {webSearch}),
-      );
+  remoteModelsForServer(serverId: string): RemoteModelInfo[] {
+    return this.serverModels.get(serverId) ?? [];
   }
 
-  /** Human display name for a remote model id; raw id when nothing better is known. */
-  remoteDisplayName(serverId: string, remoteModelId: string): string {
-    if (!this.isBotConnectorServer(serverId)) {
-      return remoteModelId;
-    }
-    const row = (this.serverModels.get(serverId) ?? []).find(
-      m => m.id === remoteModelId,
-    ) ?? {id: remoteModelId, object: 'model', owned_by: ''};
-    return describeCloudModel(row, this.botConnectorCatalog).displayName;
-  }
-
-  async refreshBotConnectorCatalog(force = false): Promise<void> {
-    const fresh = Date.now() - this.catalogFetchedAt < 30 * 60 * 1000;
-    if (!force && fresh && Object.keys(this.botConnectorCatalog).length) {
-      return;
-    }
-    if (this.catalogInFlight) {
-      return this.catalogInFlight;
-    }
-    this.catalogInFlight = fetchBotConnectorCatalog()
-      .then(catalog => {
-        runInAction(() => {
-          if (Object.keys(catalog).length) {
-            this.botConnectorCatalog = catalog;
-            this.catalogFetchedAt = Date.now();
-          }
-        });
-      })
-      .catch(() => undefined) // names fall back to humanized ids
-      .finally(() => {
-        this.catalogInFlight = null;
-      });
-    return this.catalogInFlight;
+  /** Display name for a remote model is its raw id — no catalog lookup. */
+  remoteDisplayName(_serverId: string, remoteModelId: string): string {
+    return remoteModelId;
   }
 
   getModelsNotYetAdded(serverId: string): RemoteModelInfo[] {
@@ -399,16 +275,6 @@ export class ServerStore {
       await Keychain.setGenericPassword('apiKey', apiKey, {
         service: `${KEYCHAIN_SERVICE_PREFIX}${serverId}`,
       });
-      this.botConnectorAccess = Object.fromEntries(
-        Object.entries(this.botConnectorAccess).filter(
-          ([key]) => key !== serverId,
-        ),
-      );
-      this.botConnectorAccessState = Object.fromEntries(
-        Object.entries(this.botConnectorAccessState).filter(
-          ([key]) => key !== serverId,
-        ),
-      );
     } catch (error) {
       console.error('Failed to save API key:', error);
     }
@@ -434,92 +300,8 @@ export class ServerStore {
       await Keychain.resetGenericPassword({
         service: `${KEYCHAIN_SERVICE_PREFIX}${serverId}`,
       });
-      this.botConnectorAccess = Object.fromEntries(
-        Object.entries(this.botConnectorAccess).filter(
-          ([key]) => key !== serverId,
-        ),
-      );
-      this.botConnectorAccessState = Object.fromEntries(
-        Object.entries(this.botConnectorAccessState).filter(
-          ([key]) => key !== serverId,
-        ),
-      );
     } catch (error) {
       console.error('Failed to remove API key:', error);
-    }
-  }
-
-  async refreshBotConnectorAccess(
-    serverId: string,
-    resolvedApiKey?: string,
-  ): Promise<BotConnectorClientCapabilities | undefined> {
-    const server = this.servers.find(s => s.id === serverId);
-    if (!server || !isBotConnectorApiUrl(server.url)) {
-      return undefined;
-    }
-
-    const url = server.url;
-    // Fail closed before the network response lands. A stale paid state must
-    // never carry across a key/plan change or a transient auth failure.
-    runInAction(() => {
-      this.botConnectorAccess = {
-        ...this.botConnectorAccess,
-        [serverId]: chatOnlyBotConnectorCapabilities(),
-      };
-      this.botConnectorAccessState = {
-        ...this.botConnectorAccessState,
-        [serverId]: {loading: true, error: false},
-      };
-    });
-
-    const apiKey = resolvedApiKey ?? (await this.getApiKey(serverId));
-    if (!apiKey) {
-      runInAction(() => {
-        this.botConnectorAccessState = {
-          ...this.botConnectorAccessState,
-          [serverId]: {loading: false, error: false},
-        };
-      });
-      return this.botConnectorAccess[serverId];
-    }
-
-    try {
-      const access = await fetchBotConnectorClientCapabilities(
-        url,
-        apiKey,
-        server.requestTimeoutMs,
-      );
-      runInAction(() => {
-        const current = this.servers.find(s => s.id === serverId);
-        if (current?.url === url) {
-          this.botConnectorAccess = {
-            ...this.botConnectorAccess,
-            [serverId]: access,
-          };
-          this.botConnectorAccessState = {
-            ...this.botConnectorAccessState,
-            [serverId]: {loading: false, error: false},
-          };
-        }
-      });
-      return access;
-    } catch (error) {
-      runInAction(() => {
-        this.botConnectorAccessState = {
-          ...this.botConnectorAccessState,
-          [serverId]: {
-            loading: false,
-            error: true,
-            // 429/402 are quota refusals, not backend failures — keep the
-            // distinction so the ladder can say so (and never blame the model).
-            errorKind:
-              error instanceof BotConnectorCapabilityError
-                ? error.kind
-                : 'server',
-          },
-        };
-      });
-      return this.botConnectorAccess[serverId];
     }
   }
 
@@ -538,13 +320,12 @@ export class ServerStore {
     const {url} = server;
     try {
       const apiKey = await this.getApiKey(serverId);
-      const [models] = await Promise.all([
-        fetchModels(url, apiKey, server.requestTimeoutMs, server.serverType),
-        this.refreshBotConnectorAccess(serverId, apiKey),
-        isBotConnectorApiUrl(url)
-          ? this.refreshBotConnectorCatalog()
-          : Promise.resolve(),
-      ]);
+      const models = await fetchModels(
+        url,
+        apiKey,
+        server.requestTimeoutMs,
+        server.serverType,
+      );
 
       runInAction(() => {
         const current = this.servers.find(s => s.id === serverId);

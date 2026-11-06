@@ -17,7 +17,6 @@ import {t} from '../../locales';
 import type {Pal} from '../../types/pal';
 import {CloseIcon, SettingsIcon} from '../../assets/icons';
 import {ModelPickerList} from '../ModelPickerList';
-import {BotConnectorAccountCard} from '../BotConnectorAccountCard';
 
 type Tab = 'models' | 'pals';
 
@@ -25,8 +24,6 @@ interface ChatPalModelPickerSheetProps {
   isVisible: boolean;
   /** Tab shown when the sheet opens. Models first: Persona is optional. */
   initialTab?: Tab;
-  /** Opens the place where a BotConnector account can be connected. */
-  onConnectAccount?: () => void;
   chatInputHeight: number;
   onClose: () => void;
   onModelSelect?: (modelId: string) => void;
@@ -38,7 +35,6 @@ export const ChatPalModelPickerSheet = observer(
   ({
     isVisible,
     initialTab = 'models',
-    onConnectAccount,
     onClose,
     onModelSelect,
     onPalSelect,
@@ -269,7 +265,6 @@ export const ChatPalModelPickerSheet = observer(
                   onModelSelect?.(modelStore.activeModelId ?? '');
                   onClose();
                 }}
-                onConnectAccount={onConnectAccount}
                 onSearchFocusChange={focused => {
                   searchFocusedRef.current = focused;
                 }}
@@ -286,7 +281,6 @@ export const ChatPalModelPickerSheet = observer(
         renderPalItem,
         onModelSelect,
         onClose,
-        onConnectAccount,
       ],
     );
 
@@ -330,9 +324,6 @@ export const ChatPalModelPickerSheet = observer(
         // children from the accessibility tree. Same fix as Sheet.tsx.
         // See: https://github.com/gorhom/react-native-bottom-sheet/issues/1141
         accessible={false}>
-        <View style={{paddingHorizontal: 16, paddingBottom: 8}}>
-          <BotConnectorAccountCard compact />
-        </View>
         <View style={styles.tabs}>
           {TABS.map((tab, index) => renderTab(tab.id, tab.label, index))}
         </View>

@@ -91,9 +91,8 @@ describe('ImageGenerationScreen', () => {
       serverStore.servers = [];
       (serverStore.getApiKey as jest.Mock).mockResolvedValue('');
 
-      const {getByTestId, getByText} = renderScreen();
+      const {getByText} = renderScreen();
 
-      expect(getByTestId('botconnector-account-card')).toBeTruthy();
       expect(getByText(copy.connectTitle)).toBeTruthy();
       expect(getByText(copy.connectBody)).toBeTruthy();
       // No account server → nothing is fetched.
@@ -111,9 +110,6 @@ describe('ImageGenerationScreen', () => {
           apiKey: 'bc_key_test',
         }),
       );
-
-      // Account/plan status is compact, quota stays server-side.
-      expect(getByTestId('botconnector-account-card')).toBeTruthy();
 
       // Model selector: one artwork + one compact dropdown.
       expect(getByTestId('model-artwork')).toBeTruthy();
