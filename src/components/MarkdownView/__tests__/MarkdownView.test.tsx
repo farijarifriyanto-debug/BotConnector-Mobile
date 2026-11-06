@@ -20,6 +20,35 @@ describe('MarkdownView Component', () => {
     expect(getByText('Hello World')).toBeTruthy();
   });
 
+  it('keeps single newlines as visible line breaks (chat answers use them)', () => {
+    // Models routinely emit single newlines between sentences/items. HTML
+    // whitespace collapsing would glue those lines together ("nggak rapih"),
+    // so the markdown pipeline must run with GFM breaks enabled.
+    const {toJSON} = render(
+      <MarkdownView
+        markdownText={'line one\nline two'}
+        maxMessageWidth={300}
+      />,
+    );
+
+    const collectText = (node: any): string => {
+      if (typeof node === 'string') {
+        return node;
+      }
+      if (Array.isArray(node)) {
+        return node.map(collectText).join('');
+      }
+      if (node && node.children) {
+        return collectText(node.children);
+      }
+      return '';
+    };
+    const text = collectText(toJSON());
+    // A real line break survives as a newline character in the text tree;
+    // without it the two lines collapse into one space-joined string.
+    expect(text).toContain('line one\nline two');
+  });
+
   it('handles different content widths properly', () => {
     const markdownText = '# Test Markdown';
     const {getByTestId, rerender} = render(
@@ -112,6 +141,20 @@ describe('MarkdownView Component', () => {
     );
 
     expect(getByText(/console\.log/)).toBeTruthy();
+  });
+
+  it('keeps inline code readable next to the 16px body text', () => {
+    const {getByText} = render(
+      <MarkdownView
+        markdownText={'Use `console.log` for debugging'}
+        maxMessageWidth={300}
+      />,
+    );
+
+    const flattened =
+      StyleSheet.flatten(getByText('console.log').props.style) || {};
+    // Inline code was 12px next to a 16px body — noticeably small on phones.
+    expect(flattened.fontSize).toBeGreaterThanOrEqual(13);
   });
 
   describe('Link Rendering', () => {

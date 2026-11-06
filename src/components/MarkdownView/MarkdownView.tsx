@@ -4,7 +4,13 @@ import React, {useMemo} from 'react';
 import {marked} from 'marked';
 import {RenderHTMLSource} from 'react-native-render-html';
 
-marked.use({});
+marked.use({
+  // GFM line breaks: models emit single newlines between sentences and
+  // pseudo-list items; without this the HTML whitespace rules glue those
+  // lines into one long paragraph, which reads as an untidy wall of text.
+  gfm: true,
+  breaks: true,
+});
 
 interface MarkdownViewProps {
   markdownText: string;

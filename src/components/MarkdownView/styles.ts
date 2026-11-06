@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Platform, StyleSheet} from 'react-native';
 
 import {Theme} from '../../utils/types';
 
@@ -80,12 +80,14 @@ export const createTagsStyles = (theme: Theme) => ({
     textDecorationLine: 'underline' as const,
   },
   code: {
-    fontFamily: 'Courier', // Change the font for code snippets
+    // Platform mono font ('Courier' is iOS-only) and a size that stays
+    // readable next to the 16px body text.
+    fontFamily: Platform.select({ios: 'Menlo', default: 'monospace'}),
     backgroundColor: theme.colors.surface, // Custom background for code blocks
     padding: 4,
     borderRadius: 4,
     color: theme.colors.onSurface, // Color for code text
-    fontSize: 12,
+    fontSize: 13.5,
     whiteSpace: 'pre' as const,
   },
   pre: {
