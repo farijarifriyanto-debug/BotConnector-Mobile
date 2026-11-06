@@ -121,6 +121,36 @@ if not (root / "App_store_1024_1x.png").is_file():
     raise SystemExit("release-preflight: 1024x1024 App Store icon missing")
 PY
 
+# --- BYOK 2.1.0 hygiene gates ------------------------------------------------
+# 1. No console.* call may log a credential variable. A leaked key in a log
+#    survives in device console buffers and crash reports.
+if grep -RInE --include='*.ts' --include='*.tsx' \
+    'console\.(log|warn|error|info|debug)[^;]*\b(apiKey|accessToken|session_token)\b' \
+    src/ >/dev/null 2>&1; then
+  fail "a console.* call logs a credential (apiKey/accessToken/session_token)"
+fi
+
+# 2. No Cloud auth/payment endpoints may remain in the app source (supabase
+#    has its own guard above).
+for needle in 'botconnector.id/app-login' '/native/exchange' '/native/session' 'stripe.com'; do
+  if grep -Rq --include='*.ts' --include='*.tsx' -- "$needle" src/; then
+    fail "removed Cloud surface still present in src/: $needle"
+  fi
+done
+
+# 3. Cloud-only modules must be deleted, not merely unimported.
+for path in \
+  src/store/BotConnectorAuthStore.ts \
+  src/store/CheckoutFlowStore.ts \
+  src/api/botconnectorAccess.ts \
+  src/api/botconnectorMedia.ts \
+  src/api/botconnectorFiles.ts \
+  src/api/clientDevices.ts; do
+  if [ -e "$path" ]; then
+    fail "Cloud module must be deleted: $path"
+  fi
+done
+
 echo "release-preflight: PASS"
 echo "  app: BotConnector"
 echo "  bundle id: id.botconnector.app"
