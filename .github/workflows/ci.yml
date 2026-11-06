@@ -332,7 +332,11 @@ jobs:
 
   # Job for iOS build
   build-ios:
-    runs-on: macos-14  # macOS 14 Apple Silicon runner
+    # GitHub rejects the retired `macos-14` configuration
+    # ("macos-14-arm64-us-default is not supported"); `macos-latest` always
+    # resolves to a supported image. The spec's macos-26 label is not
+    # guaranteed to exist on this account.
+    runs-on: macos-latest
     needs: [build-and-test, detect-changes]
     if: needs.detect-changes.outputs.translation_only != 'true'
     env:
