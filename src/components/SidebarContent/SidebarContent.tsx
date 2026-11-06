@@ -545,19 +545,6 @@ export const SidebarContent: React.FC<DrawerContentComponentProps> = observer(
               testID="drawer-item-chat"
             />
             <Drawer.Item
-              label={l10n.screenTitles.images}
-              icon={() => (
-                <Icon
-                  source="image-multiple-outline"
-                  size={24}
-                  color={theme.colors.primary}
-                />
-              )}
-              onPress={() => props.navigation.navigate(ROUTES.IMAGES)}
-              style={styles.menuDrawerItem}
-              testID="drawer-item-images"
-            />
-            <Drawer.Item
               label={l10n.components.sidebarContent.menuItems.models}
               icon={() => <ModelIcon stroke={theme.colors.primary} />}
               onPress={() => props.navigation.navigate(ROUTES.MODELS)}

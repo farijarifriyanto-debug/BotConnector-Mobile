@@ -1,5 +1,4 @@
 import type {Pal} from '../../store';
-import type {PalsHubPal} from '../../types/palshub';
 
 export const H_PADDING = 16;
 export const GAP = 16;
@@ -7,7 +6,7 @@ export const MIN_CARD_WIDTH = 160;
 export const MIN_COLUMNS = 2;
 export const MAX_COLUMNS = 6;
 
-export type PalGridItem = PalsHubPal | Pal;
+export type PalGridItem = Pal;
 
 export interface PalGridLayout {
   columns: number;

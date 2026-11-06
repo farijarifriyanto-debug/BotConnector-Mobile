@@ -31,13 +31,11 @@ import {
   AppWithMigration,
   TTSSetupSheet,
   DownloadOverlay,
-  HubRunSheetHost,
 } from './src/components';
 import {MarkdownProvider} from './src/components/MarkdownView';
 import {AutomationBridge, BenchmarkRunnerScreen} from './src/__automation__';
 import {
   ChatScreen,
-  ImageGenerationScreen,
   ModelsScreen,
   SettingsScreen,
   BenchmarkScreen,
@@ -136,19 +134,6 @@ const App = observer(() => {
                             }}
                           />
                           <Drawer.Screen
-                            name={ROUTES.IMAGES}
-                            component={gestureHandlerRootHOC(
-                              ImageGenerationScreen,
-                            )}
-                            options={{
-                              headerStyle: styles.headerWithoutDivider,
-                              title:
-                                uiStore.language === 'id'
-                                  ? 'Gambar AI'
-                                  : 'AI Images',
-                            }}
-                          />
-                          <Drawer.Screen
                             name={ROUTES.PALS}
                             component={gestureHandlerRootHOC(PalsScreen)}
                             options={{
@@ -229,7 +214,6 @@ const App = observer(() => {
                     />
                     <TTSSetupSheet />
                     <DownloadOverlay />
-                    <HubRunSheetHost />
                   </BottomSheetModalProvider>
                 </NavigationContainer>
               </MarkdownProvider>

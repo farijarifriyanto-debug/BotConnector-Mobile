@@ -86,12 +86,21 @@ fi
 grep -q 'text="botconnector.id"' ios/PocketPal/LaunchScreen.storyboard \
   || fail "BotConnector launch-screen footer missing"
 
-if grep -q 'navigate(ROUTES.PALS)' src/components/SidebarContent/SidebarContent.tsx; then
-  fail "PalsHub marketplace is still exposed in the main sidebar"
+if grep -q 'ROUTES.IMAGES' src/components/SidebarContent/SidebarContent.tsx; then
+  fail "AI Images (Cloud media) must not be linked from the sidebar"
 fi
 
-grep -q 'EXTERNAL_PALSHUB_CHECKOUT_ENABLED = false' src/components/PalsHub/PalDetailSheet/PalDetailSheet.tsx \
-  || fail "external PalsHub checkout must stay disabled for store release"
+if [ -d src/components/PalsHub ]; then
+  fail "PalsHub marketplace components must be deleted, not just disabled"
+fi
+
+if [ -f src/store/CheckoutFlowStore.ts ]; then
+  fail "CheckoutFlowStore must be deleted, not just disabled"
+fi
+
+if grep -Rq "supabase" src/ --include='*.ts' --include='*.tsx'; then
+  fail "supabase references must not exist in src/"
+fi
 
 if grep -Rq --include='*.swift' -E '"Ask Pal"|"Open Pal Chat"' ios/PocketPal/AppIntents; then
   fail "stale Siri/App Shortcuts branding remains"

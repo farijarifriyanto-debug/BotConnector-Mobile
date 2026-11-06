@@ -2,7 +2,6 @@
 export const ROUTES = {
   // Main app routes
   CHAT: 'Chat',
-  IMAGES: 'AI Images',
   MODELS: 'Models',
   PALS: 'Pals (experimental)',
   BENCHMARK: 'Benchmark',

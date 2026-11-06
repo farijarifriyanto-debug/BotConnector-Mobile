@@ -31,3 +31,34 @@ describe('no Cloud account auth references', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('no Cloud-only features (PalsHub / media / files / checkout)', () => {
+  const read = (file: string) => fs.readFileSync(file, 'utf8');
+
+  it('PalStore exposes no PalsHub members', () => {
+    const palStoreSource = read(path.join(SRC, 'store', 'PalStore.ts'));
+    expect(palStoreSource.includes('downloadPalsHubPal')).toBe(false);
+    expect(palStoreSource.includes('palsHubService')).toBe(false);
+    expect(palStoreSource.includes('PalsHubPal')).toBe(false);
+  });
+
+  it('no src file imports the PalsHub services or Cloud media/files APIs', () => {
+    const needles = [
+      ['services', '/pals', 'hub'].join(''),
+      ['api/botconnector', 'Media'].join(''),
+      ['api/botconnector', 'Files'].join(''),
+      ['CheckoutFlow', 'Store'].join(''),
+      ['hub', 'RunLink'].join(''),
+      ['HubRun', 'SheetHost'].join(''),
+      ['types/pals', 'hub'].join(''),
+    ];
+    const offenders = walk(SRC).filter(file => {
+      if (file === __filename) {
+        return false;
+      }
+      const text = read(file);
+      return needles.some(n => text.includes(n));
+    });
+    expect(offenders).toEqual([]);
+  });
+});
