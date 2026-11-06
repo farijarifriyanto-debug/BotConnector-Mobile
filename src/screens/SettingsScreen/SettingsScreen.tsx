@@ -44,6 +44,7 @@ import {
   SearchProviderKeySheet,
   InputSlider,
 } from '../../components';
+import {ProvidersSection} from '../../components/ProvidersSection';
 
 import {useTheme} from '../../hooks';
 
@@ -362,6 +363,14 @@ export const SettingsScreen: React.FC = observer(() => {
         <ScrollView
           contentContainerStyle={styles.container}
           keyboardShouldPersistTaps="handled">
+          {/* BYOK providers (2.1.0: replaces the Cloud Account card) */}
+          <Card elevation={0} style={styles.card}>
+            <Card.Title title={l10n.settings.providersSection.title} />
+            <Card.Content>
+              <ProvidersSection />
+            </Card.Content>
+          </Card>
+
           {/* Model Initialization Settings */}
           <Card elevation={0} style={styles.card}>
             <Card.Title title={l10n.settings.modelInitializationSettings} />

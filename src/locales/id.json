@@ -39,6 +39,14 @@
     "noResults": "Tidak ada hasil"
   },
   "settings": {
+    "providersSection": {
+      "title": "Penyedia",
+      "description": "Gunakan kunci API Anda sendiri. Model dari penyedia ini muncul di pemilih model.",
+      "empty": "Belum ada penyedia.",
+      "addProvider": "Tambah penyedia",
+      "modelCount": "{{count}} model",
+      "noModelsSelected": "Belum ada model dipilih"
+    },
     "modelInitializationSettings": "Pengaturan Inisialisasi Model",
     "metal": "Metal",
     "metalDescription": "API akselerasi perangkat keras dari Apple.",

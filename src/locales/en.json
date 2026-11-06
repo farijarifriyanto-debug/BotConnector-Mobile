@@ -39,6 +39,14 @@
     "noResults": "No results"
   },
   "settings": {
+    "providersSection": {
+      "title": "Providers",
+      "description": "Use your own API keys. Models from these providers appear in the model picker.",
+      "empty": "No providers yet.",
+      "addProvider": "Add provider",
+      "modelCount": "{{count}} models",
+      "noModelsSelected": "No models selected"
+    },
     "modelInitializationSettings": "Model Initialization Settings",
     "metal": "Metal",
     "metalDescription": "Apple's hardware-accelerated API.",
