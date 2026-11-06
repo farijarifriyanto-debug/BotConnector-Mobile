@@ -8,10 +8,6 @@ import type {SearchAccess} from './searchAccess';
 import type {ToolDefinition, SystemPromptContext} from './types';
 import {searchProviderStore} from '../../store/SearchProviderStore';
 import {createSearchProvider, readWithDefaultReader} from '../search';
-import {BotConnectorSearchProvider} from '../search/providers/botconnector';
-import {modelStore} from '../../store/ModelStore';
-import {serverStore} from '../../store/ServerStore';
-import {isBotConnectorApiUrl} from '../../config/botconnector';
 
 export {TalentRegistry, talentRegistry} from './TalentRegistry';
 export {TalentUIRegistry, talentUIRegistry} from './TalentUIRegistry';
@@ -37,11 +33,6 @@ export type {
  * The single place that imports the store, so the search engines stay
  * store-free and pure.
  */
-function activeBotConnectorBinding() {
-  const binding = modelStore.activeRemoteBinding;
-  return binding && isBotConnectorApiUrl(binding.url) ? binding : undefined;
-}
-
 function createConfiguredSearchProvider() {
   const id = searchProviderStore.activeProviderId;
   return createSearchProvider(id, () => searchProviderStore.getKey(id));
@@ -49,29 +40,13 @@ function createConfiguredSearchProvider() {
 
 export function createSearchAccess(): SearchAccess {
   return {
-    getActiveProvider: () => {
-      const binding = activeBotConnectorBinding();
-      const configuredFallback = searchProviderStore.isProviderConfigured
-        ? createConfiguredSearchProvider()
-        : undefined;
-
-      if (!binding) {
-        return createConfiguredSearchProvider();
-      }
-
-      return new BotConnectorSearchProvider({
-        getConnection: async () => ({
-          baseUrl: binding.url,
-          apiKey: await serverStore.getApiKey(binding.serverId),
-        }),
-        getFallback: () => configuredFallback,
-        readFallback: readWithDefaultReader,
-      });
-    },
+    // 2.1.0: search always runs through the user's own provider key. The
+    // BotConnector-operated search lane went with the Cloud account, so a
+    // model served by the BotConnector BYOK preset no longer changes routing.
+    getActiveProvider: () => createConfiguredSearchProvider(),
     canSearch: () =>
       searchProviderStore.hasConsentedToSearch &&
-      (!!activeBotConnectorBinding() ||
-        searchProviderStore.isProviderConfigured),
+      searchProviderStore.isProviderConfigured,
     getResultCount: () => searchProviderStore.resultCount,
     readWithDefaultReader,
   };

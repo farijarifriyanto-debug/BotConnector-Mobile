@@ -16,14 +16,12 @@ jest.mock('../../../store/SearchProviderStore', () => ({
 
 import {createSearchAccess} from '../index';
 import {modelStore} from '../../../store/ModelStore';
-import {serverStore} from '../../../store/ServerStore';
 import {searchProviderStore} from '../../../store/SearchProviderStore';
 
-describe('BotConnector search routing', () => {
+describe('search routing after the Cloud removal', () => {
   const mockedModelStore = modelStore as typeof modelStore & {
     activeRemoteBinding?: any;
   };
-  const mockedServerStore = serverStore as jest.Mocked<typeof serverStore>;
   const mockedSearchStore =
     searchProviderStore as typeof searchProviderStore & {
       hasConsentedToSearch: boolean;
@@ -31,6 +29,9 @@ describe('BotConnector search routing', () => {
     };
 
   beforeEach(() => {
+    // A model served by the BotConnector BYOK preset: the user's own key, sent
+    // straight to api.botconnector.id. Search must still use the user's own
+    // search provider - 2.1.0 has no BotConnector-operated search.
     mockedModelStore.activeRemoteBinding = {
       modelId: 'server-bc/gpt-test',
       serverId: 'server-bc',
@@ -40,19 +41,15 @@ describe('BotConnector search routing', () => {
     };
     mockedSearchStore.hasConsentedToSearch = true;
     mockedSearchStore.isProviderConfigured = false;
-    (mockedServerStore.getApiKey as jest.Mock)
-      .mockReset()
-      .mockResolvedValue('bc_live_test');
   });
 
-  it('selects BotConnector automatically for an active BotConnector model', () => {
+  it('uses the configured provider even for a BotConnector-preset model', () => {
     const access = createSearchAccess();
 
-    expect(access.canSearch()).toBe(true);
-    expect(access.getActiveProvider().id).toBe('botconnector');
+    expect(access.getActiveProvider().id).toBe('brave');
   });
 
-  it('keeps consent as a hard gate even with a BotConnector connection', () => {
+  it('keeps consent as a hard gate', () => {
     mockedSearchStore.hasConsentedToSearch = false;
 
     expect(createSearchAccess().canSearch()).toBe(false);
