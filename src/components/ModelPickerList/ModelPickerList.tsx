@@ -168,6 +168,14 @@ export const ModelPickerList: React.FC<ModelPickerListProps> = observer(
 
         {nothingFound && <Text style={styles.emptyText}>{text.noResults}</Text>}
 
+        {query.trim().length === 0 &&
+          localModels.length === 0 &&
+          customModels.length === 0 && (
+            <Text testID="model-picker-no-models" style={styles.emptyText}>
+              {text.noModelsGuidance}
+            </Text>
+          )}
+
         <Text style={styles.footnote}>{text.localBridgeNote}</Text>
       </View>
     );

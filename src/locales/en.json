@@ -1193,6 +1193,8 @@
       "retry": "Retry",
       "onDevice": "On-device",
       "noResults": "No models match your search.",
+      "addProvider": "Add provider",
+      "noModelsGuidance": "No models yet. Add a provider to use its models, or download a model to this device.",
       "localBridgeNote": "BotConnector Local through Device Bridge is not available on mobile yet. A direct connection (LAN/Tailscale) can be added under Settings > Advanced.",
       "badges": {
         "vision": "Vision",

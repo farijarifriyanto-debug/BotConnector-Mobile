@@ -1184,6 +1184,8 @@
       "retry": "Coba lagi",
       "onDevice": "Di perangkat",
       "noResults": "Tidak ada model yang cocok.",
+      "addProvider": "Tambah penyedia",
+      "noModelsGuidance": "Belum ada model. Tambah penyedia untuk memakai modelnya, atau unduh model ke perangkat ini.",
       "localBridgeNote": "BotConnector Local lewat Device Bridge belum tersedia di mobile. Koneksi langsung (LAN/Tailscale) bisa ditambahkan di Settings > Lanjutan.",
       "badges": {
         "vision": "Vision",

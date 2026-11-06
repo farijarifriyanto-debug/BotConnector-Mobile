@@ -70,6 +70,17 @@ jest.mock('../../../store', () => ({
   },
 }));
 
+// Providers entry (2.1.0): the picker imports these directly, outside the
+// barrel above, so a real ByokProviderStore would pull in the server bridge
+// (and its ModelStore) during teardown.
+jest.mock('../../../store/ByokProviderStore', () => ({
+  byokProviderStore: {providers: []},
+}));
+
+jest.mock('../../AddProviderSheet', () => ({
+  AddProviderSheet: () => null,
+}));
+
 // Mock @gorhom/bottom-sheet
 jest.mock('@gorhom/bottom-sheet', () => {
   const mockReact = require('react');
