@@ -1,4 +1,4 @@
-# App Store Review Notes — BotConnector 2.1.0 (build 124)
+# App Store Review Notes — BotConnector 2.1.0 (build 128)
 
 ## What changed in 2.1.0
 
@@ -7,16 +7,19 @@ The previous build (2.0.0) required a BotConnector account to reach paid AI
 services; Guideline 3.1.1 was cited for that gate. In 2.1.0:
 
 - There is **no BotConnector account, no login, no balance, no credits, no
-  subscription and no in-app purchase**. Nothing in the app is sold.
+  subscription and no in-app purchase**. Nothing in the app is sold, and the
+  app does not access any subscription or credits that BotConnector sells
+  elsewhere: no preset, link or sign-in leads to one.
 - The app has **no payment surface at all**: no checkout, no Stripe, no
   external purchase link.
 - The user configures their own AI provider (OpenAI, Anthropic, Google Gemini,
   DeepSeek, OpenRouter, xAI, Mistral, or a custom OpenAI-compatible endpoint)
   with **their own API key**, and the app talks **directly from the device to
   that provider's endpoint**. BotConnector does not proxy, store, or bill any
-  of this traffic. (The preset named "BotConnector" simply points at
-  `api.botconnector.id` using the reviewer's own key — it is one provider
-  choice among the others, not a gate.)
+  of this traffic.
+- Before the first provider is saved, the app shows a disclosure that messages
+  and attachments are sent from the device to that provider, and requires the
+  user to tick an agreement.
 - API keys are stored **only in the iOS Keychain** on the device
   (`react-native-keychain`). They are never written to logs, analytics, or
   crash reports. Removing a provider deletes its key from the Keychain.
@@ -24,17 +27,15 @@ services; Guideline 3.1.1 was cited for that gate. In 2.1.0:
   update. On first launch after updating, the app removes only the
   automatically created BotConnector Cloud server entry that was tied to the
   removed account, and clears the two OAuth Keychain entries. Servers the user
-  added manually — including one pointing at the same host with the user's own
-  key — are kept.
+  added manually are kept.
 
-## Region change
+## Region change (Guideline 5, China)
 
-China mainland has been removed from App Store distribution in App Store
-Connect (already applied on our side), because the remote AI providers used
-through the app are not available there and the app no longer has a
-BotConnector-operated gateway in that region. No change is required from the
-reviewer; the note is here so the distribution change and this build are not
-mistaken for a regression.
+China mainland has been **removed from App Store distribution** in App Store
+Connect (Availability), so this version is not offered in China mainland. The
+metadata references to ChatGPT/OpenAI/GPT therefore apply only to storefronts
+outside China, where the app lets people connect providers they already use.
+No change is required from the reviewer.
 
 ## Steps for the reviewer
 
@@ -48,7 +49,8 @@ mistaken for a regression.
    of the repository).
 6. Tap **Test connection**. The app fetches the model list from the provider
    and shows how many models were found.
-7. Select at least one model, then tap **Save provider**.
+7. Select at least one model, tick the data-sharing agreement, then tap
+   **Save provider**.
 8. Close Settings, open the model picker in the chat header and choose the
    saved model.
 9. Send `Hello` in the chat. The answer streams from OpenAI.
