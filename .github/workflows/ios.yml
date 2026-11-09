@@ -448,7 +448,10 @@ jobs:
             -exportOptionsPlist build/ExportOptions.plist
 
       - name: Upload to TestFlight
-        if: steps.check_secrets.outputs.has_signing == 'true' && (github.event_name == 'push' || github.event.inputs.upload_testflight != 'false')
+        # Only a person starting the workflow uploads. A push still signs and
+        # archives (compile check) but must not create a stray TestFlight build
+        # with the default number (run 42201043682 uploaded 2.1.0 (17)).
+        if: steps.check_secrets.outputs.has_signing == 'true' && github.event_name == 'workflow_dispatch' && github.event.inputs.upload_testflight != 'false'
         run: |
           KEY_ID="${{ secrets.APP_STORE_CONNECT_API_KEY_ID || 'V5BH58HKB7' }}"
           ISSUER_ID="${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID || '6739aeaa-bae4-4779-9d8c-ae00213e33d9' }}"
