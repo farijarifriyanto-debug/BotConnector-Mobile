@@ -5,6 +5,7 @@ import {l10n, t} from '../../../locales';
 import {L10nContext} from '../../../utils';
 import {AddProviderSheet} from '../AddProviderSheet';
 import {byokProviderStore} from '../../../store/ByokProviderStore';
+import {serverStore} from '../../../store';
 import {ByokApiError, fetchByokModels} from '../../../api/byokProviders';
 
 // Render the Sheet body inline so the flow fields are reachable.
@@ -68,6 +69,9 @@ describe('AddProviderSheet', () => {
     getKeyMock.mockReturnValue('');
     saveMock.mockResolvedValue(true);
     removeMock.mockResolvedValue(true);
+    // Most flows below are not about the disclosure: start as acknowledged.
+    // The 'data-sharing disclosure' block resets it.
+    (serverStore as any).privacyNoticeAcknowledged = true;
   });
 
   describe('provider selection', () => {
@@ -363,6 +367,69 @@ describe('AddProviderSheet', () => {
       fireEvent.press(view.getByTestId('byok-provider-option-openai'));
 
       expect(view.queryByTestId('byok-remove-button')).toBeNull();
+    });
+  });
+
+  // Guideline 5.1.2(i): say where personal data goes and get explicit
+  // permission before the first message can reach a third-party AI.
+  describe('data-sharing disclosure', () => {
+    beforeEach(() => {
+      (serverStore as any).privacyNoticeAcknowledged = false;
+    });
+
+    const connect = async (view: ReturnType<typeof renderSheet>) => {
+      fetchMock.mockResolvedValueOnce([{id: 'gpt-a'}]);
+      fireEvent.press(view.getByTestId('byok-provider-option-openai'));
+      fireEvent.changeText(view.getByTestId('byok-key-input'), 'sk-good');
+      fireEvent.press(view.getByTestId('byok-test-button'));
+      await waitFor(() => {
+        expect(view.getByTestId('byok-test-success')).toBeTruthy();
+      });
+    };
+
+    it('blocks saving until the person agrees, then records the agreement', async () => {
+      const view = renderSheet();
+      await connect(view);
+
+      const consent = view.getByTestId('byok-data-consent');
+      expect(consent.props.accessibilityState?.checked).toBe(false);
+      expect(
+        view.getByTestId('byok-save-button').props.accessibilityState?.disabled,
+      ).toBe(true);
+      fireEvent.press(view.getByTestId('byok-save-button'));
+      expect(saveMock).not.toHaveBeenCalled();
+
+      fireEvent.press(consent);
+      expect(
+        view.getByTestId('byok-data-consent').props.accessibilityState?.checked,
+      ).toBe(true);
+      fireEvent.press(view.getByTestId('byok-save-button'));
+
+      await waitFor(() => {
+        expect(saveMock).toHaveBeenCalledTimes(1);
+      });
+      expect(serverStore.acknowledgePrivacyNotice).toHaveBeenCalledTimes(1);
+    });
+
+    it('says what leaves the device and who receives it', async () => {
+      const view = renderSheet();
+      await connect(view);
+
+      expect(view.getByText(strings.dataConsent)).toBeTruthy();
+      expect(strings.dataConsent).toMatch(/messages/i);
+      expect(strings.dataConsent).toMatch(/sent from this device/i);
+      expect(strings.dataConsent).toMatch(/provider/i);
+    });
+
+    it('does not ask again once it was acknowledged', async () => {
+      (serverStore as any).privacyNoticeAcknowledged = true;
+      const view = renderSheet();
+      await connect(view);
+
+      expect(view.queryByTestId('byok-data-consent')).toBeNull();
+      expect(
+        view.getByTestId('byok-save-button').props.accessibilityState?.disabled,
+      ).toBeFalsy();
     });
   });
 });

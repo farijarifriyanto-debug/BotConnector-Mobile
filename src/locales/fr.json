@@ -283,7 +283,6 @@
   },
   "about": {
     "screenTitle": "Infos sur l'application",
-    "description": "Une application qui apporte des modèles de langage directement sur votre téléphone. Repose sur llama.cpp et llama.rn.",
     "supportProject": "Soutenir le projet",
     "supportProjectDescription": "Si vous appréciez BotConnector, merci de soutenir le projet en :",
     "githubButton": "Ajouter une étoile sur GitHub",

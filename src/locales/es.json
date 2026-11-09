@@ -511,7 +511,6 @@
   },
   "about": {
     "screenTitle": "Información de la aplicación",
-    "description": "Una aplicación que lleva los modelos de lenguaje directamente a tu teléfono. Se apoya en los hombros de llama.cpp y llama.rn.",
     "supportProject": "Apoya el proyecto",
     "supportProjectDescription": "Si disfrutas usando BotConnector, considera apoyar el proyecto mediante:",
     "githubButton": "Dar una estrella en GitHub",
@@ -1531,8 +1530,6 @@
     "screen4": {
       "title": "Nada sale de tu teléfono.",
       "titleAccent": "sale",
-      "body": "Sin nube. Sin rastreo. Tus conversaciones se quedan contigo.",
-      "highlight": "Sin cuentas. Sin nube. Sin rastreo.",
       "cta": "Comenzar",
       "eyebrow": "Privacidad garantizada"
     },

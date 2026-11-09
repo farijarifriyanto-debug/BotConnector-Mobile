@@ -16,6 +16,7 @@ import {L10nContext} from '../../utils';
 import {t} from '../../locales';
 import {EyeIcon, EyeOffIcon} from '../../assets/icons';
 import {byokProviderStore} from '../../store/ByokProviderStore';
+import {serverStore} from '../../store';
 import {
   BYOK_PROVIDERS,
   ByokApiError,
@@ -55,6 +56,7 @@ export const AddProviderSheet: React.FC<AddProviderSheetProps> = observer(
     const [isSaving, setIsSaving] = useState(false);
     const [isRemoving, setIsRemoving] = useState(false);
     const [saveFailed, setSaveFailed] = useState(false);
+    const [agreed, setAgreed] = useState(false);
 
     const selectProvider = (id: ByokProviderId) => {
       const saved = byokProviderStore.getConfig(id);
@@ -169,10 +171,16 @@ export const AddProviderSheet: React.FC<AddProviderSheetProps> = observer(
       );
     };
 
+    // Guideline 5.1.2(i): explicit permission before chats can reach a third-party
+    // AI. ponytail: shares ServerStore's persisted privacy flag with the remote
+    // server banner; split it if the two notices ever need separate state.
+    const needsAgreement = !serverStore.privacyNoticeAcknowledged;
+
     const canSave =
       !!providerId &&
       testState === 'ok' &&
       selectedIds.length > 0 &&
+      (!needsAgreement || agreed) &&
       !isTesting &&
       !isSaving &&
       !isRemoving;
@@ -194,6 +202,9 @@ export const AddProviderSheet: React.FC<AddProviderSheetProps> = observer(
           apiKey.trim(),
         );
         if (ok) {
+          if (needsAgreement) {
+            serverStore.acknowledgePrivacyNotice();
+          }
           onSaved?.(providerId);
           onDismiss();
         } else {
@@ -420,6 +431,18 @@ export const AddProviderSheet: React.FC<AddProviderSheetProps> = observer(
         <Sheet.Actions>
           <View style={styles.buttonsContainer}>
             <View style={styles.actionColumn}>
+              {!!providerId && needsAgreement && (
+                <TouchableOpacity
+                  testID="byok-data-consent"
+                  accessibilityRole="checkbox"
+                  accessibilityState={{checked: agreed}}
+                  accessibilityLabel={strings.dataConsent}
+                  onPress={() => setAgreed(value => !value)}
+                  style={styles.consentRow}>
+                  <Checkbox status={agreed ? 'checked' : 'unchecked'} />
+                  <Text style={styles.consentText}>{strings.dataConsent}</Text>
+                </TouchableOpacity>
+              )}
               {saveFailed && (
                 <Text
                   testID="byok-save-error"

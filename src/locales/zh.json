@@ -511,7 +511,6 @@
   },
   "about": {
     "screenTitle": "关于",
-    "description": "一款将大语言模型直接部署到您手机上的 App，基于 llama.cpp 与 llama.rn 构建。",
     "supportProject": "支持项目",
     "supportProjectDescription": "如果您喜欢使用 BotConnector，请考虑通过以下方式支持项目：",
     "githubButton": "在 GitHub 上点个 Star",
@@ -1531,8 +1530,6 @@
     "screen4": {
       "title": "任何内容都不会离开您的手机。",
       "titleAccent": "离开",
-      "body": "无需账户。没有云端。不做追踪。您的对话始终属于您自己。",
-      "highlight": "无需账户。没有云端。不做追踪。",
       "cta": "开始使用",
       "eyebrow": "隐私承诺"
     },

@@ -511,7 +511,6 @@
   },
   "about": {
     "screenTitle": "アプリ情報",
-    "description": "言語モデルをスマートフォンで直接利用できるアプリです、llama.cppとllama.rnをベースに開発されています",
     "supportProject": "プロジェクトを応援する",
     "supportProjectDescription": "BotConnectorをご利用いただき楽しんでいただけているなら、以下の方法でプロジェクトを応援いただけると幸いです：",
     "githubButton": "GitHubでスターをつける",
@@ -1531,8 +1530,6 @@
     "screen4": {
       "title": "何もスマホの外に出ません。",
       "titleAccent": "外に出ません",
-      "body": "アカウント不要。クラウドなし。トラッキングなし。あなたの会話はあなたのものです。",
-      "highlight": "アカウント不要。クラウドなし。トラッキングなし。",
       "cta": "始める",
       "eyebrow": "プライバシーをお約束"
     },

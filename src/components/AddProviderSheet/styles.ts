@@ -95,5 +95,15 @@ export const createStyles = (theme: Theme) => {
     saveButton: {
       marginTop: 4,
     },
+    consentRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    consentText: {
+      flex: 1,
+      marginLeft: 4,
+      color: theme.colors.onSurface,
+    },
   });
 };

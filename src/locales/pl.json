@@ -485,7 +485,6 @@
   },
   "about": {
     "screenTitle": "Informacje o aplikacji",
-    "description": "Aplikacja, która umożliwia działanie modeli językowych bezpośrednio na Twoim telefonie. Opiera się na bibliotekach llama.cpp i llama.rn.",
     "supportProject": "Wesprzyj Projekt",
     "supportProjectDescription": "Jeśli podoba Ci się korzystanie z BotConnector, rozważ wsparcie projektu poprzez:",
     "githubButton": "Gwiazdkę na GitHub",
@@ -1466,8 +1465,6 @@
     "screen4": {
       "title": "Żadne dane nie opuszczają Twojego telefonu.",
       "titleAccent": "opuszcza",
-      "body": "Żadnych kont. Żadnej chmury. Żadnego śledzenia. Twoje rozmowy pozostają wyłącznie Twoje.",
-      "highlight": "Żadnych kont. Żadnej chmury. Żadnego śledzenia.",
       "eyebrow": "Gwarancja prywatności",
       "cta": "Zaczynajmy"
     },

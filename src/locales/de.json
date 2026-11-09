@@ -447,7 +447,6 @@
   },
   "about": {
     "screenTitle": "App-Info",
-    "description": "Eine App, die Sprachmodelle direkt auf Ihr Smartphone bringt. Sitzt auf den Schultern von llama.cpp und llama.rn.",
     "supportProject": "Unterstütz das Projekt",
     "supportProjectDescription": "Wenn Sie BotConnector gerne nutzen, überdenken Sie bitte eine Unterstützung des Projektes mittels:",
     "githubButton": "Sternvergabe auf Github",

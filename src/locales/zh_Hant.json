@@ -1,7 +1,6 @@
 {
   "about": {
     "screenTitle": "應用程式資訊",
-    "description": "一個能把語言模型直接帶到你手機上的應用程式，基於 llama.cpp 與 llama.rn 構建。",
     "supportProject": "支援此專案",
     "supportProjectDescription": "如果您喜歡使用 BotConnector，請考慮透過以下方式支援此專案：",
     "githubButton": "在 GitHub 上點讚",
@@ -1563,8 +1562,6 @@
     "screen4": {
       "title": "任何內容都不會離開您的手機。",
       "titleAccent": "離開",
-      "body": "無需帳號。無需雲端。無需追蹤。您的對話內容仍屬於您。",
-      "highlight": "無需帳號。無需雲端。無需追蹤。",
       "cta": "開始使用",
       "eyebrow": "承諾隱私"
     },

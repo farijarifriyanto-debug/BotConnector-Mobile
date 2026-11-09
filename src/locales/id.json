@@ -202,7 +202,7 @@
     "serverTypeHelp": "Terdeteksi otomatis; ubah jika keliru.",
     "internetSearch": {
       "title": "Pencarian Internet",
-      "description": "Saat model BotConnector aktif, pencarian web memakai BotConnector terlebih dahulu. Brave, Tavily, atau Exa dapat disiapkan sebagai fallback.",
+      "description": "Pencarian web memakai Brave, Tavily, atau Exa dengan kunci API Anda sendiri.",
       "providerLabel": "Penyedia pencarian",
       "providerGated": "Segera hadir",
       "keyLabel": "Kunci API",
@@ -218,7 +218,7 @@
       "resultCountLabel": "Hasil per pencarian",
       "resultCountDescription": "Lebih sedikit hasil menyisakan lebih banyak ruang dalam konteks model.",
       "consentTitle": "Pencarian meninggalkan perangkat Anda",
-      "consentDescription": "Saat asisten mencari di web, kueri dapat dikirim ke BotConnector (untuk model BotConnector yang aktif) atau ke penyedia pencarian fallback yang dipilih. Saat halaman dibaca, URL dan konten halaman dapat diproses melalui BotConnector, penyedia yang dipilih, atau layanan pembaca default (r.jina.ai) bila diperlukan.",
+      "consentDescription": "Saat asisten mencari di web, kueri dikirim ke penyedia pencarian yang Anda pilih (Brave, Tavily, atau Exa). Saat halaman dibaca, URL dan konten halaman dapat diproses melalui penyedia tersebut atau layanan pembaca default (r.jina.ai) bila diperlukan.",
       "consentAccept": "Saya mengerti",
       "consentRequired": "Terima pengungkapan di atas untuk mengatur kunci dan mengaktifkan pencarian.",
       "consentGivenTitle": "Pencarian web diaktifkan",
@@ -270,7 +270,7 @@
     "failedToGenerate": "Gagal menghasilkan respons"
   },
   "models": {
-    "localUnavailableOnMac": "AI lokal belum tersedia di Mac. Gunakan BotConnector Cloud; model lokal di Mac akan lewat Device Bridge.",
+    "localUnavailableOnMac": "AI lokal belum tersedia di Mac. Tambahkan penyedia di Pengaturan > Penyedia untuk mengobrol; model lokal di Mac akan lewat Device Bridge.",
     "fileManagement": {
       "fileAlreadyExists": "File sudah ada",
       "fileAlreadyExistsMessage": "File dengan nama ini sudah ada. Apa yang ingin Anda lakukan?",
@@ -540,7 +540,7 @@
   },
   "about": {
     "screenTitle": "Info Aplikasi",
-    "description": "Akses AI Cloud BotConnector dan AI lokal dari satu aplikasi. Pilih model sesuai kebutuhan, gunakan fitur multimodal, dan tetap punya opsi pemrosesan lokal di perangkat.",
+    "description": "Mengobrol dengan penyedia AI pilihan Anda memakai kunci API Anda sendiri, atau jalankan AI di perangkat. Pilih model sesuai kebutuhan, gunakan fitur multimodal, dan tetap punya opsi pemrosesan lokal di perangkat.",
     "supportProject": "Dukung Proyek Ini",
     "supportProjectDescription": "Jika Anda menikmati menggunakan BotConnector, pertimbangkan untuk mendukung proyek ini dengan:",
     "githubButton": "Beri Bintang di GitHub",
@@ -845,6 +845,7 @@
       "apiKeyLabel": "Kunci API",
       "apiKeyPlaceholder": "Tempelkan kunci API Anda",
       "apiKeyHint": "Disimpan di keychain perangkat ini. Hanya dikirim untuk menghubungi penyedia.",
+      "dataConsent": "Saya mengerti bahwa pesan saya, beserta berkas atau gambar yang saya lampirkan, dikirim dari perangkat ini ke penyedia ini, dan kebijakan privasi penyedia tersebut berlaku.",
       "showKeyAccessibilityLabel": "Tampilkan kunci API",
       "hideKeyAccessibilityLabel": "Sembunyikan kunci API",
       "baseUrlLabel": "URL dasar",
@@ -1794,8 +1795,8 @@
     "screen4": {
       "title": "Tidak ada yang meninggalkan ponsel Anda.",
       "titleAccent": "meninggalkan",
-      "body": "Tanpa akun. Tanpa cloud. Tanpa pelacakan. Percakapan Anda tetap milik Anda.",
-      "highlight": "Tanpa akun. Tanpa cloud. Tanpa pelacakan.",
+      "body": "Tanpa akun. Tanpa pelacakan. Kunci API Anda tetap di perangkat ini, dan percakapan hanya dikirim ke penyedia AI yang Anda pilih.",
+      "highlight": "Tanpa akun. Tanpa pelacakan.",
       "cta": "Mulai",
       "eyebrow": "Privasi Terjamin"
     },

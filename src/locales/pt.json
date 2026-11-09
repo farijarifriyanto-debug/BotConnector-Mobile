@@ -511,7 +511,6 @@
   },
   "about": {
     "screenTitle": "Sobre a App",
-    "description": "Uma app que traz modelos de linguagem diretamente para o seu telemóvel. Construído sobre o llama.cpp e o llama.rn.",
     "supportProject": "Apoie o Projeto",
     "supportProjectDescription": "Se gosta de usar o BotConnector, considere apoiar o projeto:",
     "githubButton": "Dar uma estrela no GitHub",
@@ -1531,8 +1530,6 @@
     "screen4": {
       "title": "Nada sai do seu telemóvel.",
       "titleAccent": "sai",
-      "body": "Sem contas. Sem nuvem. Sem rastreamento. As suas conversas continuam a serem as suas.",
-      "highlight": "Sem contas. Sem nuvem. Sem rastreamento.",
       "cta": "Começar",
       "eyebrow": "Privacidade garantida"
     },

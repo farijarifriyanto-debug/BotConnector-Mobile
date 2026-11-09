@@ -511,7 +511,6 @@
   },
   "about": {
     "screenTitle": "Maklumat Aplikasi",
-    "description": "Aplikasi yang membawa model bahasa terus ke telefon anda. Dibina di atas llama.cpp dan llama.rn.",
     "supportProject": "Sokong Projek Ini",
     "supportProjectDescription": "Jika anda menikmati menggunakan BotConnector, pertimbangkan untuk menyokong projek ini dengan:",
     "githubButton": "Beri Bintang di GitHub",
@@ -1531,8 +1530,6 @@
     "screen4": {
       "title": "Tiada apa keluar dari telefon anda.",
       "titleAccent": "keluar",
-      "body": "Tiada akaun. Tiada awan. Tiada penjejakan. Perbualan anda kekal milik anda.",
-      "highlight": "Tiada akaun. Tiada awan. Tiada penjejakan.",
       "cta": "Mula",
       "eyebrow": "Privasi terjamin"
     },

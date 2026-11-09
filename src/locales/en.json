@@ -141,7 +141,7 @@
     "importError": "Failed to import chat sessions. Please check the file format.",
     "internetSearch": {
       "title": "Internet Search",
-      "description": "When a BotConnector model is active, web search uses BotConnector first. You can configure Brave, Tavily, or Exa as a fallback.",
+      "description": "Web search uses Brave, Tavily, or Exa with your own API key.",
       "providerLabel": "Search provider",
       "providerGated": "Coming soon",
       "keyLabel": "API key",
@@ -157,7 +157,7 @@
       "resultCountLabel": "Results per search",
       "resultCountDescription": "Fewer results keep more room in the model's context.",
       "consentTitle": "Searches leave your device",
-      "consentDescription": "When your assistant searches the web, your query may be sent to BotConnector (for an active BotConnector model) or to the selected fallback search provider. When a page is read, the URL and page content may be sent through BotConnector, the selected provider, or the default reader service (r.jina.ai) when needed.",
+      "consentDescription": "When your assistant searches the web, your query is sent to the search provider you selected (Brave, Tavily, or Exa). When a page is read, the URL and page content may be sent through that provider or the default reader service (r.jina.ai) when needed.",
       "consentAccept": "I understand",
       "consentRequired": "Accept the disclosure above to set a key and enable search.",
       "consentGivenTitle": "Searching the web is enabled",
@@ -270,7 +270,7 @@
     "failedToGenerate": "Failed to generate output"
   },
   "models": {
-    "localUnavailableOnMac": "On-device AI is not available on Mac yet. Use BotConnector Cloud; local models on Mac will come through the Device Bridge.",
+    "localUnavailableOnMac": "On-device AI is not available on Mac yet. Add a provider under Settings > Providers to chat; local models on Mac will come through the Device Bridge.",
     "fileManagement": {
       "fileAlreadyExists": "File already exists",
       "fileAlreadyExistsMessage": "A file with this name already exists. What would you like to do?",
@@ -540,7 +540,7 @@
   },
   "about": {
     "screenTitle": "App Info",
-    "description": "Access BotConnector Cloud AI and Local AI from one app. Switch models for each task, use multimodal features, and keep on-device processing available when you want it.",
+    "description": "Chat with the AI provider you choose using your own API key, or run AI on your device. Switch models for each task, use multimodal features, and keep on-device processing available when you want it.",
     "supportProject": "Support the Project",
     "supportProjectDescription": "If you enjoy using BotConnector, please consider supporting the project by:",
     "githubButton": "Star on GitHub",
@@ -873,6 +873,7 @@
       "apiKeyLabel": "API key",
       "apiKeyPlaceholder": "Paste your API key",
       "apiKeyHint": "Stored in this device's keychain. It is only sent to reach the provider.",
+      "dataConsent": "I understand that my messages and any files or images I attach are sent from this device to this provider, and that its own privacy policy applies.",
       "showKeyAccessibilityLabel": "Show API key",
       "hideKeyAccessibilityLabel": "Hide API key",
       "baseUrlLabel": "Base URL",
@@ -1803,8 +1804,8 @@
     "screen4": {
       "title": "Nothing leaves your phone.",
       "titleAccent": "leaves",
-      "body": "No accounts. No cloud. No tracking. Your conversations stay yours.",
-      "highlight": "No accounts. No cloud. No tracking.",
+      "body": "No account. No tracking. Your API keys stay on this device, and your chats go only to the AI provider you choose.",
+      "highlight": "No account. No tracking.",
       "cta": "Get Started",
       "eyebrow": "Privacy promised"
     },
