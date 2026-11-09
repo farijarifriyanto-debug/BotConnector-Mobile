@@ -54,6 +54,18 @@ describe('ByokProviderStore', () => {
         });
       }
     });
+
+    // The BotConnector preset shipped in build 125 and was retired for the
+    // 3.1.1 resubmission: a phone that already added it must lose the server
+    // and the key, not keep calling a provider the app no longer lists.
+    it('retires the removed BotConnector preset: server and key', async () => {
+      await newStore();
+
+      expect(removeMock).toHaveBeenCalledWith('botconnector');
+      expect(resetMock).toHaveBeenCalledWith({
+        service: 'botconnector.byok.botconnector',
+      });
+    });
   });
 
   describe('secure-store boundary', () => {

@@ -15,7 +15,7 @@ const jsonResponse = (body: unknown, status = 200) => ({
 });
 
 describe('BYOK provider metadata', () => {
-  it('exposes nine providers with official base URLs', () => {
+  it('exposes eight providers with official base URLs', () => {
     expect(BYOK_PROVIDERS.map(p => p.id)).toEqual([
       'openai',
       'anthropic',
@@ -24,7 +24,6 @@ describe('BYOK provider metadata', () => {
       'openrouter',
       'xai',
       'mistral',
-      'botconnector',
       'generic',
     ]);
     expect(getProviderMeta('openai').defaultBaseUrl).toBe(
@@ -48,16 +47,23 @@ describe('BYOK provider metadata', () => {
     expect(getProviderMeta('mistral').defaultBaseUrl).toBe(
       'https://api.mistral.ai/v1',
     );
-    expect(getProviderMeta('botconnector').label).toBe('BotConnector');
-    expect(getProviderMeta('botconnector').defaultBaseUrl).toBe(
-      'https://api.botconnector.id',
-    );
-    for (const id of ['xai', 'mistral', 'botconnector'] as const) {
+    for (const id of ['xai', 'mistral'] as const) {
       expect(getProviderMeta(id).transport).toBe('openai');
       expect(getProviderMeta(id).requiresBaseUrl).toBe(false);
     }
     expect(getProviderMeta('generic').requiresBaseUrl).toBe(true);
     expect(getProviderMeta('openai').requiresBaseUrl).toBe(false);
+  });
+
+  // Guideline 3.1.1 (2.0.0 rejection): no preset may lead to credits that
+  // BotConnector sells outside the app. Users can still type any endpoint
+  // into the custom provider themselves.
+  it('has no preset that points at BotConnector', () => {
+    for (const p of BYOK_PROVIDERS) {
+      expect(`${p.id} ${p.label} ${p.defaultBaseUrl}`).not.toMatch(
+        /botconnector/i,
+      );
+    }
   });
 
   it('marks only Anthropic as native transport', () => {
@@ -181,21 +187,6 @@ describe('fetchByokModels', () => {
     expect(fetchMock.mock.calls[0][0]).toBe(
       'https://generativelanguage.googleapis.com/v1beta/openai/models',
     );
-  });
-
-  it('resolves the BotConnector API root to /v1/models with a Bearer header', async () => {
-    fetchMock.mockResolvedValueOnce(
-      jsonResponse({data: [{id: 'bc-model', object: 'model'}]}),
-    );
-
-    const models = await fetchByokModels('botconnector', {apiKey: 'bc_test'});
-
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchMock.mock.calls[0];
-    expect(url).toBe('https://api.botconnector.id/v1/models');
-    expect(init.method).toBe('GET');
-    expect(init.headers.Authorization).toBe('Bearer bc_test');
-    expect(models).toHaveLength(1);
   });
 
   it('uses a user-supplied base URL for the generic provider', async () => {

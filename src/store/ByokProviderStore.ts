@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {makePersistable} from 'mobx-persist-store';
 import * as Keychain from 'react-native-keychain';
 
-import {BYOK_PROVIDERS} from '../api/byokProviders';
+import {BYOK_PROVIDERS, RETIRED_BYOK_PROVIDER_IDS} from '../api/byokProviders';
 import type {ByokProviderId} from '../api/byokProviders';
 import {
   removeByokServer,
@@ -16,8 +16,7 @@ import {
 // OpenAI transport can read it; both are cleared together on remove. Keeping
 // the two in sync matters: a key edited here but not there would leave chat
 // calling with a stale credential.
-const keychainService = (id: ByokProviderId): string =>
-  `botconnector.byok.${id}`;
+const keychainService = (id: string): string => `botconnector.byok.${id}`;
 
 export interface ByokProviderConfig {
   providerId: ByokProviderId;
@@ -52,7 +51,25 @@ class ByokProviderStore {
         storage: AsyncStorage,
       }).then(() => this.normalizeHydratedProviders()),
       this.loadKeysFromSecureStorage(),
-    ]).then(() => this.syncAllServers());
+    ])
+      .then(() => this.retireRemovedProviders())
+      .then(() => this.syncAllServers());
+  }
+
+  /**
+   * A withdrawn preset must not outlive its removal from the list: drop its
+   * server (and active model) and both Keychain copies. Idempotent, so it
+   * simply runs on every launch.
+   */
+  private async retireRemovedProviders(): Promise<void> {
+    for (const id of RETIRED_BYOK_PROVIDER_IDS) {
+      try {
+        await removeByokServer(id);
+        await Keychain.resetGenericPassword({service: keychainService(id)});
+      } catch (error) {
+        console.error(`Failed to retire ${id} BYOK provider:`, error);
+      }
+    }
   }
 
   normalizeHydratedProviders() {

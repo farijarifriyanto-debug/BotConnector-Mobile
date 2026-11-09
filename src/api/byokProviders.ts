@@ -15,8 +15,15 @@ export type ByokProviderId =
   | 'openrouter'
   | 'xai'
   | 'mistral'
-  | 'botconnector'
   | 'generic';
+
+/**
+ * Presets that shipped once and were withdrawn. The store removes their
+ * server and key on launch so an upgraded phone does not keep using them.
+ * 'botconnector' (build 125) pointed at credits BotConnector sells outside
+ * the app, which Guideline 3.1.1 rejected for 2.0.0.
+ */
+export const RETIRED_BYOK_PROVIDER_IDS = ['botconnector'] as const;
 
 export type ByokTransport = 'openai' | 'anthropic';
 
@@ -26,12 +33,6 @@ export interface ByokProviderMeta {
   transport: ByokTransport;
   defaultBaseUrl: string;
   requiresBaseUrl: boolean;
-  /**
-   * True when defaultBaseUrl is the API root without a version segment
-   * (e.g. https://api.botconnector.id) — the models URL then needs /v1
-   * appended, same rule as the generic provider.
-   */
-  baseIsApiRoot?: boolean;
 }
 
 // Anthropic transport — verified against official docs (2026-10-07):
@@ -100,14 +101,6 @@ export const BYOK_PROVIDERS: readonly ByokProviderMeta[] = [
     requiresBaseUrl: false,
   },
   {
-    id: 'botconnector',
-    label: 'BotConnector',
-    transport: 'openai',
-    defaultBaseUrl: 'https://api.botconnector.id',
-    requiresBaseUrl: false,
-    baseIsApiRoot: true,
-  },
-  {
     id: 'generic',
     label: 'Custom endpoint',
     transport: 'openai',
@@ -149,7 +142,7 @@ export function resolveModelsUrl(
 ): string {
   const base = (baseUrl || '').trim() || meta.defaultBaseUrl;
   // One rule for every provider, the same one the transports use.
-  if (meta.id === 'generic' || meta.baseIsApiRoot) {
+  if (meta.id === 'generic') {
     return `${versionedBaseUrl(base)}/models`;
   }
   return `${normalizeUrl(base)}/models`;

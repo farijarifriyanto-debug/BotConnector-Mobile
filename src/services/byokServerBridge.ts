@@ -16,7 +16,7 @@ import {modelStore} from '../store/ModelStore';
 /** Prefix every bridge-owned server id carries; the manual add path skips them. */
 export const BYOK_SERVER_ID_PREFIX = 'byok-';
 
-export const byokServerId = (providerId: ByokProviderId): string =>
+export const byokServerId = (providerId: string): string =>
   `${BYOK_SERVER_ID_PREFIX}${providerId}`;
 
 /** The narrow slice of ModelStore the bridge touches (injectable for tests). */
@@ -110,7 +110,7 @@ export async function syncByokProviderToServer(
  * release the active chat model if it pointed at this server.
  */
 export async function removeByokServer(
-  providerId: ByokProviderId,
+  providerId: string,
   deps: BridgeDeps = {},
 ): Promise<void> {
   const servers = deps.servers ?? serverStore;
